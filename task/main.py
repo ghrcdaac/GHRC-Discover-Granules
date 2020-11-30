@@ -1,3 +1,8 @@
+from bs4 import BeautifulSoup
+import urllib.request
+import re
+
+
 class DiscoverGranules:
     """
     This class contains functions that fetch
@@ -13,7 +18,8 @@ class DiscoverGranules:
         # Implement me
         pass
 
-    def get_files_link_http(self, url_path, reg_ex=None):
+    @staticmethod
+    def get_files_link_http(url_path: str, reg_ex: str = None):
         """
         Fetch the link of the granules in the host url_path
         :param url_path: The base URL where the files are served
@@ -23,6 +29,21 @@ class DiscoverGranules:
         :return: links of files matching reg_ex (if reg_ex is defined)
         :rtype: list of urls
         """
-        # Implement me
-        pass
+
+        file_paths = []
+        try:
+            top_level_url = url_path[0:(url_path.find('.com') + 4)]
+            opened_url = urllib.request.urlopen(url_path)
+            html_soup = BeautifulSoup(opened_url.read(), 'html5lib')
+            a_href_resultSet = html_soup.find_all('a')
+
+            for a_href in a_href_resultSet:
+                file_path = a_href.get('href')
+                if (reg_ex is None or type(re.search(reg_ex, file_path)) is re.Match) and file_path.endswith('gz'):
+                    file_paths.append(f'{top_level_url}{file_path}')
+        except ValueError:
+            print('Exception: Bad url.')
+
+        return file_paths
+
 
