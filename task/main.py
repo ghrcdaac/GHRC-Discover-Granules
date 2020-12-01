@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib.request
 import re
+import logging
 
 
 class DiscoverGranules:
@@ -19,7 +20,7 @@ class DiscoverGranules:
         pass
 
     @staticmethod
-    def get_files_link_http(url_path: str, reg_ex: str = None):
+    def get_files_link_http(url_path: str, reg_ex: str = None, recursive: bool = False):
         """
         Fetch the link of the granules in the host url_path
         :param url_path: The base URL where the files are served
@@ -41,8 +42,8 @@ class DiscoverGranules:
                 file_path = a_href.get('href')
                 if (reg_ex is None or type(re.search(reg_ex, file_path)) is re.Match) and file_path.endswith('gz'):
                     file_paths.append(f'{top_level_url}{file_path}')
-        except ValueError:
-            print('Exception: Bad url.')
+        except ValueError as ve:
+            logging.error(ve)
 
         return file_paths
 
