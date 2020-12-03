@@ -20,14 +20,19 @@ class DiscoverGranules:
         # Implement me
         pass
 
-    def html_request(self, url_path: str):
+    @staticmethod
+    def html_request(url_path: str):
+        """
+        :param url_path: The base URL where the files are served
+        :return: The html of the page if the fetch is successful
+        """
         opened_url = requests.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
-    def get_files_link_http(self, url_path: str, reg_ex: str = '.*'):
+    @staticmethod
+    def get_files_link_http(url_path: str, reg_ex: str = '.*'):
         """
         Fetch the link of the granules in the host url_path
-        :param self:
         :param url_path: The base URL where the files are served
         :type url_path: string
         :param reg_ex: Regular expression to match the files to be added
@@ -36,7 +41,7 @@ class DiscoverGranules:
         :rtype: list of urls
         """
         try:
-            for a_href in self.html_request(url_path).find_all('a'):
+            for a_href in DiscoverGranules.html_request(url_path).find_all('a'):
                 file_name = path.basename(a_href.get('href'))
                 if all([reg_ex, re.match(reg_ex, file_name), file_name != '', not file_name.startswith('#')]):
                     yield f"{url_path.rstrip('/')}/{file_name}"
