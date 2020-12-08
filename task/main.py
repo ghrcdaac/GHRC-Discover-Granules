@@ -1,4 +1,4 @@
-import time
+from time import sleep
 
 from bs4 import BeautifulSoup
 import requests
@@ -44,37 +44,34 @@ class DiscoverGranules:
         :return: links of files matching reg_ex (if reg_ex is defined)
         :rtype: list of urls
         """
-        depth = min(abs(depth), 3)
         dir_links = []
         file_links = []
         print(f'url_path: {url_path}')
+        # print(DiscoverGranules.html_request(url_path).find_all('a'))
         try:
             for a_href in DiscoverGranules.html_request(url_path).find_all('a'):
-                tag_value = a_href.get('href')
+                tag_value = path.basename(a_href.get('href').rstrip('/'))
                 print(f'Processing tag [{tag_value}]')
 
                 # Only process process non-empty tags that are children to the current url_path
                 if url_path.find(tag_value) == -1 and len(tag_value) > 0:
-                    # The last substring preceded by a '/' will be newly discovered
-                    new_base = path.split(tag_value.rstrip('/'))[-1]
-                    discovered_path = f"{url_path}{new_base}"
+                    discovered_path = f"{url_path}{tag_value}"
+                    print(f'Discovered path = {discovered_path}')
 
-                    # time.sleep(2)
-                    if all([tag_value[-1] != '/', re.match(file_reg_ex, new_base)]):
+                    if '.' in tag_value and re.match(file_reg_ex, tag_value):
                         file_links.append(discovered_path)
                         print(f'File found: {file_links[-1]}')
-                    elif all([depth > 0, tag_value[-1] == '/', re.match(dir_reg_ex, new_base)]):
-                        dir_links.append(discovered_path)
+                    elif depth > 0 and re.match(dir_reg_ex, tag_value):
+                        dir_links.append(f'{discovered_path}/')
                         print(f'Directory found: {dir_links[-1]}')
                 print(f'Processing tag [{tag_value}] complete.\n\n')
 
         except ValueError as ve:
             logging.error(ve)
 
-        if depth > 0:
+        depth = min(abs(depth), 3)
+        if depth >= 0:
             for dir_link in dir_links:
-                print(f'dir_link: {dir_link}')
-                print(f"Recursing: {url_path.rstrip('/')}{dir_link}")
                 file_links = file_links + DiscoverGranules.get_files_link_http(dir_link, depth=(depth - 1))
 
         return file_links
@@ -84,14 +81,13 @@ if __name__ == "__main__":
     d = DiscoverGranules()
     print(f"{'==' * 6} Without regex {'==' * 6}")
     # links = d.get_files_link_http('http://data.remss.com/ssmi/f16/bmaps_v07/y2020/', depth=2)
-    links = d.get_files_link_http('http://data.remss.com/ssmi/f16/bmaps_v07/', depth=2)
+    links = d.get_files_link_http('http://data.remss.com/ssmi/f16/bmaps_v07/', depth=3)
     for link in links:
         print(link)
-    print(f'Found {len(links)} files.')
-    print(f"{'==' * 6} With regex {'==' * 6}")
-    links = d.get_files_link_http('http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m04/',
-                                  file_reg_ex="^f16_\\d{6}01v7\\.gz$")
-    print(f' Regex list count = {len(links)}')
-    for link in links:
-        print(link)
-
+    # print(f'Found {len(links)} files.')
+    # print(f"{'==' * 6} With regex {'==' * 6}")
+    # links = d.get_files_link_http('http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m04/',
+    #                               file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+    # print(f' Regex list count = {len(links)}')
+    # for link in links:
+    #     print(link)
