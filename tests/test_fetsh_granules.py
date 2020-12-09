@@ -14,7 +14,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def setUp(self):
         print('tear up')
-        test_file_path = os.path.join(THIS_DIR, 'test.html')
+        test_file_path = os.path.join(THIS_DIR, 'test_page.html')
         with open(test_file_path, 'r') as test_html_file:
             self._test_html = test_html_file.read()
 
