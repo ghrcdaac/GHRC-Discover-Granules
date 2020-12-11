@@ -18,6 +18,7 @@ class DiscoverGranules:
         Default values goes here
         """
         self.links = []
+        self.visited_links = []
 
     @staticmethod
     def html_request(url_path: str):
@@ -42,32 +43,32 @@ class DiscoverGranules:
         """
         depth = min(abs(depth), 3)
         url_path = f"{url_path.rstrip('/')}/"
-        print(f'url_path: {url_path}')
+        print(f'============> url_path: {url_path} {self.visited_links}')
+        current_dir = path.basename(path.dirname(url_path))
+
         if depth < 0:
             return self.links
         try:
-            for a_href in DiscoverGranules.html_request(url_path).find_all('a'):
+            for a_href in self.html_request(url_path).find_all('a'):
                 href = a_href.get('href')
                 file_name = path.basename(href)
-                dir_name = path.dirname(href)
+                dir_name = path.basename(path.dirname(href)) if not file_name else False 
 
-                print(f'Processing tag [{file_name}] {href}')
+                #print(f'Processing file[{file_name}] href:{href} dir:{dir_name}')
 
                 # Only process process non-empty tags that are children to the current url_path
-                if re.match(file_reg_ex, file_name):
-                    self.links.append(f"{url_path}{dir_name or file_name }")
-                print(f"dir_name = {dir_name}")
-         
-                if dir_name:
+                if file_name and re.match(file_reg_ex, file_name):
+                    self.links.append(f"{url_path}{file_name}")         
+                elif dir_name and dir_name != current_dir:
                     discovered_path = f"{url_path}{dir_name}/"
-                    if re.match(dir_reg_ex,f'{discovered_path}'):
-                        print(f'Discovered path = {discovered_path}')
+                    if depth and re.match(dir_reg_ex,f'{discovered_path}') and discovered_path not in self.visited_links:
+                        self.visited_links.append(discovered_path)
                         self.get_files_link_http(url_path = f'{discovered_path}',file_reg_ex=file_reg_ex,dir_reg_ex=dir_reg_ex, depth= depth - 1 )
-                        print(f'Processing tag [{url_path}] complete.\n\nDiscovring {discovered_path}\n\n')
-
+                        
         except ValueError as ve:
             logging.error(ve)
-
+        self.visited_links = []
+        
         return self.links
 
 
@@ -76,12 +77,16 @@ if __name__ == "__main__":
     print(f"{'==' * 6} Without regex {'==' * 6}")
     dir_reg_ex=".*\/y2020\/.*"
     links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020',
-                                  dir_reg_ex=".*\/y2020\/m06\/.*", depth=3, file_reg_ex="^f16_.*\.gz$")
+                                  dir_reg_ex=".*\/y2020\/m12\/.*", depth=4, file_reg_ex="^f16_.*gz$")
     for link in links:
         print(link)
-    # print(f"{'==' * 6} With regex {'==' * 6}")
-    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
-    #                               dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-    # print(f' Regex list count = {len(links)}')
-    # for link in links:
-    #     print(link)
+
+    print(f"Found {len(links)}")    
+    print(f"{'==' * 6} With regex {'==' * 6}")
+    d.links = []
+    links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
+                                  dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+    print(f' Regex list count = {len(links)}')
+
+    for link in links:
+        print(link)
