@@ -15,21 +15,22 @@ class TestDiscoverGranules(unittest.TestCase):
     def setUp(self):
         print('tear up')
         test_file_path = os.path.join(THIS_DIR, 'test_page.html')
+        self.d = DiscoverGranules()
         with open(test_file_path, 'r') as test_html_file:
             self._test_html = test_html_file.read()
 
     def test_get_file_link(self):
-        DiscoverGranules.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        retrieved_list = DiscoverGranules.get_files_link_http('')
+        self.d.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
+        retrieved_list = self.d.get_files_link_http('')
         self.assertEqual(len(list(retrieved_list)), 5)
 
     def test_get_file_link_wregex(self):
-        DiscoverGranules.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        retrieved_list = DiscoverGranules.get_files_link_http('', "^f16_\\d{6}01v7\\.gz$")
+        self.d.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
+        retrieved_list = self.d.get_files_link_http('', "^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(list(retrieved_list)), 1)
 
     def test_bad_url(self):
-        retrieved_list = DiscoverGranules.get_files_link_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        retrieved_list = self.d.get_files_link_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(list(retrieved_list)), 0)
 
 
