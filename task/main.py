@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 import re
 from os import path
+import pathlib
 import logging
 
 
@@ -44,7 +45,8 @@ class DiscoverGranules:
         depth = min(abs(depth), 3)
         url_path = f"{url_path.rstrip('/')}/"
         print(f'============> url_path: {url_path} {self.visited_links}')
-        current_dir = path.basename(path.dirname(url_path))
+        lib_path = pathlib.Path(url_path)
+        parent_dir = lib_path.parent.name
 
         if depth < 0:
             return self.links
@@ -59,7 +61,7 @@ class DiscoverGranules:
                 # Only process process non-empty tags that are children to the current url_path
                 if file_name and re.match(file_reg_ex, file_name):
                     self.links.append(f"{url_path}{file_name}")         
-                elif dir_name and dir_name != current_dir:
+                elif dir_name and dir_name != parent_dir:
                     discovered_path = f"{url_path}{dir_name}/"
                     if depth and re.match(dir_reg_ex,f'{discovered_path}') and discovered_path not in self.visited_links:
                         self.visited_links.append(discovered_path)
