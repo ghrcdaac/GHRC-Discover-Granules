@@ -152,40 +152,40 @@ class DiscoverGranules:
 
 if __name__ == "__main__":
     # Update test
-    d = DiscoverGranules
-    d.check_for_updates()
+    # d = DiscoverGranules
+    # d.check_for_updates()
     # End test
 
     # URL Test without RegEx
-    d = DiscoverGranules()
-    print(f"{'==' * 6} Without regex {'==' * 6}")
-    dir_reg_ex = ".*\/y2020\/.*"
-    links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/')
-    for link in links:
-        print(link)
+    # d = DiscoverGranules()
+    # print(f"{'==' * 6} Without regex {'==' * 6}")
+    # dir_reg_ex = ".*\/y2020\/.*"
+    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/')
+    # for link in links:
+    #     print(link)
     # End test
 
     # Test with file RegEx and directory RegEx
-    print(f"Found {len(links)}")
-    print(f"{'==' * 6} With regex {'==' * 6}")
-    d.links = []
-    links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
-                                  dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-    print(f' Regex list count = {len(links)}')
-
-    for link in links:
-        print(link)
+    # print(f"Found {len(links)}")
+    # print(f"{'==' * 6} With regex {'==' * 6}")
+    # d.links = []
+    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
+    #                               dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+    # print(f' Regex list count = {len(links)}')
+    #
+    # for link in links:
+    #     print(link)
     # End test
 
     # Timeit Testing
-    setup = '''
-from task.main import DiscoverGranules
-from File import File
-    '''
-    call_a = '''
-temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-print(f'Number of links found: {len(temp)}')
-    '''
-    iterations = 1
-    print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
+#     setup = '''
+# from task.main import DiscoverGranules
+# from File import File
+#     '''
+#     call_a = '''
+# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+# print(f'Number of links found: {len(temp)}')
+#     '''
+#     iterations = 1
+#     print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
     # End test
