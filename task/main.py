@@ -151,6 +151,7 @@ class DiscoverGranules:
 
 
 if __name__ == "__main__":
+    pass
     # Update test
     # d = DiscoverGranules
     # d.check_for_updates()
@@ -178,14 +179,14 @@ if __name__ == "__main__":
     # End test
 
     # Timeit Testing
-#     setup = '''
-# from task.main import DiscoverGranules
-# from File import File
-#     '''
-#     call_a = '''
-# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-# print(f'Number of links found: {len(temp)}')
-#     '''
-#     iterations = 1
-#     print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
+    setup = '''
+from task.main import DiscoverGranules
+from File import File
+    '''
+    call_a = '''
+temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+print(f'Number of links found: {len(temp)}')
+    '''
+    iterations = 1
+    print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
     # End test
