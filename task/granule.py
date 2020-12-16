@@ -1,4 +1,4 @@
-class File:
+class Granule:
     filename = ''
     link = ''
     date_modified = ''

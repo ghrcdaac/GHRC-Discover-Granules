@@ -1,5 +1,6 @@
 import logging
 import timeit
+from pathlib import PurePath
 from typing import List
 
 from bs4 import BeautifulSoup
@@ -7,8 +8,9 @@ import requests
 import re
 from os import path
 import csv
+import tempfile
 
-from task.File import File
+from granule import Granule
 
 
 class DiscoverGranules:
@@ -18,6 +20,8 @@ class DiscoverGranules:
     Compare the md5 of these granules with the ones in an S3
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
+    csv_file = 'granules.csv'
+    csv_path = PurePath(tempfile.gettempdir(), csv_file)
 
     def __init__(self):
         """
@@ -41,7 +45,7 @@ class DiscoverGranules:
 
     @staticmethod
     def write_csv(file_list):
-        with open("C:/tmp/savedFile.csv", 'w', newline='') as outFile:
+        with open(DiscoverGranules.csv_path, 'w', newline='') as outFile:
             csvWriter = csv.writer(outFile, delimiter=',')
             for file in file_list:
                 csvWriter.writerow([file.link, file.filename, file.date_modified, file.time_modified,
@@ -50,20 +54,18 @@ class DiscoverGranules:
     @staticmethod
     def read_csv():
         fileList = []
-        if path.exists('C:/tmp/savedFile.csv'):
-            with open("C:/tmp/savedFile.csv", 'r') as inFile:
+        if path.exists(DiscoverGranules.csv_path):
+            with open(DiscoverGranules.csv_path, 'r') as inFile:
                 csvReader = csv.reader(inFile)
 
                 # link, name, date, time, meridiem
                 for row in csvReader:
-                    # file_attributes = row.split(',')
-                    print(row)
-                    fileList.append(File(str(row[0]).strip(' '), str(row[1]).strip(' '), str(row[2]).strip(' '),
-                                         str(row[3]).strip(' '), str(row[4]).strip(' ')))
+                    fileList.append(Granule(str(row[0]).strip(' '), str(row[1]).strip(' '), str(row[2]).strip(' '),
+                                            str(row[3]).strip(' '), str(row[4]).strip(' ')))
         return fileList
 
     @staticmethod
-    def get_file_updates(fileList: List[File]):
+    def get_file_updates(fileList: List[Granule]):
         for i, file in enumerate(fileList):
             dir_url = file.link.rstrip(file.filename)
             pre_tag = str(DiscoverGranules.html_request(dir_url).find('pre'))
@@ -106,6 +108,8 @@ class DiscoverGranules:
         file_list = []
 
         try:
+            if url_path[-1] != '/':
+                url_path = f'{url_path}/'
             pre_tag = str(DiscoverGranules.html_request(url_path).find('pre'))
             file_links = []
             file_names = []
@@ -126,7 +130,7 @@ class DiscoverGranules:
 
                 if current_path.rfind('.') != -1:
                     if file_reg_ex is None or re.match(file_reg_ex, current_path) is not None:
-                        file_list.append(File(filename=current_path, link=full_path, date=date, time=time, meridiem=meridiem))
+                        file_list.append(Granule(filename=current_path, link=full_path, date=date, time=time, meridiem=meridiem))
                         file_links.append(full_path)
                         file_names.append(path.basename(current_path))
                 elif depth > 0:
@@ -161,10 +165,22 @@ if __name__ == "__main__":
     # d = DiscoverGranules()
     # print(f"{'==' * 6} Without regex {'==' * 6}")
     # dir_reg_ex = ".*\/y2020\/.*"
-    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/')
+    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/', depth=2)
     # for link in links:
     #     print(link)
     # End test
+
+    # Test with file RegEx and directory RegEx
+    # print(f"{'==' * 6} With regex {'==' * 6}")
+    # d.links = []
+    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
+    #                               dir_reg_ex=".*/y2011/.*", depth=3)
+    # print(f' Regex list count = {len(links)}')
+    #
+    # for link in links:
+    #     print(link)
+    # End test
+
 
     # Test with file RegEx and directory RegEx
     # print(f"Found {len(links)}")
@@ -179,14 +195,14 @@ if __name__ == "__main__":
     # End test
 
     # Timeit Testing
-    setup = '''
-from task.main import DiscoverGranules
-from File import File
-    '''
-    call_a = '''
-temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-print(f'Number of links found: {len(temp)}')
-    '''
-    iterations = 1
-    print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
+#     setup = '''
+# from task.main import DiscoverGranules
+# from File import File
+#     '''
+#     call_a = '''
+# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+# print(f'Number of links found: {len(temp)}')
+#     '''
+#     iterations = 1
+#     print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
     # End test
