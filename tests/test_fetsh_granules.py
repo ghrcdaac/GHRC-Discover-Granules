@@ -14,7 +14,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def setUp(self):
         print('tear up')
-        test_file_path = os.path.join(THIS_DIR, 'test.html')
+        test_file_path = os.path.join(THIS_DIR, 'test_page.html')
         with open(test_file_path, 'r') as test_html_file:
             self._test_html = test_html_file.read()
 
@@ -29,7 +29,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(len(list(retrieved_list)), 1)
 
     def test_bad_url(self):
-        retrieved_list = DiscoverGranules.get_files_link_http(url_path='Bad URL', reg_ex="^f16_\\d{6}01v7\\.gz$")
+        retrieved_list = DiscoverGranules.get_files_link_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(list(retrieved_list)), 0)
 
 
