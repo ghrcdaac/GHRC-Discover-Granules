@@ -156,7 +156,7 @@ class DiscoverGranules:
 
 if __name__ == "__main__":
     #THis is a test
-    with syntax errors
+    # with syntax errors
     pass
     # Update test
     # d = DiscoverGranules
