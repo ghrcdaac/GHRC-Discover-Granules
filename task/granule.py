@@ -8,7 +8,7 @@ class Granule:
     def __str__(self):
         return f'{self.link}, {self.filename}, {self.date_modified}, {self.time_modified}, {self.meridiem_modified}'
 
-    def __init__(self,link: str = '', filename: str = '', date: str = '', time: str = '', meridiem: str = ''):
+    def __init__(self, link: str = '', filename: str = '', date: str = '', time: str = '', meridiem: str = ''):
         """
         Default values goes here
         """
