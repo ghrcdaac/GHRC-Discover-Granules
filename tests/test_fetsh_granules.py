@@ -1,9 +1,12 @@
 # Test here
+import sys
 import os
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
-from task.main import DiscoverGranules
 import unittest
+myPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, myPath + '/../task')
+from task.main import DiscoverGranules
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 

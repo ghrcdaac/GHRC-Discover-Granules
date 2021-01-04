@@ -39,40 +39,40 @@ class DiscoverGranules:
 
     @staticmethod
     def check_for_updates():
-        updatedList = DiscoverGranules.get_file_updates(DiscoverGranules.read_csv())
-        DiscoverGranules.write_csv(updatedList)
+        updated_list = DiscoverGranules.get_file_updates(DiscoverGranules.read_csv())
+        DiscoverGranules.write_csv(updated_list)
         pass
 
     @staticmethod
     def write_csv(file_list):
         with open(DiscoverGranules.csv_path, 'w', newline='') as outFile:
-            csvWriter = csv.writer(outFile, delimiter=',')
+            csv_writer = csv.writer(outFile, delimiter=',')
             for file in file_list:
-                csvWriter.writerow([file.link, file.filename, file.date_modified, file.time_modified,
+                csv_writer.writerow([file.link, file.filename, file.date_modified, file.time_modified,
                                     file.meridiem_modified])
 
     @staticmethod
     def read_csv():
-        fileList = []
+        file_list = []
         if path.exists(DiscoverGranules.csv_path):
             with open(DiscoverGranules.csv_path, 'r') as inFile:
-                csvReader = csv.reader(inFile)
+                csv_reader = csv.reader(inFile)
 
                 # link, name, date, time, meridiem
-                for row in csvReader:
-                    fileList.append(Granule(str(row[0]).strip(' '), str(row[1]).strip(' '), str(row[2]).strip(' '),
-                                            str(row[3]).strip(' '), str(row[4]).strip(' ')))
-        return fileList
+                for row in csv_reader:
+                    file_list.append(Granule(str(row[0]).strip(' '), str(row[1]).strip(' '), str(row[2]).strip(' '),
+                                             str(row[3]).strip(' '), str(row[4]).strip(' ')))
+        return file_list
 
     @staticmethod
-    def get_file_updates(fileList: List[Granule]):
-        for i, file in enumerate(fileList):
+    def get_file_updates(file_list: List[Granule]):
+        for i, file in enumerate(file_list):
             dir_url = file.link.rstrip(file.filename)
             pre_tag = str(DiscoverGranules.html_request(dir_url).find('pre'))
 
             # Get all of the date, time, and meridiem data associated with each file
-            date_modified_list = re.findall("\d{1,2}/\d{1,2}/\d{4}", pre_tag)
-            time_modified_list = re.findall("\d{1,2}:\d{2}", pre_tag)
+            date_modified_list = re.findall(r"\d{1,2}/\d{1,2}/\d{4}", pre_tag)
+            time_modified_list = re.findall(r"\d{1,2}:\d{2}", pre_tag)
             meridiem_list = re.findall("AM|PM", pre_tag, re.IGNORECASE)
             # Get the current directory/file name
             href_values = re.findall("\".*?\"", pre_tag)[1:]
@@ -90,7 +90,7 @@ class DiscoverGranules:
             if file.meridiem_modified != meridiem_list[index]:
                 file.meridiem_modified = meridiem_list[index]
 
-        return fileList
+        return file_list
 
     @staticmethod
     def get_files_link_http(url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
@@ -108,7 +108,7 @@ class DiscoverGranules:
         file_list = []
 
         try:
-            if url_path[-1] != '/':
+            if url_path and url_path[-1] != '/':
                 url_path = f'{url_path}/'
             pre_tag = str(DiscoverGranules.html_request(url_path).find('pre'))
             file_links = []
@@ -116,8 +116,8 @@ class DiscoverGranules:
             discovered_directories = []
 
             # Get all of the date, time, and meridiem data associated with each file
-            date_modified_list = re.findall("\d{1,2}/\d{1,2}/\d{4}", pre_tag)
-            time_modified_list = re.findall("\d{1,2}:\d{2}", pre_tag)
+            date_modified_list = re.findall(r"\d{1,2}/\d{1,2}/\d{4}", pre_tag)
+            time_modified_list = re.findall(r"\d{1,2}:\d{2}", pre_tag)
             meridiem_list = re.findall("AM|PM", pre_tag, re.IGNORECASE)
             # Get the current directory/file name
             paths = re.findall("\".*?\"", pre_tag)[1:]
@@ -130,7 +130,8 @@ class DiscoverGranules:
 
                 if current_path.rfind('.') != -1:
                     if file_reg_ex is None or re.match(file_reg_ex, current_path) is not None:
-                        file_list.append(Granule(filename=current_path, link=full_path, date=date, time=time, meridiem=meridiem))
+                        file_list.append(Granule(filename=current_path, link=full_path, date=date,
+                                                 time=time, meridiem=meridiem))
                         file_links.append(full_path)
                         file_names.append(path.basename(current_path))
                 elif depth > 0:
@@ -155,6 +156,8 @@ class DiscoverGranules:
 
 
 if __name__ == "__main__":
+    # This is a test
+    # with syntax errors
     pass
     # Update test
     # d = DiscoverGranules
@@ -181,7 +184,6 @@ if __name__ == "__main__":
     #     print(link)
     # End test
 
-
     # Test with file RegEx and directory RegEx
     # print(f"Found {len(links)}")
     # print(f"{'==' * 6} With regex {'==' * 6}")
@@ -200,7 +202,8 @@ if __name__ == "__main__":
 # from File import File
 #     '''
 #     call_a = '''
-# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/', dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
+# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
+#                                             dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
 # print(f'Number of links found: {len(temp)}')
 #     '''
 #     iterations = 1
