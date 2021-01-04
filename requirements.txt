@@ -1,2 +1,4 @@
 beautifulsoup4==4.9.3
 requests~=2.25.0
+pytest==6.1.2
+flake8==3.8.4
