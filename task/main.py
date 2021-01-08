@@ -165,12 +165,12 @@ if __name__ == "__main__":
     # End test
 
     # URL Test without RegEx
-    # d = DiscoverGranules()
-    # print(f"{'==' * 6} Without regex {'==' * 6}")
-    # dir_reg_ex = ".*\/y2020\/.*"
-    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/', depth=2)
-    # for link in links:
-    #     print(link)
+    d = DiscoverGranules()
+    print(f"{'==' * 6} Without regex {'==' * 6}")
+    dir_reg_ex = ".*\/y2020\/.*"
+    links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/', depth=2)
+    for link in links:
+        print(link)
     # End test
 
     # Test with file RegEx and directory RegEx
