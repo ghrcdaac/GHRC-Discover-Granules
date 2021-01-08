@@ -28,3 +28,6 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
+      - name: Create package
+        run: |
+          python createPackage.py
