@@ -1,4 +1,4 @@
-class Granule:
+class Granule(dict):
     filename = ''
     link = ''
     date_modified = ''
@@ -12,6 +12,8 @@ class Granule:
         """
         Default values goes here
         """
+        super().__init__()
+        dict.__init__(self, link=link, filename=filename, date=date, time=time, meridiem=meridiem)
         self.link = link
         self.filename = filename
         self.date_modified = date
