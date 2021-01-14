@@ -28,21 +28,5 @@ resource "aws_lambda_function" "discover_granules" {
  # may access.
 resource "aws_iam_role" "lambda_exec" {
    name = "aws_iam_lambda"
-
-   assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-
+   assume_role_policy = file("policy.json")
 }
