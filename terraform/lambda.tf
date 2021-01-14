@@ -19,7 +19,7 @@ resource "aws_lambda_function" "discover_granules" {
    # exported in that file.
    handler = "lambda_function.lambda_handler"
    runtime = "python3.8"
-   filename = "./task/dist/package.zip"
+   filename = "../task/dist/package.zip"
 
    role = aws_iam_role.lambda_exec.arn
 }
