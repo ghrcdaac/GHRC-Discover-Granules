@@ -14,7 +14,3 @@ provider "aws" {
 module "aws_lambda_function" {
    source = "./modules/discover_granules_lambda"
 }
-
-output "arn" {
-  value = module.aws_lambda_function.arn
-}

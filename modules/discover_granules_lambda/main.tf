@@ -8,9 +8,5 @@ resource "aws_lambda_function" "discover_granules" {
 
 resource "aws_iam_role" "lambda_exec" {
    name = "aws_iam_lambda"
-   assume_role_policy = file("policy.json")
-}
-
-output "arn" {
-  value = aws_lambda_function.discover_granules.arn
+   assume_role_policy = file("./modules/discover_granules_lambda/policy.json")
 }
