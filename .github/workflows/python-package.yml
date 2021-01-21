@@ -30,11 +30,14 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
-          
+
   create_release:
     needs: build
     if: contains(github.ref, '/tags/v')
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8' ]
     steps:
         - uses: actions/checkout@v2
         - name: Get tag version
