@@ -2,7 +2,8 @@ name: Python Package
 on:
   pull_request:
   push:
-
+    tags:
+        - v*
 jobs:
   build:
     runs-on: ubuntu-latest
