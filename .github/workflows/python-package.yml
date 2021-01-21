@@ -33,8 +33,6 @@ jobs:
           python createPackage.py
 on:
   push:
-    tags:
-        - v*
 
 
 jobs:
