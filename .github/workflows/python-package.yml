@@ -34,6 +34,7 @@ jobs:
         run: |
           python createPackage.py
   create_release:
+    needs: build
     if: contains(github.ref, '/tags/v')
     runs-on: ubuntu-latest
     steps:
