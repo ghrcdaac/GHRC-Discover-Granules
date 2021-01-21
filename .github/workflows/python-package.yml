@@ -30,9 +30,7 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
-      - name: Create package
-        run: |
-          python createPackage.py
+          
   create_release:
     needs: build
     if: contains(github.ref, '/tags/v')
@@ -48,6 +46,7 @@ jobs:
         - name: Build a release
           run: |
             echo ${{ github.event_name }}
+            python createPackage.py
             bash create_release.sh $SOURCE_TAG
           env:
             SOURCE_TAG: ${{ steps.tag_name.outputs.SOURCE_TAG }}
