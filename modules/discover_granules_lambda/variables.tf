@@ -1,13 +1,3 @@
-variable "aws_profile" {
-  type    = string
-  default = "default"
-}
-
-variable "region" {
-  type    = string
-  default = "us-west-2"
-}
-
 variable "prefix" {
   type = string
   default = null
