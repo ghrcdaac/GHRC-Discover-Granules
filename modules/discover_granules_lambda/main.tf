@@ -14,7 +14,7 @@ resource "aws_lambda_function" "discover_granules" {
 
 resource "aws_iam_role" "lambda_exec" {
    name = "aws_iam_lambda"
-   assume_role_policy = cumulus_lambda_role
+   assume_role_policy = var.cumulus_lambda_role
 }
 
 locals {
