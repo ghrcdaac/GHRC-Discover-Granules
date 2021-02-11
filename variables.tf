@@ -13,11 +13,6 @@ variable "prefix" {
   default = null
 }
 
-variable "cumulus_lambda_role" {
-  type = string
-  default = null
-}
-
 variable "cumulus_lambda_role_arn" {
   type = string
   default = null

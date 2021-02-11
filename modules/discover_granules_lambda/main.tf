@@ -12,11 +12,6 @@ resource "aws_lambda_function" "discover_granules" {
    }
 }
 
-resource "aws_iam_role_policy_attachment" "attach-policy" {
-  role       = var.cumulus_lambda_role
-  policy_arn = var.cumulus_lambda_role_arn
-}
-
 locals {
    default_tags = {
       Deployment = var.prefix
