@@ -18,6 +18,11 @@ variable "cumulus_lambda_role" {
   default = null
 }
 
+variable "cumulus_lambda_role_arn" {
+  type = string
+  default = null
+}
+
 variable "lambda_subnet_ids" {
   type = list(string)
   default = null
