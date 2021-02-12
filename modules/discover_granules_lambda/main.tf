@@ -1,8 +1,8 @@
 resource "aws_lambda_function" "discover_granules" {
-   function_name = "${var.prefix}-discover_granules"
+   function_name = "${var.prefix}-discover_granules-tf-module"
    handler = "lambda_function.lambda_handler"
    runtime = "python3.8"
-   filename = "./task/dist/package.zip"
+   filename = "${path.module}/../../package.zip"
    role = var.cumulus_lambda_role_arn
    timeout = 300
    tags = local.default_tags
