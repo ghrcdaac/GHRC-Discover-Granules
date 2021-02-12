@@ -1,8 +1,8 @@
 resource "aws_lambda_function" "discover_granules" {
-   function_name = "${var.prefix}-discover_granules"
+   function_name = "${var.prefix}-discover_granules-tf-module"
    handler = "lambda_function.lambda_handler"
    runtime = "python3.8"
-   filename = "./task/dist/package.zip"
+   filename = "${path.module}/../../package.zip"
    role = var.cumulus_lambda_role_arn
    timeout = 300
    tags = local.default_tags
@@ -10,11 +10,6 @@ resource "aws_lambda_function" "discover_granules" {
       security_group_ids = var.lambda_security_group_ids
       subnet_ids = var.lambda_subnet_ids
    }
-}
-
-resource "aws_iam_role_policy_attachment" "attach-policy" {
-  role       = var.cumulus_lambda_role
-  policy_arn = var.cumulus_lambda_role_arn
 }
 
 locals {
