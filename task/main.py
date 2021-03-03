@@ -1,4 +1,5 @@
 import logging
+import os
 import timeit
 from pathlib import PurePath
 from typing import List
@@ -156,6 +157,7 @@ class DiscoverGranules:
 
 
 if __name__ == "__main__":
+    print(os.getenv("s3_bucket_name"))
     # This is a test
     # with syntax errors
     pass
