@@ -24,13 +24,13 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_get_file_link(self):
         dg = DiscoverGranules()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        retrieved_list = DiscoverGranules.get_files_link_http(s3_key='', bucket_name='', url_path='')
+        retrieved_list = dg.get_files_link_http(s3_key='', bucket_name='', url_path='')
         self.assertEqual(len(list(retrieved_list)), 5)
 
     def test_get_file_link_wregex(self):
         dg = DiscoverGranules()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        retrieved_list = DiscoverGranules.get_files_link_http(s3_key='', bucket_name='', url_path='',
+        retrieved_list = dg.get_files_link_http(s3_key='', bucket_name='', url_path='',
                                                               file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(list(retrieved_list)), 1)
 
