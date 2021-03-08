@@ -174,7 +174,6 @@ class DiscoverGranules:
                     file_list += self.get_files_link_http(s3_key=s3_key, bucket_name=bucket_name, url_path=directory,
                                                           file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex,
                                                           depth=(depth - 1))
-            # self.write_csv(file_list)
             self.upload_to_s3(s3_key=s3_key, bucket_name=bucket_name, granule_list=file_list)
         except ValueError as ve:
             logging.error(ve)
