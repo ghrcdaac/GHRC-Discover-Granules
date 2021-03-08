@@ -121,6 +121,8 @@ class DiscoverGranules:
     def get_files_link_http(self, s3_key, bucket_name, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
         Fetch the link of the granules in the host url_path
+        :param s3_key: Key to be written to S3
+        :param bucket_name: S3 bucket to write key to
         :param url_path: The base URL where the files are served
         :type url_path: string
         :param file_reg_ex: Regular expression used to filter files
