@@ -1,7 +1,6 @@
 import logging
 import os
 import timeit
-from pathlib import PurePath
 from typing import List
 import boto3
 
@@ -9,7 +8,6 @@ from bs4 import BeautifulSoup
 import requests
 import re
 from os import path
-import tempfile
 import botocore.exceptions
 
 from granule import Granule
@@ -23,17 +21,11 @@ class DiscoverGranules:
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
     csv_file_name = 'granules.csv'
-    csv_path = PurePath(tempfile.gettempdir(), csv_file_name)
 
     def __init__(self):
         """
         Default values goes here
         """
-
-    def get_csv(self):
-        print("csv_file: " + self.csv_file_name)
-        print("csv_path: " + str(self.csv_path))
-        return f'{self.csv_path}{self.csv_file_name}'
 
     def html_request(self, url_path: str):
         """
@@ -237,4 +229,4 @@ if __name__ == "__main__":
 #     '''
 #     iterations = 1
 #     print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
-    # End test
+# End test
