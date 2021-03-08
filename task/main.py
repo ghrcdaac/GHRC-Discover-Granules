@@ -1,8 +1,11 @@
+import io
 import logging
 import os
 import timeit
 from pathlib import PurePath
 from typing import List
+import boto3
+# import pandas as pd
 
 from bs4 import BeautifulSoup
 import requests
@@ -29,7 +32,11 @@ class DiscoverGranules:
         Default values goes here
         """
 
-    @staticmethod
+    def get_csv():
+        print("csv_file: " + DiscoverGranules.csv_file)
+        print("csv_path: " + str(DiscoverGranules.csv_path))
+        return f'{DiscoverGranules.csv_path}{DiscoverGranules.csv_file}'
+
     def html_request(url_path: str):
         """
         :param url_path: The base URL where the files are served
@@ -38,21 +45,38 @@ class DiscoverGranules:
         opened_url = requests.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
-    @staticmethod
-    def check_for_updates():
-        updated_list = DiscoverGranules.get_file_updates(DiscoverGranules.read_csv())
-        DiscoverGranules.write_csv(updated_list)
-        pass
+    def check_for_updates(file_name, bucket_name):
+        print("Checking for updates")
+        print(f"check_for_updates file_name[{file_name}]")
+        print(f"check_for_updates bucket_name[{bucket_name}]")
+        file_list = DiscoverGranules.download_file_mine(file_name=file_name, bucket_name=bucket_name)
+        print(f'This here be the thing[{str(file_list)}]')
+        updated_list = DiscoverGranules.get_file_updates(file_list)
+        # DiscoverGranules.write_csv(updated_list)
+        print("You wot mate?")
+        DiscoverGranules.upload_file_mine(bucket_name=bucket_name, file_name=file_name)
+        return updated_list
 
-    @staticmethod
     def write_csv(file_list):
         with open(DiscoverGranules.csv_path, 'w', newline='') as outFile:
             csv_writer = csv.writer(outFile, delimiter=',')
             for file in file_list:
                 csv_writer.writerow([file.link, file.filename, file.date_modified, file.time_modified,
                                     file.meridiem_modified])
+        print("Just wrote file to: ")
 
-    @staticmethod
+    def upload_file_mine(file_name: str, bucket_name: str):
+        """Upload a file to an S3 bucket
+
+        :param file_name: File to upload
+        :param bucket_name: Bucket to upload to
+        :return: True if file was uploaded, else False
+        """
+        client = boto3.client('s3')
+        key = os.getenv("prefix") + "/" + file_name
+        with open(DiscoverGranules.csv_path, "rb") as text_file:
+            client.put_object(Bucket=bucket_name, Key=key, Body=text_file)
+
     def read_csv():
         file_list = []
         if path.exists(DiscoverGranules.csv_path):
@@ -65,9 +89,49 @@ class DiscoverGranules:
                                              str(row[3]).strip(' '), str(row[4]).strip(' ')))
         return file_list
 
+    def download_file_mine(file_name: str, bucket_name: str):
+        """Download a file from an S3 bucket
+
+        :param file_name: File to upload
+        :param bucket_name: Bucket to upload to
+        :return: True if file was uploaded, else False
+        """
+        print("download_file_mine filename: " + file_name)
+        print("download_file_mine bucketname: " + bucket_name)
+        key = os.getenv("prefix") + "/" + file_name
+        # "mlh/granules.csv"
+
+        # get a handle on s3
+        s3 = boto3.resource('s3')
+
+        # get a handle on the bucket that holds your file
+        bucket = s3.Bucket(bucket_name)
+
+        for my_bucket_object in bucket.objects.all():
+            print(f'my_bucket_object[{my_bucket_object}]')
+
+        # get a handle on the object you want (i.e. your file)
+        obj = bucket.Object(key=key)
+
+        # get the object
+        response = obj.get()
+
+        lines = response['Body'].read().decode('utf-8').split()
+        file_list = []
+        for row in lines:
+            print(row)
+            values = str(row).split(',')
+            file_list.append(Granule(link=values[0], filename=values[1], date=values[2],
+                                     time=values[3], meridiem=values[4]))
+
+        return file_list
+
+
+
     @staticmethod
     def get_file_updates(file_list: List[Granule]):
         for i, file in enumerate(file_list):
+            print("Checking for updates: " + str(file))
             dir_url = file.link.rstrip(file.filename)
             pre_tag = str(DiscoverGranules.html_request(dir_url).find('pre'))
 
@@ -157,7 +221,7 @@ class DiscoverGranules:
 
 
 if __name__ == "__main__":
-    print(os.getenv("s3_bucket_name"))
+    print("Oy look here mate" + os.getenv("s3_bucket_name"))
     # This is a test
     # with syntax errors
     pass

@@ -1,14 +1,14 @@
-resource "null_resource" "temp" {
-   triggers = {
-      path = "${path.module}/../../discover-granules-tf-module.zip"
-   }
-}
+//resource "null_resource" "temp" {
+//   triggers = {
+//      path = "${path.module}/../../task/dist/package.zip"
+//   }
+//}
 
 resource "aws_lambda_function" "discover_granules" {
-   function_name = "${var.prefix}-discover_granules-tf-module"
+   function_name = "${var.prefix}-discover-granules-tf-module"
    handler = "lambda_function.lambda_handler"
    runtime = "python3.8"
-   filename = "${path.module}/../../discover-granules-tf-module.zip"
+   filename = "${path.module}/../../task/dist/package.zip"
    role = var.cumulus_lambda_role_arn
    timeout = 300
    tags = local.default_tags
@@ -20,6 +20,7 @@ resource "aws_lambda_function" "discover_granules" {
       variables = {
          bucket_name = var.s3_bucket_name
          prefix = var.prefix
+         arn_test = var.cumulus_lambda_role_arn
       }
    }
 }
