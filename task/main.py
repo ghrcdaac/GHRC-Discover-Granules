@@ -9,8 +9,8 @@ from bs4 import BeautifulSoup
 import requests
 import re
 from os import path
-import csv
 import tempfile
+import botocore.exceptions
 
 from granule import Granule
 
@@ -44,13 +44,8 @@ class DiscoverGranules:
         return BeautifulSoup(opened_url.text, features="html.parser")
 
     def check_for_updates(self, s3_key, bucket_name):
-        print("Checking for updates")
-        print(f"check_for_updates file_name[{s3_key}]")
-        print(f"check_for_updates bucket_name[{bucket_name}]")
         file_list = self.download_from_s3(s3_key=s3_key, bucket_name=bucket_name)
-        print(f'This here be the thing[{str(file_list)}]')
         updated_list = self.check_granule_updates(file_list)
-        print("You wot mate?")
         self.upload_to_s3(bucket_name=bucket_name, s3_key=s3_key, granule_list=updated_list)
         return updated_list
 
@@ -69,18 +64,6 @@ class DiscoverGranules:
         client = boto3.client('s3')
         client.put_object(Bucket=bucket_name, Key=s3_key, Body=csv_formatted_str)
 
-    def read_csv(self):
-        file_list = []
-        if path.exists(self.csv_path):
-            with open(self.csv_path, 'r') as inFile:
-                csv_reader = csv.reader(inFile)
-
-                # link, name, date, time, meridiem
-                for row in csv_reader:
-                    file_list.append(Granule(str(row[0]).strip(' '), str(row[1]).strip(' '), str(row[2]).strip(' '),
-                                             str(row[3]).strip(' '), str(row[4]).strip(' ')))
-        return file_list
-
     def download_from_s3(self, s3_key: str, bucket_name: str):
         """Download a file from an S3 bucket
 
@@ -97,17 +80,13 @@ class DiscoverGranules:
             response = obj.get()
 
             lines = response['Body'].read().decode('utf-8').split()
-            print(f'We have the file. I repeat, we have the file')
             for row in lines:
                 print(row)
                 values = str(row).split(',')
                 granule_list.append(Granule(link=values[0], filename=values[1], date=values[2],
                                             time=values[3], meridiem=values[4]))
-            print("After for loop???")
-        except Exception as nk:
-            print(f'Exception[{nk}]')
-            print(f"download_file_mine filename[{s3_key}]")
-            print(f"download_file_mine bucketname[{bucket_name}]")
+        except botocore.exceptions.ClientError as nk:
+            logging.error(nk)
             return []
 
         return granule_list
@@ -133,15 +112,10 @@ class DiscoverGranules:
 
             if file.date_modified != date_modified_list[index]:
                 file.date_modified = date_modified_list[index]
-                print("1111111111")
             elif file.time_modified != time_modified_list[index]:
                 file.time_modified = time_modified_list[index]
-                print("111111111122222222222222")
             elif file.meridiem_modified != meridiem_list[index]:
                 file.meridiem_modified = meridiem_list[index]
-                print("111111111133333333333333")
-            else:
-                print("NANI?!?!")
 
         return granule_list
 
@@ -199,7 +173,7 @@ class DiscoverGranules:
             if depth > 0:
                 for directory in discovered_directories:
                     file_list += self.get_files_link_http(url_path=directory, file_reg_ex=file_reg_ex,
-                                                                      dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+                                                          dir_reg_ex=dir_reg_ex, depth=(depth - 1))
             self.write_csv(file_list)
         except ValueError as ve:
             logging.error(ve)
