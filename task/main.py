@@ -1,6 +1,4 @@
 import logging
-import os
-import timeit
 from typing import List
 import boto3
 
@@ -36,14 +34,20 @@ class DiscoverGranules:
         return BeautifulSoup(opened_url.text, features="html.parser")
 
     def check_for_updates(self, s3_key, bucket_name):
+        """
+        Gets the granule data from previous runs and checks for any updates
+        :param s3_key: Key to read for granules data
+        :param bucket_name: S3 bucket to read from
+        :return Updated list of granules
+        """
         file_list = self.download_from_s3(s3_key=s3_key, bucket_name=bucket_name)
         updated_list = self.check_granule_updates(file_list)
         self.upload_to_s3(bucket_name=bucket_name, s3_key=s3_key, granule_list=updated_list)
         return updated_list
 
     def upload_to_s3(self, s3_key: str, bucket_name: str, granule_list: []):
-        """Upload a file to an S3 bucket
-
+        """
+        Upload a file to an S3 bucket
         :param s3_key: File to upload
         :param bucket_name: Bucket to upload to
         :param granule_list: List of granules to be written to S3
@@ -57,8 +61,8 @@ class DiscoverGranules:
         client.put_object(Bucket=bucket_name, Key=s3_key, Body=csv_formatted_str)
 
     def download_from_s3(self, s3_key: str, bucket_name: str):
-        """Download a file from an S3 bucket
-
+        """
+        Download a file from an S3 bucket
         :param s3_key: logical s3 file name
         :param bucket_name: Bucket to upload to
         :return: List of granules
@@ -83,6 +87,11 @@ class DiscoverGranules:
         return granule_list
 
     def check_granule_updates(self, granule_list: List[Granule]):
+        """
+        Checks stored granules and updates date, time, and meridiem values
+        :param granule_list: List of granules to check
+        :return Updated list of granules
+        """
         for i, file in enumerate(granule_list):
             print("Checking for updates: " + str(file))
             dir_url = file.link.rstrip(file.filename)
@@ -173,60 +182,3 @@ class DiscoverGranules:
             logging.error(ve)
 
         return file_list
-
-
-if __name__ == "__main__":
-    print("Oy look here mate" + os.getenv("s3_bucket_name"))
-    # This is a test
-    # with syntax errors
-    pass
-    # Update test
-    # d = DiscoverGranules
-    # d.check_for_updates()
-    # End test
-
-    # URL Test without RegEx
-    d = DiscoverGranules()
-    print(f"{'==' * 6} Without regex {'==' * 6}")
-    dir_reg_ex = ".*\/y2020\/.*"
-    links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/', depth=2)
-    for link in links:
-        print(link)
-    # End test
-
-    # Test with file RegEx and directory RegEx
-    # print(f"{'==' * 6} With regex {'==' * 6}")
-    # d.links = []
-    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
-    #                               dir_reg_ex=".*/y2011/.*", depth=3)
-    # print(f' Regex list count = {len(links)}')
-    #
-    # for link in links:
-    #     print(link)
-    # End test
-
-    # Test with file RegEx and directory RegEx
-    # print(f"Found {len(links)}")
-    # print(f"{'==' * 6} With regex {'==' * 6}")
-    # d.links = []
-    # links = d.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
-    #                               dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-    # print(f' Regex list count = {len(links)}')
-    #
-    # for link in links:
-    #     print(link)
-    # End test
-
-    # Timeit Testing
-#     setup = '''
-# from task.main import DiscoverGranules
-# from File import File
-#     '''
-#     call_a = '''
-# temp = DiscoverGranules.get_files_link_http(url_path='http://data.remss.com/ssmi/f16/bmaps_v07/',
-#                                             dir_reg_ex=".*\/y2020\/.*", depth=3, file_reg_ex="^f16_\\d{4}0801v7\\.gz$")
-# print(f'Number of links found: {len(temp)}')
-#     '''
-#     iterations = 1
-#     print(f'{timeit.timeit(setup=setup, stmt=call_a, number=iterations)/iterations}')
-# End test
