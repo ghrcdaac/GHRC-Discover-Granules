@@ -81,7 +81,6 @@ class DiscoverGranules:
 
             lines = response['Body'].read().decode('utf-8').split()
             for row in lines:
-                print(row)
                 values = str(row).split(',')
                 granule_list.append(Granule(link=values[0], filename=values[1], date=values[2],
                                             time=values[3], meridiem=values[4]))
@@ -112,14 +111,14 @@ class DiscoverGranules:
 
             if file.date_modified != date_modified_list[index]:
                 file.date_modified = date_modified_list[index]
-            elif file.time_modified != time_modified_list[index]:
+            if file.time_modified != time_modified_list[index]:
                 file.time_modified = time_modified_list[index]
-            elif file.meridiem_modified != meridiem_list[index]:
+            if file.meridiem_modified != meridiem_list[index]:
                 file.meridiem_modified = meridiem_list[index]
 
         return granule_list
 
-    def get_files_link_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
+    def get_files_link_http(self, s3_key, bucket_name, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
         Fetch the link of the granules in the host url_path
         :param url_path: The base URL where the files are served
@@ -172,9 +171,11 @@ class DiscoverGranules:
             depth = min(abs(depth), 3)
             if depth > 0:
                 for directory in discovered_directories:
-                    file_list += self.get_files_link_http(url_path=directory, file_reg_ex=file_reg_ex,
-                                                          dir_reg_ex=dir_reg_ex, depth=(depth - 1))
-            self.write_csv(file_list)
+                    file_list += self.get_files_link_http(s3_key=s3_key, bucket_name=bucket_name, url_path=directory,
+                                                          file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex,
+                                                          depth=(depth - 1))
+            # self.write_csv(file_list)
+            self.upload_to_s3(s3_key=s3_key, bucket_name=bucket_name, granule_list=file_list)
         except ValueError as ve:
             logging.error(ve)
 

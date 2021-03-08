@@ -15,7 +15,8 @@ def lambda_handler(event, context=None):
             file_reg_ex = event['file_reg_ex']
         if 'dir_reg_ex' in event:
             dir_reg_ex = event['dir_reg_ex']
-        file_list = dg.get_files_link_http(url_path=path, file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex, depth=depth)
+        file_list = dg.get_files_link_http(s3_key=s3_key, bucket_name=bucket_name, url_path=path,
+                                           file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex, depth=depth)
     else:
         # if no url path is provided it is assumed to be an update request
         file_list = dg.check_for_updates(s3_key=s3_key, bucket_name=bucket_name)
