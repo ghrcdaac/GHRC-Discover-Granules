@@ -1,21 +1,23 @@
 variable "aws_profile" {
   type    = string
-  default = "default"
+  default = "SBX"
 }
 
 variable "region" {
   type    = string
-  default = "us-east-2"
+  default = "us-west-2"
 }
 
 variable "prefix" {
   type = string
-  default = null
+}
+
+variable "s3_bucket_name" {
+  type = string
 }
 
 variable "cumulus_lambda_role_arn" {
   type = string
-  default = null
 }
 
 variable "lambda_subnet_ids" {

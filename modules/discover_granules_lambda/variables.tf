@@ -5,7 +5,10 @@ variable "region" {
 
 variable "prefix" {
   type = string
-  default = null
+}
+
+variable "s3_bucket_name" {
+  type = string
 }
 
 variable "cumulus_lambda_role_arn" {
