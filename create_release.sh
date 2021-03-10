@@ -21,7 +21,7 @@ function create_zip_file() {
   rm -rf ${DESTINATION_DIR}
   mkdir -p ${BUILD_DIR} ${DESTINATION_DIR}
   cp -r modules ${BUILD_DIR}
-  cp task/dist/* ${BUILD_DIR}
+  cp package.zip ${BUILD_DIR}
   cp *tf ${BUILD_DIR}
   cd ${BUILD_DIR}
   zip -r9 ${RELEASE_NAME}.zip .
