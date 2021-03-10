@@ -13,15 +13,17 @@ variable "s3_bucket_name" {
 
 variable "cumulus_lambda_role_arn" {
   type = string
-  default = null
 }
 
 variable "lambda_subnet_ids" {
   type = list(string)
-  default = null
 }
 
 variable "lambda_security_group_ids" {
   type = list(string)
-  default = null
+}
+
+variable "timeout" {
+  description = "Lambda function time-out"
+  default = 300
 }
