@@ -20,7 +20,7 @@ resource "aws_lambda_function" "discover_granules" {
    environment {
       variables = {
          bucket_name = var.s3_bucket_name
-         prefix = var.prefix
+         s3_key_prefix = var.s3_key_prefix
       }
    }
 }

@@ -27,3 +27,8 @@ variable "timeout" {
   description = "Lambda function time-out"
   default = 300
 }
+
+variable "s3_key_prefix" {
+  description = "Path to lookup file"
+  default = "discover-granule/lookup"
+}

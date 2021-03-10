@@ -5,16 +5,11 @@ from main import DiscoverGranules
 
 def lambda_handler(event, context=None):
     dg = DiscoverGranules()
-    s3_key = os.getenv("prefix") + "/" + dg.csv_file_name
+    s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{dg.csv_file_name}"
     bucket_name = os.getenv("bucket_name")
-    if 'url_path' in event:
-        path = event['url_path']
-        if 'depth' in event:
-            depth = int(event['depth'])
-        if 'file_reg_ex' in event:
-            file_reg_ex = event['file_reg_ex']
-        if 'dir_reg_ex' in event:
-            dir_reg_ex = event['dir_reg_ex']
+    path, depth, file_reg_ex, dir_reg_ex = [event.get(ele) for ele in
+                                            ['url_path', 'depth', 'file_reg_ex', 'dir_reg_ex']]
+    if path:
         file_list = dg.get_files_link_http(s3_key=s3_key, bucket_name=bucket_name, url_path=path,
                                            file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex, depth=depth)
     else:

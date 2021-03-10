@@ -136,6 +136,7 @@ class DiscoverGranules:
         file_list = []
 
         try:
+            depth = int(depth)
             if url_path and url_path[-1] != '/':
                 url_path = f'{url_path}/'
             pre_tag = str(self.html_request(url_path).find('pre'))
