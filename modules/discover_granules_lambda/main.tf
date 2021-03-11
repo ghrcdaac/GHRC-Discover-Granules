@@ -7,6 +7,7 @@ locals {
 
 resource "aws_lambda_function" "discover_granules" {
    function_name = "${var.prefix}-discover-granules-tf-module"
+   source_code_hash = filebase64sha256("${path.module}/../../package.zip") 
    handler = "lambda_function.lambda_handler"
    runtime = "python3.8"
    filename = "${path.module}/../../package.zip"
