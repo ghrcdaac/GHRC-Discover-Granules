@@ -1,12 +1,12 @@
 import logging
-from typing import List
-import boto3
-
-from bs4 import BeautifulSoup
-import requests
 import re
 from os import path
+from typing import List
+
+import boto3
 import botocore.exceptions
+import requests
+from bs4 import BeautifulSoup
 
 from granule import Granule
 
