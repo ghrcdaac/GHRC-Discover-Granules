@@ -29,3 +29,18 @@ variable "lambda_security_group_ids" {
   type = list(string)
   default = null
 }
+
+variable "env_variables" {
+  type        = map(string)
+  default     = {}
+}
+
+variable "layers" {
+  type = list(string)
+  default = []
+}
+
+variable "timeout" {
+  description = "Lambda function time-out"
+  default = 300
+}
