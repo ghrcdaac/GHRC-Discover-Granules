@@ -8,7 +8,17 @@ import re
 from os import path
 import botocore.exceptions
 
-from granule import Granule
+class Granule(dict):
+    """
+    Simple class to make a dict look like an object.
+        Example
+    --------
+        >>> o = Granule(key = "value")
+        >>> o.key
+        'value'
+    """
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
 
 
 class DiscoverGranules:
