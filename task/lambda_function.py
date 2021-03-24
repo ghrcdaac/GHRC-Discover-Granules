@@ -7,6 +7,7 @@ def lambda_handler(event, context=None):
     dg = DiscoverGranules()
     s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{dg.csv_file_name}"
     bucket_name = os.getenv("bucket_name")
+    print(f'bucket_name[{bucket_name}]')
 
     collection = event['meta']['collection']
     provider = event['meta']['provider']

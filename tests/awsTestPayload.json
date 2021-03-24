@@ -1,0 +1,147 @@
+{
+  "cumulus_meta": {
+    "execution_name": "e6f68b3e-835f-4422-b51f-fafc5b899ef9",
+    "message_source": "sfn",
+    "queueExecutionLimits": {
+      "https://sqs.us-west-2.amazonaws.com/150083386478/ghrcwuat-backgroundJobQueue": 900,
+      "https://sqs.us-west-2.amazonaws.com/150083386478/ghrcwuat-backgroundProcessing": 5
+    },
+    "state_machine": "arn:aws:states:us-west-2:150083386478:stateMachine:ghrcwuat-DiscoverGranules",
+    "system_bucket": "ghrcwuat-internal",
+    "workflow_start_time": 1615397004495,
+    "queueUrl": "https://sqs.us-west-2.amazonaws.com/150083386478/ghrcwuat-startSF"
+  },
+  "exception": "None",
+  "meta": {
+    "buckets": {
+      "dashboard": {
+        "name": "ghrcwuat-dashboard",
+        "type": "public"
+      },
+      "internal": {
+        "name": "ghrcwuat-internal",
+        "type": "internal"
+      },
+      "private": {
+        "name": "ghrcwuat-private",
+        "type": "private"
+      },
+      "protected": {
+        "name": "ghrcwuat-protected",
+        "type": "protected"
+      },
+      "public": {
+        "name": "ghrcwuat-public",
+        "type": "public"
+      }
+    },
+    "cmr": {
+      "clientId": "ghrc_cloud",
+      "cmrEnvironment": "UAT",
+      "cmrLimit": 100,
+      "cmrPageSize": 50,
+      "oauthProvider": "earthdata",
+      "passwordSecretName": "ghrcwuat-message-template-cmr-password2020030318410467580000000a",
+      "provider": "GHRC_CLOUD",
+      "username": "ghrc_cloud"
+    },
+    "collection": {
+      "process": "rss",
+      "granuleIdExtraction": "(tpw_v07r.*\\.nc\\d.nc$)",
+      "version": "7R01",
+      "meta": {
+        "hyrax_processing": "false",
+        "provider_path": "/vapor/monthly_1deg",
+        "file_reg_ex": "file_regex",
+        "dir_reg_ex": "dir_regex",
+        "depth": "2",
+        "discover_tf": {
+          "depth": 2,
+          "file_reg_ex": ".*",
+          "dir_reg_ex": ".*"
+        },
+        "metadata_extractor": [
+          {
+            "lon_var_key": "longitude",
+            "regex": "^tpw_v\\d\\dr\\d\\d_\\d{6}\\.nc[3,4]\\.nc$",
+            "time_units": "units",
+            "time_var_key": "time",
+            "lat_var_key": "latitude",
+            "module": "netcdf"
+          },
+          {
+            "lon_var_key": "longitude",
+            "regex": "^tpw_v\\d\\dr\\d\\d_1988_\\d{4}_climatology\\.nc[3,4]\\.nc$",
+            "time_units": "units",
+            "time_var_key": "climatology_time",
+            "lat_var_key": "latitude",
+            "module": "netcdf"
+          },
+          {
+            "lon_var_key": "longitude",
+            "regex": "^tpw_v\\d\\dr\\d\\d_198801_\\d{6}_cumulative\\.nc[3,4]\\.nc$",
+            "time_units": "units",
+            "time_var_key": "time",
+            "lat_var_key": "latitude",
+            "module": "netcdf"
+          }
+        ]
+      },
+      "createdAt": 1600795774352,
+      "name": "rss1tpwnv7r01",
+      "duplicateHandling": "replace",
+      "files": [
+        {
+          "bucket": "private",
+          "sampleFileName": "tpw_v07r01_198801_201910.nc3.nc",
+          "regex": "^tpw_v07r\\d\\d_\\d{6}_\\d{6}\\.nc(3|4)\\.nc$"
+        },
+        {
+          "bucket": "protected",
+          "sampleFileName": "tpw_v07r01_1988_2007_climatology.nc4.nc",
+          "regex": "^tpw_v07r\\d{2}_(\\d{4}|\\d{6})(_)?(\\d{4}|\\d{6})?(_)?(cumulative|climatology)?\\.nc(3|4)\\.(dmrpp|nc)$"
+        },
+        {
+          "bucket": "public",
+          "sampleFileName": "tpw_v07r01_201910.nc.cmr.xml",
+          "regex": "^tpw_v07r.*\\.nc\\.cmr\\.xml$"
+        }
+      ],
+      "updatedAt": 1600795774352,
+      "url_path": "rss1tpwn__1",
+      "reportToEms": true,
+      "granuleId": "^(tpw_v07r).*\\.nc\\d.nc$",
+      "sampleFileName": "tpw_v07r01_201812.nc4.nc"
+    },
+    "distribution_endpoint": "https://data.ghrc.uat.earthdata.nasa.gov/",
+    "launchpad": {
+      "api": "launchpadApi",
+      "certificate": "launchpad.pfx",
+      "passphraseSecretName": ""
+    },
+    "provider": {
+      "createdAt": 1589483220943,
+      "id": "rss_provider",
+      "host": "data.remss.com",
+      "globalConnectionLimit": 900,
+      "updatedAt": 1598380936788,
+      "protocol": "http"
+    },
+    "stack": "ghrcwuat",
+    "template": "s3://ghrcwuat-internal/ghrcwuat/workflow_template.json",
+    "workflow_name": "DiscoverGranules",
+    "workflow_tasks": {
+      "DynamicDiscoverGranules": {
+        "name": "ghrcwuat-dynamic_discover_granules",
+        "version": "$LATEST",
+        "arn": "arn:aws:lambda:us-west-2:150083386478:function:ghrcwuat-dynamic_discover_granules"
+      },
+      "DiscoverGranulesLambda": {
+        "name": "ghrcwuat-DiscoverGranules",
+        "version": "$LATEST",
+        "arn": "arn:aws:lambda:us-west-2:150083386478:function:ghrcwuat-DiscoverGranules"
+      }
+    }
+  },
+  "payload": {}
+}

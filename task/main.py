@@ -7,18 +7,7 @@ import requests
 import re
 from os import path
 import botocore.exceptions
-
-class Granule(dict):
-    """
-    Simple class to make a dict look like an object.
-        Example
-    --------
-        >>> o = Granule(key = "value")
-        >>> o.key
-        'value'
-    """
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
+from granule import Granule
 
 
 class DiscoverGranules:
@@ -64,7 +53,7 @@ class DiscoverGranules:
         """
         csv_formatted_str = ''
         for entry in granule_list:
-            csv_formatted_str += str(entry) + ','
+            csv_formatted_str += str(entry) + '\n'
         csv_formatted_str = csv_formatted_str[:-1]
 
         client = boto3.client('s3')
