@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 import boto3
 
@@ -18,6 +19,8 @@ class DiscoverGranules:
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
     csv_file_name = 'granules.csv'
+    s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{csv_file_name}"
+    s3_bucket_name = os.getenv("bucket_name")
 
     def __init__(self):
         """
@@ -32,7 +35,7 @@ class DiscoverGranules:
         opened_url = requests.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
-    def check_for_updates(self, s3_key, bucket_name):
+    def check_for_updates(self, s3_key=s3_key, bucket_name=s3_bucket_name):
         """
         Gets the granule data from previous runs and checks for any updates
         :param s3_key: Key to read for granules data
@@ -44,7 +47,7 @@ class DiscoverGranules:
         self.upload_to_s3(bucket_name=bucket_name, s3_key=s3_key, granule_list=updated_list)
         return updated_list
 
-    def upload_to_s3(self, s3_key: str, bucket_name: str, granule_list: []):
+    def upload_to_s3(self, granule_list: [], s3_key=s3_key, bucket_name=s3_bucket_name):
         """
         Upload a file to an S3 bucket
         :param s3_key: File to upload
@@ -59,7 +62,7 @@ class DiscoverGranules:
         client = boto3.client('s3')
         client.put_object(Bucket=bucket_name, Key=s3_key, Body=csv_formatted_str)
 
-    def download_from_s3(self, s3_key: str, bucket_name: str):
+    def download_from_s3(self, s3_key=s3_key, bucket_name=s3_bucket_name):
         """
         Download a file from an S3 bucket
         :param s3_key: logical s3 file name
@@ -118,11 +121,9 @@ class DiscoverGranules:
 
         return granule_list
 
-    def get_files_link_http(self, s3_key, bucket_name, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
+    def get_files_link_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
         Fetch the link of the granules in the host url_path
-        :param s3_key: Key to be written to S3
-        :param bucket_name: S3 bucket to write key to
         :param url_path: The base URL where the files are served
         :type url_path: string
         :param file_reg_ex: Regular expression used to filter files
@@ -174,10 +175,13 @@ class DiscoverGranules:
             depth = min(abs(depth), 3)
             if depth > 0:
                 for directory in discovered_directories:
-                    file_list += self.get_files_link_http(s3_key=s3_key, bucket_name=bucket_name, url_path=directory,
-                                                          file_reg_ex=file_reg_ex, dir_reg_ex=dir_reg_ex,
-                                                          depth=(depth - 1))
-            self.upload_to_s3(s3_key=s3_key, bucket_name=bucket_name, granule_list=file_list)
+                    file_list += self.get_files_link_http(url_path=directory, file_reg_ex=file_reg_ex,
+                                                          dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+
+            # Compare fetched granules against the CSV before uploading. If there are no updates no upload is necessary
+            # and just return an empty list
+            # Effectively: Only return what gets written to the CSV
+            self.upload_to_s3(granule_list=file_list)
         except ValueError as ve:
             logging.error(ve)
 
