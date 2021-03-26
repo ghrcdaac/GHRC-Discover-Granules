@@ -5,39 +5,38 @@ from main import DiscoverGranules
 
 def lambda_handler(event, context=None):
     dg = DiscoverGranules()
-
     collection = event['meta']['collection']
     provider = event['meta']['provider']
     discover_tf = collection['meta']['discover_tf']
 
-    path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
+    # path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
+    path = "http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/"
+    # print(f"path[{path}]")
+    print(discover_tf['file_reg_ex'])
+    print(discover_tf['dir_reg_ex'])
 
-    if path:
-        file_list = dg.get_files_link_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
-                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
-    else:
-        # if no url path is provided it is assumed to be an update request
-        file_list = dg.check_for_updates()
+    granule_dict = dg.get_files_link_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
+                                          dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
 
     # Return a list formatted appropriately
     ret_list = []
-    for granule in file_list:
+    for key, value in granule_dict.items():
         temp_dict = {
-            'granuleId': granule.filename,
+            'granuleId': value['filename'],
             'dataType': 'dataType',
             'version': collection['version'],
             'files': [
                 {
-                    "name": granule.filename,
-                    "path": granule.link,
+                    "name": value['filename'],
+                    "path": key,
                     "bucket": dg.s3_bucket_name,
                     "url_path": collection['url_path'],
                     "type": ""
                 }
             ]
         }
-        ret_list.append(temp_dict)
+        ret_list.append(granule_dict)
 
     event["payload"] = [ret_list]
-    dg.upload_to_s3(granule_list=file_list)
+    # dg.upload_to_s3(granule_list=granule_dict)
     return event
