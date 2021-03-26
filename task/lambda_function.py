@@ -9,7 +9,7 @@ def lambda_handler(event, context=None):
 
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
 
-    granule_dict = dg.get_files_link_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
+    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
 
     # Return a list formatted appropriately

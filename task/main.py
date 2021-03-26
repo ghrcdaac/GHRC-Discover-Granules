@@ -16,14 +16,17 @@ class DiscoverGranules:
     Compare the md5 of these granules with the ones in an S3
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
-    csv_file_name = 'granules.csv'
-    s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{csv_file_name}"
-    s3_bucket_name = os.getenv("bucket_name")
+    csv_file_name = ''
+    s3_key = ''
+    s3_bucket_name = ''
 
     def __init__(self):
         """
         Default values goes here
         """
+        csv_file_name = 'granules.csv'
+        s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{csv_file_name}"
+        s3_bucket_name = os.getenv("bucket_name")
 
     def html_request(self, url_path: str):
         """
@@ -120,7 +123,7 @@ class DiscoverGranules:
             self.upload_to_s3(s3_granule_dict)
         return new_or_updated_granules
 
-    def get_files_link_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
+    def get_file_links_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
         Fetch the link of the granules in the host url_path
         :param url_path: The base URL where the files are served
@@ -179,7 +182,7 @@ class DiscoverGranules:
             if depth > 0:
                 for directory in discovered_directories:
                     granule_dict.update(
-                        self.get_files_link_http(url_path=directory, file_reg_ex=file_reg_ex,
+                        self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
                                                  dir_reg_ex=dir_reg_ex, depth=(depth - 1))
                     )
 

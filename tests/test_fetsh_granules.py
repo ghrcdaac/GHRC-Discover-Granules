@@ -5,15 +5,18 @@ from task.main import DiscoverGranules
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
 import unittest
+
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../task')
-
-
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class TestDiscoverGranules(unittest.TestCase):
+class TestWrapperDiscoverGranules(DiscoverGranules):
+    def __init__(self):
+        pass
 
+
+class TestDiscoverGranules(unittest.TestCase):
     _test_html = ''
 
     def setUp(self):
@@ -23,25 +26,25 @@ class TestDiscoverGranules(unittest.TestCase):
             self._test_html = test_html_file.read()
 
     def test_get_file_link(self):
-        dg = DiscoverGranules()
+        dg = TestWrapperDiscoverGranules()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
         dg.upload_to_s3 = MagicMock()
-        retrieved_list = dg.get_files_link_http(s3_key='', bucket_name='', url_path='')
-        self.assertEqual(len(list(retrieved_list)), 5)
+        dg.download_from_s3 = MagicMock()
+        retrieved_dict = dg.get_file_links_http(url_path='')
+        self.assertEqual(len(retrieved_dict), 5)
 
     def test_get_file_link_wregex(self):
-        dg = DiscoverGranules()
+        dg = TestWrapperDiscoverGranules()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
         dg.upload_to_s3 = MagicMock()
-        retrieved_list = dg.get_files_link_http(s3_key='', bucket_name='', url_path='',
-                                                file_reg_ex="^f16_\\d{6}01v7\\.gz$")
-        self.assertEqual(len(list(retrieved_list)), 1)
+        dg.download_from_s3 = MagicMock()
+        retrieved_dict = dg.get_file_links_http(url_path='', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        self.assertEqual(len(retrieved_dict), 1)
 
     def test_bad_url(self):
-        dg = DiscoverGranules()
-        retrieved_list = dg.get_files_link_http(s3_key='', bucket_name='', url_path='Bad URL',
-                                                file_reg_ex="^f16_\\d{6}01v7\\.gz$")
-        self.assertEqual(len(list(retrieved_list)), 0)
+        dg = TestWrapperDiscoverGranules()
+        retrieved_dict = dg.get_file_links_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        self.assertEqual(len(retrieved_dict), 0)
 
 
 if __name__ == "__main__":
