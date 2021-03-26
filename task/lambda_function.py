@@ -1,5 +1,3 @@
-import os
-
 from main import DiscoverGranules
 
 
@@ -9,11 +7,7 @@ def lambda_handler(event, context=None):
     provider = event['meta']['provider']
     discover_tf = collection['meta']['discover_tf']
 
-    # path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
-    path = "http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m09/"
-    # print(f"path[{path}]")
-    print(discover_tf['file_reg_ex'])
-    print(discover_tf['dir_reg_ex'])
+    path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
 
     granule_dict = dg.get_files_link_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
@@ -37,6 +31,6 @@ def lambda_handler(event, context=None):
         }
         ret_list.append(granule_dict)
 
-    event["payload"] = [ret_list]
+    event["payload"] = [granule_dict]
     # dg.upload_to_s3(granule_list=granule_dict)
     return event

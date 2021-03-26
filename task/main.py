@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import List
 import boto3
 
 from bs4 import BeautifulSoup
@@ -8,7 +7,6 @@ import requests
 import re
 from os import path
 import botocore.exceptions
-from granule import Granule
 
 
 class DiscoverGranules:
@@ -69,7 +67,6 @@ class DiscoverGranules:
             lines = response['Body'].read().decode('utf-8').split()
             for row in lines:
                 values = str(row).split(',')
-                # print(f"Download values[{values[0]},{values[1]},{values[2]},{values[3]},{values[3]}]")
                 granule_dict[values[0]] = {}
                 granule_dict[values[0]]['filename'] = values[1]
                 granule_dict[values[0]]['date_modified'] = values[2]
@@ -86,32 +83,24 @@ class DiscoverGranules:
         """
         Checks stored granules and updates date, time, and meridiem values
         :param granule_dict: Dictionary of granules to check
-        :return List of granules that were new or updated
+        :return Dictionary of granules that were new or updated
         """
         new_or_updated_granules = {}
         s3_granule_dict = self.download_from_s3()
         for key, value in granule_dict.items():
-            # print("Checking for updates: " + f"{str(key)}, {str(value)}")
             is_new_or_modified = False
             if key in s3_granule_dict:
                 print(f'key = {key}')
                 if s3_granule_dict[key]['date_modified'] != granule_dict[key]['date_modified']:
-                    print(f'Date changed')
-                    print(f"[{s3_granule_dict[key]['date_modified']},{granule_dict[key]['date_modified']}]")
                     s3_granule_dict[key]['date_modified'] = value['date_modified']
                     is_new_or_modified = True
                 if s3_granule_dict[key]['time_modified'] != granule_dict[key]['time_modified']:
-                    print(f'Time changed')
-                    print(f"[{s3_granule_dict[key]['time_modified']},{value['time_modified']}]")
                     s3_granule_dict[key]['time_modified'] = value['time_modified']
                     is_new_or_modified = True
                 if s3_granule_dict[key]['meridiem_modified'] != granule_dict[key]['meridiem_modified']:
                     s3_granule_dict[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
-                    print(f'Meridiem changed')
-                    print(f"[{s3_granule_dict[key]['meridiem_modified']},{value['meridiem_modified']}]")
                     is_new_or_modified = True
             else:
-                print("Key was absent")
                 s3_granule_dict[key] = {}
                 s3_granule_dict[key]['filename'] = value['filename']
                 s3_granule_dict[key]['date_modified'] = value['date_modified']
@@ -126,7 +115,9 @@ class DiscoverGranules:
                 new_or_updated_granules[key]['time_modified'] = value['time_modified']
                 new_or_updated_granules[key]['meridiem_modified'] = value['meridiem_modified']
 
-        self.upload_to_s3(s3_granule_dict)
+        # Only re-upload if there were new or updated granules
+        if new_or_updated_granules:
+            self.upload_to_s3(s3_granule_dict)
         return new_or_updated_granules
 
     def get_files_link_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
@@ -139,7 +130,7 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories
         :param depth: The positive number of levels to search down, will use the lesser of 3 or depth
         :return: links of files matching reg_ex (if reg_ex is defined)
-        :rtype: list of urls
+        :rtype: dictionary of urls
         """
         granule_dict = {}
 
@@ -192,11 +183,8 @@ class DiscoverGranules:
                                                  dir_reg_ex=dir_reg_ex, depth=(depth - 1))
                     )
 
-            self.check_granule_updates(granule_dict)
-            # self.upload_to_s3(granule_list=file_list)
+            granule_dict = self.check_granule_updates(granule_dict)
         except ValueError as ve:
             logging.error(ve)
 
         return granule_dict
-
-
