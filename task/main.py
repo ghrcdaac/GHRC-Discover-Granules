@@ -24,9 +24,9 @@ class DiscoverGranules:
         """
         Default values goes here
         """
-        csv_file_name = 'granules.csv'
-        s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{csv_file_name}"
-        s3_bucket_name = os.getenv("bucket_name")
+        self.csv_file_name = 'granules.csv'
+        self.s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{self.csv_file_name}"
+        self.s3_bucket_name = os.getenv("bucket_name")
 
     def html_request(self, url_path: str):
         """
@@ -36,7 +36,7 @@ class DiscoverGranules:
         opened_url = requests.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
-    def upload_to_s3(self, granule_dict: {}, s3_key=s3_key, bucket_name=s3_bucket_name):
+    def upload_to_s3(self, granule_dict: {}):
         """
         Upload a file to an S3 bucket
         :param s3_key: File to upload
@@ -50,9 +50,9 @@ class DiscoverGranules:
         temp_str = temp_str[:-2]
 
         client = boto3.client('s3')
-        client.put_object(Bucket=bucket_name, Key=s3_key, Body=temp_str)
+        client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
 
-    def download_from_s3(self, s3_key=s3_key, bucket_name=s3_bucket_name):
+    def download_from_s3(self):
         """
         Download a file from an S3 bucket
         :param s3_key: logical s3 file name
@@ -61,10 +61,10 @@ class DiscoverGranules:
         """
         granule_dict = {}
         s3 = boto3.resource('s3')
-        bucket = s3.Bucket(bucket_name)
+        bucket = s3.Bucket(self.s3_bucket_name)
 
         try:
-            obj = bucket.Object(key=s3_key)
+            obj = bucket.Object(key=self.s3_key)
             response = obj.get()
 
             lines = response['Body'].read().decode('utf-8').split()
@@ -93,7 +93,6 @@ class DiscoverGranules:
         for key, value in granule_dict.items():
             is_new_or_modified = False
             if key in s3_granule_dict:
-                print(f'key = {key}')
                 if s3_granule_dict[key]['date_modified'] != granule_dict[key]['date_modified']:
                     s3_granule_dict[key]['date_modified'] = value['date_modified']
                     is_new_or_modified = True
