@@ -39,8 +39,6 @@ class DiscoverGranules:
     def upload_to_s3(self, granule_dict: {}):
         """
         Upload a file to an S3 bucket
-        :param s3_key: File to upload
-        :param bucket_name: Bucket to upload to
         :param granule_dict: List of granules to be written to S3
         """
         temp_str = ""
@@ -55,8 +53,6 @@ class DiscoverGranules:
     def download_from_s3(self):
         """
         Download a file from an S3 bucket
-        :param s3_key: logical s3 file name
-        :param bucket_name: Bucket to upload to
         :return: Dictionary of the granules
         """
         granule_dict = {}
