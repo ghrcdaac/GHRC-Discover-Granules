@@ -44,8 +44,8 @@ class DiscoverGranules:
         temp_str = ""
         for key, value in granule_dict.items():
             temp_str += f"{str(key)},{value['filename']},{value['date_modified']},{value['time_modified']}," \
-                        f"{value['meridiem_modified']},\n"
-        temp_str = temp_str[:-2]
+                        f"{value['meridiem_modified']}\n"
+        temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
         client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
@@ -90,28 +90,28 @@ class DiscoverGranules:
             is_new_or_modified = False
             if key in s3_granule_dict:
                 if s3_granule_dict[key]['date_modified'] != granule_dict[key]['date_modified']:
-                    s3_granule_dict[key]['date_modified'] = value['date_modified']
+                    s3_granule_dict[key]['date_modified'] = granule_dict[key]['date_modified']
                     is_new_or_modified = True
                 if s3_granule_dict[key]['time_modified'] != granule_dict[key]['time_modified']:
-                    s3_granule_dict[key]['time_modified'] = value['time_modified']
+                    s3_granule_dict[key]['time_modified'] = granule_dict[key]['time_modified']
                     is_new_or_modified = True
                 if s3_granule_dict[key]['meridiem_modified'] != granule_dict[key]['meridiem_modified']:
                     s3_granule_dict[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
                     is_new_or_modified = True
             else:
                 s3_granule_dict[key] = {}
-                s3_granule_dict[key]['filename'] = value['filename']
-                s3_granule_dict[key]['date_modified'] = value['date_modified']
-                s3_granule_dict[key]['time_modified'] = value['time_modified']
-                s3_granule_dict[key]['meridiem_modified'] = value['meridiem_modified']
+                s3_granule_dict[key]['filename'] = granule_dict[key]['filename']
+                s3_granule_dict[key]['date_modified'] = granule_dict[key]['date_modified']
+                s3_granule_dict[key]['time_modified'] = granule_dict[key]['time_modified']
+                s3_granule_dict[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
                 is_new_or_modified = True
 
             if is_new_or_modified:
                 new_or_updated_granules[key] = {}
-                new_or_updated_granules[key]['filename'] = value['filename']
-                new_or_updated_granules[key]['date_modified'] = value['date_modified']
-                new_or_updated_granules[key]['time_modified'] = value['time_modified']
-                new_or_updated_granules[key]['meridiem_modified'] = value['meridiem_modified']
+                new_or_updated_granules[key]['filename'] = granule_dict[key]['filename']
+                new_or_updated_granules[key]['date_modified'] = granule_dict[key]['date_modified']
+                new_or_updated_granules[key]['time_modified'] = granule_dict[key]['time_modified']
+                new_or_updated_granules[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:
@@ -180,8 +180,6 @@ class DiscoverGranules:
                         self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
                                                  dir_reg_ex=dir_reg_ex, depth=(depth - 1))
                     )
-
-            granule_dict = self.check_granule_updates(granule_dict)
         except ValueError as ve:
             logging.error(ve)
 
