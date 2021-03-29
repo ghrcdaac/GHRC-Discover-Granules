@@ -23,8 +23,8 @@ def lambda_handler(event, context=None):
         epoch = int(mktime(strptime(time_str, p)))
         granules.append(
             {
-                "granule_id": key,
-                "data_type": value["filename"],
+                "granule_id": value["filename"],
+                "data_type": "",
                 "version": "1",
                 "files": [
                     {
