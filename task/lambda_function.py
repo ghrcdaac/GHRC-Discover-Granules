@@ -16,11 +16,7 @@ def lambda_handler(event, context=None):
     collection = event['config']['collection']
     discover_tf = collection['meta']['discover_tf']
 
-    # event['config']['collection']['meta']['discover_tf']['output']
-    print(f"discover_tf[{str(discover_tf)}]")
-
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-    print(f"path[{path}]")
 
     granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
