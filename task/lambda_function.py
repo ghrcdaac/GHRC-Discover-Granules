@@ -22,12 +22,13 @@ def lambda_handler(event, context=None):
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
     ret_dict = dg.check_granule_updates(granule_dict)
 
-    discovered_granules = {}
+    discovered_granules = []
     for key, value in ret_dict.items():
         time_str = f"{value['date_modified']} {value['time_modified']} {value['meridiem_modified']}"
         p = '%m/%d/%Y %I:%M %p'
         epoch = int(mktime(strptime(time_str, p)))
-        discovered_granules[key] = {
+        discovered_granules.append(
+            {
                 "granule_id": value["filename"],
                 "data_type": "",
                 "version": "1",
@@ -43,8 +44,10 @@ def lambda_handler(event, context=None):
                     }
                 ]
             }
+        )
 
-    return discovered_granules
+    event["config"]["collection"]["meta"]["payload"] = discovered_granules
+    return event
 
 
 def handler(event, context):
