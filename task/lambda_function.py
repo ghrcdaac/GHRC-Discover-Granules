@@ -1,27 +1,33 @@
-from datetime import time
+import os
+import sys
 from time import mktime, strptime
-
 from main import DiscoverGranules
+
+run_cumulus_task = None
+if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
+    sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
+    from run_cumulus_task import run_cumulus_task
 
 
 def lambda_handler(event, context=None):
     dg = DiscoverGranules()
-    collection = event['meta']['collection']
-    provider = event['meta']['provider']
+    config = event['config']
+    provider = config['provider']
+    collection = event['config']['collection']
     discover_tf = collection['meta']['discover_tf']
 
-    path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{collection['meta']['provider_path'].lstrip('/')}"
+    path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
 
     granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
     ret_dict = dg.check_granule_updates(granule_dict)
 
-    granules = []
+    discovered_granules = []
     for key, value in ret_dict.items():
         time_str = f"{value['date_modified']} {value['time_modified']} {value['meridiem_modified']}"
         p = '%m/%d/%Y %I:%M %p'
         epoch = int(mktime(strptime(time_str, p)))
-        granules.append(
+        discovered_granules.append(
             {
                 "granule_id": value["filename"],
                 "data_type": "",
@@ -40,5 +46,12 @@ def lambda_handler(event, context=None):
             }
         )
 
-    event["payload"] = granules
+    event["config"]["collection"]["meta"]["payload"] = discovered_granules
     return event
+
+
+def handler(event, context):
+    if run_cumulus_task:
+        return run_cumulus_task(lambda_handler, event, context)
+    else:
+        return []
