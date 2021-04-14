@@ -27,11 +27,10 @@ def lambda_handler(event, context=None):
         time_str = f"{value['date_modified']} {value['time_modified']} {value['meridiem_modified']}"
         p = '%m/%d/%Y %I:%M %p'
         epoch = int(mktime(strptime(time_str, p)))
-        discovered_granules.append(
-            {
-                "granule_id": value["filename"],
-                "data_type": "",
-                "version": "1",
+        discovered_granules.append({
+                "granuleId": value["filename"],
+                "dataType": collection["name"],
+                "version": collection["version"],
                 "files": [
                     {
                         "name": value["filename"],
@@ -39,15 +38,13 @@ def lambda_handler(event, context=None):
                         "size": "",
                         "time": epoch,
                         "bucket": dg.s3_bucket_name,
-                        "url_path": "",
+                        "url_path": collection["url_path"],
                         "type": ""
                     }
                 ]
-            }
-        )
+            })
 
-    event["config"]["collection"]["meta"]["payload"] = discovered_granules
-    return event
+    return {"granules": discovered_granules}
 
 
 def handler(event, context):
