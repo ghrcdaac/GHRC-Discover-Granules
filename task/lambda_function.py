@@ -34,9 +34,8 @@ def lambda_handler(event, context=None):
                 "version": collection.get("version", ""),
                 "files": [
                     {
-
-                        "name": path,
-                        "path": key,
+                        "name": value["filename"],
+                        "path": path,
                         "size": "",
                         "time": epoch,
                         "bucket": dg.s3_bucket_name,
