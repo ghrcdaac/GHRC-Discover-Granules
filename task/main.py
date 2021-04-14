@@ -16,19 +16,17 @@ class DiscoverGranules:
     Compare the md5 of these granules with the ones in an S3
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
-    csv_file_name = ''
-    s3_key = ''
-    s3_bucket_name = ''
 
-    def __init__(self):
+    def __init__(self, csv_file_name='granules.csv'):
         """
         Default values goes here
         """
-        self.csv_file_name = 'granules.csv'
+        self.csv_file_name = csv_file_name
         self.s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{self.csv_file_name}"
         self.s3_bucket_name = os.getenv("bucket_name")
 
-    def html_request(self, url_path: str):
+    @staticmethod
+    def html_request(url_path: str):
         """
         :param url_path: The base URL where the files are served
         :return: The html of the page if the fetch is successful
@@ -36,7 +34,7 @@ class DiscoverGranules:
         opened_url = requests.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
-    def upload_to_s3(self, granule_dict: {}):
+    def upload_to_s3(self, granule_dict: dict):
         """
         Upload a file to an S3 bucket
         :param granule_dict: List of granules to be written to S3
