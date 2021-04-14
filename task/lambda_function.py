@@ -29,8 +29,8 @@ def lambda_handler(event, context=None):
         epoch = int(mktime(strptime(time_str, p)))
         discovered_granules.append({
                 "granuleId": value["filename"],
-                "dataType": collection["name"],
-                "version": collection["version"],
+                "dataType": collection.get("name"),
+                "version": collection.get("version"),
                 "files": [
                     {
                         "name": value["filename"],
@@ -38,7 +38,7 @@ def lambda_handler(event, context=None):
                         "size": "",
                         "time": epoch,
                         "bucket": dg.s3_bucket_name,
-                        "url_path": collection["url_path"],
+                        "url_path": collection.get("url_path"),
                         "type": ""
                     }
                 ]
