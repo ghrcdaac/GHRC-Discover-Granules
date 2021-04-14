@@ -27,14 +27,17 @@ def lambda_handler(event, context=None):
         time_str = f"{value['date_modified']} {value['time_modified']} {value['meridiem_modified']}"
         p = '%m/%d/%Y %I:%M %p'
         epoch = int(mktime(strptime(time_str, p)))
-        path = value["filename"][value["filename"].find("com") + 3: value["filename"].rfind("/") + 1]
+        host = config['provider']["host"]
+        filename = value["filename"]
+        path = key[key.find(host) + len(host): key.find(filename)]
+
         discovered_granules.append({
                 "granuleId": value["filename"],
                 "dataType": collection.get("name", ""),
                 "version": collection.get("version", ""),
                 "files": [
                     {
-                        "name": value["filename"],
+                        "name": filename,
                         "path": path,
                         "size": "",
                         "time": epoch,
