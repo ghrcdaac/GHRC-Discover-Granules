@@ -167,16 +167,12 @@ class DiscoverGranules:
                     if not dir_reg_ex or re.match(dir_reg_ex, directory_path):
                         discovered_directories.append(directory_path)
 
-            for file_link, filename, date, time, meridiem in zip(file_links, file_names, date_modified_list,
-                                                                 time_modified_list, meridiem_list):
-                print(f'[link, name, date, time, meridiem] = [{file_link}, {filename}, {date}, {time}, {meridiem}]')
+            depth = min(abs(depth), 3) or 1
 
-            depth = min(abs(depth), 3)
-            if depth > 0:
-                for directory in discovered_directories:
-                    granule_dict.update(
-                        self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
-                                                 dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+            for directory in discovered_directories:
+                granule_dict.update(
+                    self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
+                                             dir_reg_ex=dir_reg_ex, depth=(depth - 1))
                     )
         except ValueError as ve:
             logging.error(ve)
