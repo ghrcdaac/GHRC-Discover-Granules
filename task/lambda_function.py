@@ -23,16 +23,15 @@ def lambda_handler(event, context=None):
     ret_dict = dg.check_granule_updates(granule_dict)
 
     discovered_granules = []
+    p = '%a%d%b%Y%H:%M:%S%Z'
     for key, value in ret_dict.items():
-        time_str = f"{value['date_modified']} {value['time_modified']} {value['meridiem_modified']}"
-        p = '%m/%d/%Y %I:%M %p'
-        epoch = int(mktime(strptime(time_str, p)))
+        epoch = int(mktime(strptime(value['Last-Modified'].replace(' ', ''), p)))
         host = config['provider']["host"]
-        filename = value["filename"]
+        filename = key.rsplit('/')[-1]
         path = key[key.find(host) + len(host): key.find(filename)]
 
         discovered_granules.append({
-                "granuleId": value["filename"],
+                "granuleId": filename,
                 "dataType": collection.get("name", ""),
                 "version": collection.get("version", ""),
                 "files": [

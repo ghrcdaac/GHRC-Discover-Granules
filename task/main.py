@@ -4,8 +4,6 @@ import boto3
 
 from bs4 import BeautifulSoup
 import requests
-import re
-from os import path
 import botocore.exceptions
 
 
@@ -24,14 +22,14 @@ class DiscoverGranules:
         self.csv_file_name = csv_file_name
         self.s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{self.csv_file_name}"
         self.s3_bucket_name = os.getenv("bucket_name")
+        self.session = requests.Session()
 
-    @staticmethod
-    def html_request(url_path: str):
+    def html_request(self, url_path: str):
         """
         :param url_path: The base URL where the files are served
         :return: The html of the page if the fetch is successful
         """
-        opened_url = requests.get(url_path)
+        opened_url = self.session.get(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
 
     def upload_to_s3(self, granule_dict: dict):
@@ -41,8 +39,7 @@ class DiscoverGranules:
         """
         temp_str = ""
         for key, value in granule_dict.items():
-            temp_str += f"{str(key)},{value['filename']},{value['date_modified']},{value['time_modified']}," \
-                        f"{value['meridiem_modified']}\n"
+            temp_str += f"{str(key)},{value['ETag']},{value['Last-Modified']}\n"
         temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
@@ -65,10 +62,8 @@ class DiscoverGranules:
             for row in lines:
                 values = str(row).split(',')
                 granule_dict[values[0]] = {}
-                granule_dict[values[0]]['filename'] = values[1]
-                granule_dict[values[0]]['date_modified'] = values[2]
-                granule_dict[values[0]]["time_modified"] = values[3]
-                granule_dict[values[0]]["meridiem_modified"] = values[4]
+                granule_dict[values[0]]['ETag'] = values[1]
+                granule_dict[values[0]]['Last-Modified'] = values[2]
 
         except botocore.exceptions.ClientError as nk:
             logging.error(nk)
@@ -78,7 +73,7 @@ class DiscoverGranules:
 
     def check_granule_updates(self, granule_dict: {}):
         """
-        Checks stored granules and updates date, time, and meridiem values
+        Checks stored granules and updates the datetime and ETag if updated
         :param granule_dict: Dictionary of granules to check
         :return Dictionary of granules that were new or updated
         """
@@ -87,29 +82,23 @@ class DiscoverGranules:
         for key, value in granule_dict.items():
             is_new_or_modified = False
             if key in s3_granule_dict:
-                if s3_granule_dict[key]['date_modified'] != granule_dict[key]['date_modified']:
-                    s3_granule_dict[key]['date_modified'] = granule_dict[key]['date_modified']
+                if s3_granule_dict[key]['ETag'] != granule_dict[key]['ETag']:
+                    s3_granule_dict[key]['ETag'] = granule_dict[key]['ETag']
                     is_new_or_modified = True
-                if s3_granule_dict[key]['time_modified'] != granule_dict[key]['time_modified']:
-                    s3_granule_dict[key]['time_modified'] = granule_dict[key]['time_modified']
+                if s3_granule_dict[key]['Last-Modified'] != granule_dict[key]['Last-Modified']:
+                    s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
                     is_new_or_modified = True
-                if s3_granule_dict[key]['meridiem_modified'] != granule_dict[key]['meridiem_modified']:
-                    s3_granule_dict[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
-                    is_new_or_modified = True
+
             else:
                 s3_granule_dict[key] = {}
-                s3_granule_dict[key]['filename'] = granule_dict[key]['filename']
-                s3_granule_dict[key]['date_modified'] = granule_dict[key]['date_modified']
-                s3_granule_dict[key]['time_modified'] = granule_dict[key]['time_modified']
-                s3_granule_dict[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
+                s3_granule_dict[key]['ETag'] = granule_dict[key]['ETag']
+                s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
                 is_new_or_modified = True
 
             if is_new_or_modified:
                 new_or_updated_granules[key] = {}
-                new_or_updated_granules[key]['filename'] = granule_dict[key]['filename']
-                new_or_updated_granules[key]['date_modified'] = granule_dict[key]['date_modified']
-                new_or_updated_granules[key]['time_modified'] = granule_dict[key]['time_modified']
-                new_or_updated_granules[key]['meridiem_modified'] = granule_dict[key]['meridiem_modified']
+                new_or_updated_granules[key]['ETag'] = granule_dict[key]['ETag']
+                new_or_updated_granules[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:
@@ -132,48 +121,23 @@ class DiscoverGranules:
 
         try:
             depth = int(depth)
-            if url_path and url_path[-1] != '/':
-                url_path = f'{url_path}/'
-            pre_tag = str(self.html_request(url_path).find('pre'))
-            file_links = []
-            file_names = []
-            discovered_directories = []
-
-            # Get all of the date, time, and meridiem data associated with each file
-            date_modified_list = re.findall(r"\d{1,2}/\d{1,2}/\d{4}", pre_tag)
-            time_modified_list = re.findall(r"\d{1,2}:\d{2}", pre_tag)
-            meridiem_list = re.findall("AM|PM", pre_tag, re.IGNORECASE)
-            # Get the current directory/file name
-            paths = re.findall("\".*?\"", pre_tag)[1:]
-            paths[:] = [path.basename(p.strip('\"').rstrip("/")) for p in paths]
-
-            # Get all of the file names, links, date modified, time modified, and meridiem.
-            for file_path, date, time, meridiem in zip(paths, date_modified_list, time_modified_list, meridiem_list):
-                current_path = path.basename(file_path.strip('\"').rstrip("/"))
-                full_path = f'{url_path}{current_path}'
-
-                if current_path.rfind('.') != -1:
-                    if file_reg_ex is None or re.match(file_reg_ex, current_path) is not None:
-                        granule_dict[full_path] = {}
-                        granule_dict[full_path]['filename'] = current_path
-                        granule_dict[full_path]['date_modified'] = date
-                        granule_dict[full_path]['time_modified'] = time
-                        granule_dict[full_path]['meridiem_modified'] = meridiem
-
-                        file_links.append(full_path)
-                        file_names.append(path.basename(current_path))
-                elif depth > 0:
-                    directory_path = f'{full_path}/'
-                    if not dir_reg_ex or re.match(dir_reg_ex, directory_path):
-                        discovered_directories.append(directory_path)
-
-            for file_link, filename, date, time, meridiem in zip(file_links, file_names, date_modified_list,
-                                                                 time_modified_list, meridiem_list):
-                print(f'[link, name, date, time, meridiem] = [{file_link}, {filename}, {date}, {time}, {meridiem}]')
+            fetched_html = self.html_request(url_path)
+            directory_list = []
+            for a_tag in fetched_html.findAll('a', href=True):
+                url_segment = a_tag['href'].rstrip('/').rsplit('/', 1)[-1]
+                path = f"{url_path}{url_segment}"
+                if '.' in url_segment:
+                    head_resp = self.session.head(path).headers
+                    granule_dict[path] = {}
+                    granule_dict[path]['ETag'] = head_resp['ETag']
+                    granule_dict[path]['Last-Modified'] = head_resp['Last-Modified'].replace(',', '').replace(' ', '')
+                else:
+                    directory_list.append(f"{path}/")
+            pass
 
             depth = min(abs(depth), 3)
             if depth > 0:
-                for directory in discovered_directories:
+                for directory in directory_list:
                     granule_dict.update(
                         self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
                                                  dir_reg_ex=dir_reg_ex, depth=(depth - 1))
