@@ -10,18 +10,17 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def lambda_handler(event, context=None):
-    dg = DiscoverGranules()
     config = event['config']
     provider = config['provider']
     collection = event['config']['collection']
     discover_tf = collection['meta']['discover_tf']
-
+    file_reg_ex = collection.get('granuleIdExtraction')
+    csv_file_name = f"{collection['name']}__{collection['version']}.csv"
+    dg = DiscoverGranules(csv_file_name=csv_file_name)
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-
-    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf['file_reg_ex'],
+    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=file_reg_ex,
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
     ret_dict = dg.check_granule_updates(granule_dict)
-
     discovered_granules = []
     p = '%a%d%b%Y%H:%M:%S%Z'
     for key, value in ret_dict.items():
@@ -29,7 +28,6 @@ def lambda_handler(event, context=None):
         host = config['provider']["host"]
         filename = key.rsplit('/')[-1]
         path = key[key.find(host) + len(host): key.find(filename)]
-
         discovered_granules.append({
                 "granuleId": filename,
                 "dataType": collection.get("name", ""),
