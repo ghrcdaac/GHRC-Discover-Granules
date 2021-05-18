@@ -5,6 +5,7 @@ import boto3
 from bs4 import BeautifulSoup
 import requests
 import botocore.exceptions
+from dateutil.parser import parse
 
 
 class DiscoverGranules:
@@ -58,7 +59,7 @@ class DiscoverGranules:
             obj = bucket.Object(key=self.s3_key)
             response = obj.get()
 
-            lines = response['Body'].read().decode('utf-8').split()
+            lines = response['Body'].read().decode('utf-8').split('\n')
             for row in lines:
                 values = str(row).split(',')
                 granule_dict[values[0]] = {}
@@ -126,11 +127,17 @@ class DiscoverGranules:
             for a_tag in fetched_html.findAll('a', href=True):
                 url_segment = a_tag['href'].rstrip('/').rsplit('/', 1)[-1]
                 path = f"{url_path}{url_segment}"
+                '''
+                Checking for a '.' here to see the link that has been discovered is a file. 
+                This assumes that a discovered file will have an appended portion ie file.txt
+                Notice it is only checking the newest discovered portion of the URL.
+                '''
                 if '.' in url_segment:
                     head_resp = self.session.head(path).headers
                     granule_dict[path] = {}
-                    granule_dict[path]['ETag'] = head_resp['ETag']
-                    granule_dict[path]['Last-Modified'] = head_resp['Last-Modified'].replace(',', '').replace(' ', '')
+                    granule_dict[path]['ETag'] = str(head_resp.get('ETag'))
+                    granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
+
                 else:
                     directory_list.append(f"{path}/")
             pass

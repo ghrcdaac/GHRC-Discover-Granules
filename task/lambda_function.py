@@ -1,6 +1,9 @@
 import os
 import sys
 from time import mktime, strptime
+
+from dateutil.parser import parse
+
 from main import DiscoverGranules
 
 run_cumulus_task = None
@@ -22,9 +25,9 @@ def lambda_handler(event, context=None):
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
     ret_dict = dg.check_granule_updates(granule_dict)
     discovered_granules = []
-    p = '%a%d%b%Y%H:%M:%S%Z'
+    p = '%Y%m%d%%H:%M:%S%Z'
     for key, value in ret_dict.items():
-        epoch = int(mktime(strptime(value['Last-Modified'].replace(' ', ''), p)))
+        epoch = parse(value['Last-Modified']).timestamp()
         host = config['provider']["host"]
         filename = key.rsplit('/')[-1]
         path = key[key.find(host) + len(host): key.find(filename)]
