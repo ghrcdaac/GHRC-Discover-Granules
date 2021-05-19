@@ -33,7 +33,8 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(test_file_path, 'r') as test_html_file:
             self._test_html = test_html_file.read()
 
-        with open("head_responses.json", 'r') as test_file:
+        test_file_path = os.path.join(THIS_DIR, 'head_responses.json')
+        with open(test_file_path, 'r') as test_file:
             test = json.load(test_file)
             _head_response = test['head_responses']
 
