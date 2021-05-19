@@ -4,6 +4,7 @@ import boto3
 
 from bs4 import BeautifulSoup
 import requests
+import re
 import botocore.exceptions
 from dateutil.parser import parse
 
@@ -21,17 +22,23 @@ class DiscoverGranules:
         Default values goes here
         """
         self.csv_file_name = csv_file_name
-        self.s3_key = f"{os.getenv('s3_key_prefix').rstrip('/')}/{self.csv_file_name}"
+        self.s3_key = f"{os.getenv('s3_key_prefix', default='temp').rstrip('/')}/{self.csv_file_name}"
         self.s3_bucket_name = os.getenv("bucket_name")
         self.session = requests.Session()
+
+    def fetch_session(self, url):
+        return self.session.get(url)
 
     def html_request(self, url_path: str):
         """
         :param url_path: The base URL where the files are served
         :return: The html of the page if the fetch is successful
         """
-        opened_url = self.session.get(url_path)
+        opened_url = self.fetch_session(url_path)
         return BeautifulSoup(opened_url.text, features="html.parser")
+
+    def headers_request(self, url_path: str):
+        return self.session.head(url_path).headers
 
     def upload_to_s3(self, granule_dict: dict):
         """
@@ -132,13 +139,13 @@ class DiscoverGranules:
                 This assumes that a discovered file will have an appended portion ie file.txt
                 Notice it is only checking the newest discovered portion of the URL.
                 '''
-                if '.' in url_segment:
-                    head_resp = self.session.head(path).headers
+                if '.' in url_segment and (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
+                    head_resp = self.headers_request(path)
                     granule_dict[path] = {}
                     granule_dict[path]['ETag'] = str(head_resp.get('ETag'))
                     granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
 
-                else:
+                elif dir_reg_ex is None or re.search(dir_reg_ex, path):
                     directory_list.append(f"{path}/")
             pass
 
