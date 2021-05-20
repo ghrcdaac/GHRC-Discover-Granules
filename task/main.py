@@ -139,11 +139,14 @@ class DiscoverGranules:
                 This assumes that a discovered file will have an appended portion ie file.txt
                 Notice it is only checking the newest discovered portion of the URL.
                 '''
+
                 if '.' in url_segment and (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
                     head_resp = self.headers_request(path)
                     granule_dict[path] = {}
                     granule_dict[path]['ETag'] = str(head_resp.get('ETag'))
-                    granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
+                    # This check is needed to prevent unit tests from trying to parse a MagicMock object which crashes
+                    if isinstance(head_resp.get('Last-Modified'), str):
+                        granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
 
                 elif dir_reg_ex is None or re.search(dir_reg_ex, path):
                     directory_list.append(f"{path}/")
