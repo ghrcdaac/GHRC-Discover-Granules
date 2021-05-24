@@ -1,0 +1,69 @@
+{
+  "head_responses": [
+    {
+      "Content-Length": "1882122",
+      "Content-Type": "application/x-gzip",
+      "Last-Modified": "Thu, 02 Apr 2020 15:06:03 GMT",
+      "Accept-Ranges": "bytes",
+      "ETag": "251e523a09d61:0",
+      "Server": "Microsoft-IIS/7.5",
+      "X-Powered-By": "ASP.NET",
+      "Date": "Wed, 19 May 2021 18:42:16 GMT",
+      "Age": "22",
+      "Connection": "keep-alive",
+      "Via": "1.1 epxo32-1a-wcg.eno.ecs.nasa.gov"
+    },
+    {
+      "Content-Length": "970947",
+      "Content-Type": "application/x-gzip",
+      "Last-Modified": "Thu, 02 Apr 2020 15:06:05 GMT",
+      "Accept-Ranges": "bytes",
+      "ETag": "3b568c3b09d61:0",
+      "Server": "Microsoft-IIS/7.5",
+      "X-Powered-By": "ASP.NET",
+      "Date": "Wed, 19 May 2021 18:42:16 GMT",
+      "Age": "21",
+      "Connection": "keep-alive",
+      "Via": "1.1 epxo32-1a-wcg.eno.ecs.nasa.gov"
+    },
+    {
+      "Content-Length": "1891993",
+      "Content-Type": "application/x-gzip",
+      "Last-Modified": "Fri, 03 Apr 2020 13:51:35 GMT",
+      "Accept-Ranges": "bytes",
+      "ETag": "39506cfdbe9d61:0",
+      "Server": "Microsoft-IIS/7.5",
+      "X-Powered-By": "ASP.NET",
+      "Date": "Wed, 19 May 2021 18:42:16 GMT",
+      "Age": "21",
+      "Connection": "keep-alive",
+      "Via": "1.1 epxo32-1a-wcg.eno.ecs.nasa.gov"
+    },
+    {
+      "Content-Length": "972739",
+      "Content-Type": "application/x-gzip",
+      "Last-Modified": "Fri, 03 Apr 2020 13:51:37 GMT",
+      "Accept-Ranges": "bytes",
+      "ETag": "268a74febe9d61:0",
+      "Server": "Microsoft-IIS/7.5",
+      "X-Powered-By": "ASP.NET",
+      "Date": "Wed, 19 May 2021 18:42:16 GMT",
+      "Age": "21",
+      "Connection": "keep-alive",
+      "Via": "1.1 epxo32-1a-wcg.eno.ecs.nasa.gov"
+    },
+    {
+      "Content-Length": "1901748",
+      "Content-Type": "application/x-gzip",
+      "Last-Modified": "Sat, 04 Apr 2020 15:06:30 GMT",
+      "Accept-Ranges": "bytes",
+      "ETag": "c5f69e92ad61:0",
+      "Server": "Microsoft-IIS/7.5",
+      "X-Powered-By": "ASP.NET",
+      "Date": "Wed, 19 May 2021 18:42:16 GMT",
+      "Age": "21",
+      "Connection": "keep-alive",
+      "Via": "1.1 epxo32-1a-wcg.eno.ecs.nasa.gov"
+    }
+  ]
+}
