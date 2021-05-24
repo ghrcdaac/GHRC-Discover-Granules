@@ -1,5 +1,6 @@
 import logging
 import os
+
 import boto3
 
 from bs4 import BeautifulSoup
@@ -27,7 +28,10 @@ class DiscoverGranules:
         self.session = requests.Session()
 
     def fetch_session(self, url):
-        return self.session.get(url)
+        """
+        Establishes a session for requests.
+        """
+        return self.session.get(url, verify=False)
 
     def html_request(self, url_path: str):
         """
@@ -38,6 +42,11 @@ class DiscoverGranules:
         return BeautifulSoup(opened_url.text, features="html.parser")
 
     def headers_request(self, url_path: str):
+        """
+        Performs a head request for the given url.
+        :param url_path The URL for the request
+        :return Results of the request
+        """
         return self.session.head(url_path).headers
 
     def upload_to_s3(self, granule_dict: dict):
@@ -47,7 +56,7 @@ class DiscoverGranules:
         """
         temp_str = ""
         for key, value in granule_dict.items():
-            temp_str += f"{str(key)},{value['ETag']},{value['Last-Modified']}\n"
+            temp_str += f"{str(key)},{value.get('ETag')},{value.get('Last-Modified')}\n"
         temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
@@ -99,8 +108,8 @@ class DiscoverGranules:
 
             else:
                 s3_granule_dict[key] = {}
-                s3_granule_dict[key]['ETag'] = granule_dict[key]['ETag']
-                s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+                s3_granule_dict[key]['ETag'] = granule_dict[key].get('ETag')
+                s3_granule_dict[key]['Last-Modified'] = granule_dict[key].get('Last-Modified')
                 is_new_or_modified = True
 
             if is_new_or_modified:
@@ -126,29 +135,28 @@ class DiscoverGranules:
         :rtype: dictionary of urls
         """
         granule_dict = {}
-
         try:
             depth = int(depth)
             fetched_html = self.html_request(url_path)
             directory_list = []
             for a_tag in fetched_html.findAll('a', href=True):
-                url_segment = a_tag['href'].rstrip('/').rsplit('/', 1)[-1]
-                path = f"{url_path}{url_segment}"
+                url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
+                path = f"{url_path.rstrip('/')}/{url_segment}"
                 '''
                 Checking for a '.' here to see the link that has been discovered is a file. 
                 This assumes that a discovered file will have an appended portion ie file.txt
                 Notice it is only checking the newest discovered portion of the URL.
                 '''
-
                 if '.' in url_segment and (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
                     head_resp = self.headers_request(path)
                     granule_dict[path] = {}
                     granule_dict[path]['ETag'] = str(head_resp.get('ETag'))
-                    # This check is needed to prevent unit tests from trying to parse a MagicMock object which crashes
+                    # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
+                    # object which will cause a crashes
                     if isinstance(head_resp.get('Last-Modified'), str):
                         granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
 
-                elif dir_reg_ex is None or re.search(dir_reg_ex, path):
+                elif '/' in url_segment and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                     directory_list.append(f"{path}/")
             pass
 

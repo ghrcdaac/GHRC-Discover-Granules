@@ -34,6 +34,8 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_get_file_link(self):
         dg = DiscoverGranules()
+        dl = MagicMock()
+        print(type(dl))
         dg.getSession = MagicMock()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
         dg.headers_request = MagicMock(side_effects=self._head_responses)

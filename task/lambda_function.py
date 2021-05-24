@@ -1,7 +1,7 @@
 import os
 import sys
-from time import mktime, strptime
 
+import requests
 from dateutil.parser import parse
 
 from main import DiscoverGranules
@@ -23,6 +23,7 @@ def lambda_handler(event, context=None):
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
     granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=file_reg_ex,
                                           dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
+    print(f"granule_dict = {str(granule_dict)}")
     ret_dict = dg.check_granule_updates(granule_dict)
     discovered_granules = []
     p = '%Y%m%d%%H:%M:%S%Z'
