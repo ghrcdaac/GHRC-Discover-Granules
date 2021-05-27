@@ -1,9 +1,6 @@
 import os
 import sys
-
-import requests
 from dateutil.parser import parse
-
 from main import DiscoverGranules
 
 run_cumulus_task = None
@@ -17,16 +14,14 @@ def lambda_handler(event, context=None):
     provider = config['provider']
     collection = event['config']['collection']
     discover_tf = collection['meta']['discover_tf']
-    file_reg_ex = collection.get('granuleIdExtraction')
     csv_file_name = f"{collection['name']}__{collection['version']}.csv"
     dg = DiscoverGranules(csv_file_name=csv_file_name)
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=file_reg_ex,
-                                          dir_reg_ex=discover_tf['dir_reg_ex'], depth=discover_tf['depth'])
-    print(f"granule_dict = {str(granule_dict)}")
-    ret_dict = dg.check_granule_updates(granule_dict)
+    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf.get('file_reg_ex'),
+                                          dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
+    test = discover_tf.get("duplicates", None)
+    ret_dict = dg.check_granule_updates(granule_dict, duplicates=test)
     discovered_granules = []
-    p = '%Y%m%d%%H:%M:%S%Z'
     for key, value in ret_dict.items():
         epoch = parse(value['Last-Modified']).timestamp()
         host = config['provider']["host"]
