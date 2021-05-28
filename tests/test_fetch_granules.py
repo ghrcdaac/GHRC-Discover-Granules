@@ -2,6 +2,7 @@
 import json
 import sys
 import os
+from unittest import mock
 
 from requests import Session
 
@@ -21,7 +22,6 @@ class TestDiscoverGranules(unittest.TestCase):
     _url = "http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m04/"
 
     def setUp(self):
-        print('tear up')
         test_file_path = os.path.join(THIS_DIR, 'test_page.html')
         with open(test_file_path, 'r') as test_html_file:
             self._test_html = test_html_file.read()
@@ -29,16 +29,14 @@ class TestDiscoverGranules(unittest.TestCase):
         test_file_path = os.path.join(THIS_DIR, 'head_responses.json')
         with open(test_file_path, 'r') as test_file:
             test = json.load(test_file)
-            _head_response = test['head_responses']
+            self._head_responses = test['head_responses']
             pass
 
     def test_get_file_link(self):
         dg = DiscoverGranules()
-        dl = MagicMock()
-        print(type(dl))
         dg.getSession = MagicMock()
         dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effects=self._head_responses)
+        dg.headers_request = MagicMock(side_effect=self._head_responses)
         retrieved_dict = dg.get_file_links_http(url_path=self._url)
         self.assertEqual(len(retrieved_dict), 5)
 
