@@ -17,37 +17,56 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
-    _test_html = ''
-    _head_responses = []
-    _url = "http://data.remss.com/ssmi/f16/bmaps_v07/y2020/m04/"
 
-    def setUp(self):
-        test_file_path = os.path.join(THIS_DIR, 'test_page.html')
-        with open(test_file_path, 'r') as test_html_file:
-            self._test_html = test_html_file.read()
+    @staticmethod
+    def get_html(provider):
+        with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r') as test_html_file:
+            return test_html_file.read()
 
-        test_file_path = os.path.join(THIS_DIR, 'head_responses.json')
-        with open(test_file_path, 'r') as test_file:
-            test = json.load(test_file)
-            self._head_responses = test['head_responses']
-            pass
+    @staticmethod
+    def get_header_responses(provider):
+        with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r') as test_file:
+            return json.load(test_file)['head_responses']
 
-    def test_get_file_link(self):
+    def test_get_file_link_remss(self):
         dg = DiscoverGranules()
         dg.getSession = MagicMock()
-        dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effect=self._head_responses)
-        retrieved_dict = dg.get_file_links_http(url_path=self._url)
+        msut_html = self.get_html('remss')
+        msut_header_responses = self.get_header_responses('remss')
+        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = dg.get_file_links_http(url_path='fake_url')
         self.assertEqual(len(retrieved_dict), 5)
 
     def test_get_file_link_wregex(self):
         dg = DiscoverGranules()
         dg.getSession = MagicMock()
-        dg.html_request = MagicMock(return_value=BeautifulSoup(self._test_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effects=self._head_responses)
-        dg.upload_to_s3 = MagicMock()
-        dg.download_from_s3 = MagicMock()
-        retrieved_dict = dg.get_file_links_http(url_path=self._url, file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        msut_html = self.get_html('remss')
+        msut_header_responses = self.get_header_responses('remss')
+        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        dg.headers_request = MagicMock(side_effects=msut_header_responses)
+        retrieved_dict = dg.get_file_links_http(url_path='fake_url', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        self.assertEqual(len(retrieved_dict), 1)
+
+
+    def test_get_file_link_msut(self):
+        dg = DiscoverGranules()
+        dg.getSession = MagicMock()
+        msut_html = self.get_html('msut')
+        msut_header_responses = self.get_header_responses('msut')
+        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = dg.get_file_links_http(url_path="fake_url")
+        self.assertEqual(len(retrieved_dict), 4)
+
+    def test_get_file_link_msut_wregex(self):
+        dg = DiscoverGranules()
+        dg.getSession = MagicMock()
+        msut_html = self.get_html('msut')
+        msut_header_responses = self.get_header_responses('msut')
+        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = dg.get_file_links_http(url_path="fake_url", file_reg_ex="^tlt.*\\d{4}_6.\\d+")
         self.assertEqual(len(retrieved_dict), 1)
 
     def test_bad_url(self):
