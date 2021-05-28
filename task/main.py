@@ -170,11 +170,9 @@ class DiscoverGranules:
          """
         s3_granule_dict.clear()
         for key, value in granule_dict.items():
-            temp_dict = self.get_headers(key)
-
             s3_granule_dict[key] = {}
-            s3_granule_dict[key]["ETag"] = temp_dict[key]['ETag']
-            s3_granule_dict[key]['Last-Modified'] = temp_dict[key]['Last-Modified']
+            s3_granule_dict[key]["ETag"] = granule_dict[key]['ETag']
+            s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
 
         return s3_granule_dict
 
