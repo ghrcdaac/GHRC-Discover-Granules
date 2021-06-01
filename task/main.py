@@ -1,6 +1,5 @@
 import logging
 import os
-
 import boto3
 
 from bs4 import BeautifulSoup
@@ -8,6 +7,9 @@ import requests
 import re
 import botocore.exceptions
 from dateutil.parser import parse
+
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class DiscoverGranules:
@@ -83,19 +85,59 @@ class DiscoverGranules:
                 granule_dict[values[0]]['Last-Modified'] = values[2]
 
         except botocore.exceptions.ClientError as nk:
-            logging.error(nk)
+            logging.debug(nk)
             return {}
 
         return granule_dict
 
-    def check_granule_updates(self, granule_dict: {}):
+    def get_headers(self, granule):
         """
-        Checks stored granules and updates the datetime and ETag if updated
-        :param granule_dict: Dictionary of granules to check
-        :return Dictionary of granules that were new or updated
+        Gets the ETag and Last-Modified fields from a head response and returns it as a dictionary
+        :param granule The url to request the header for
+        :return temp a dictionary with {"key": {"ETag": "ETag", "Last-Modified": "Last-Modified"}}
         """
-        new_or_updated_granules = {}
-        s3_granule_dict = self.download_from_s3()
+        head_resp = self.headers_request(granule)
+        temp = {granule: {}}
+        temp[granule]['ETag'] = str(head_resp.get('ETag', None))
+        last_modified = head_resp.get('Last-Modified', None)
+        if isinstance(last_modified, str):
+            temp[granule]['Last-Modified'] = str(parse(last_modified))
+
+        return temp
+
+    def error(self, granule_dict, s3_granule_dict):
+        """
+        If the "error" flag is set in the collection definition this function will throw an exception and halt
+        execution.
+        :param granule_dict granules discovered this run
+        :param s3_granule_dict the downloaded last run stored in s3
+        :return new_granules Only the granules that are newly discovered
+        """
+        new_granules = {}
+        for key, value in granule_dict.items():
+            if key in s3_granule_dict:
+                raise ValueError(f"A duplicate granule was found: {key}")
+            else:
+                # Update for S3
+                s3_granule_dict[key] = {}
+                s3_granule_dict[key]["ETag"] = granule_dict[key]["ETag"]
+                s3_granule_dict[key]["Last-Modified"] = granule_dict[key]["Last-Modified"]
+                # Dictionary for new or updated granules
+                new_granules[key] = {}
+                new_granules[key]["ETag"] = granule_dict[key]["ETag"]
+                new_granules[key]["Last-Modified"] = granule_dict[key]["Last-Modified"]
+
+        return new_granules
+
+    def skip(self, granule_dict, s3_granule_dict):
+        """
+        If the skip flag is set in the collection definition this function will only update granules if the ETag or
+        Last-Modified meta-data tags have changed.
+        :param granule_dict granules discovered this run
+        :param s3_granule_dict the downloaded last run stored in s3
+        :return new_granules Only the granules that are newly discovered
+        """
+        new_granules = {}
         for key, value in granule_dict.items():
             is_new_or_modified = False
             if key in s3_granule_dict:
@@ -105,17 +147,54 @@ class DiscoverGranules:
                 if s3_granule_dict[key]['Last-Modified'] != granule_dict[key]['Last-Modified']:
                     s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
                     is_new_or_modified = True
-
             else:
                 s3_granule_dict[key] = {}
-                s3_granule_dict[key]['ETag'] = granule_dict[key].get('ETag')
-                s3_granule_dict[key]['Last-Modified'] = granule_dict[key].get('Last-Modified')
+                s3_granule_dict[key]["ETag"] = granule_dict[key]['ETag']
+                s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
                 is_new_or_modified = True
 
             if is_new_or_modified:
-                new_or_updated_granules[key] = {}
-                new_or_updated_granules[key]['ETag'] = granule_dict[key]['ETag']
-                new_or_updated_granules[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+                new_granules[key] = {}
+                new_granules[key]["ETag"] = granule_dict[key]['ETag']
+                new_granules[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+
+        return new_granules
+
+    def replace(self, granule_dict, s3_granule_dict):
+        """
+         If the replace flag is set in the collection definition this function will clear out the previously stored run
+         and replace with any discovered granules for this run.
+         :param granule_dict granules discovered this run
+         :param s3_granule_dict the downloaded last run stored in s3
+         :return new_granules Only the granules that are newly discovered
+         """
+        s3_granule_dict.clear()
+        for key, value in granule_dict.items():
+            s3_granule_dict[key] = {}
+            s3_granule_dict[key]["ETag"] = granule_dict[key]['ETag']
+            s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+
+        return s3_granule_dict
+
+    def check_granule_updates(self, granule_dict: {}, duplicates="skip"):
+        """
+        Checks stored granules and updates the datetime and ETag if updated
+        :param granule_dict: Dictionary of granules to check
+        :param duplicates Variable for telling the code how to handle when a duplicate granule is discovered
+         - skip: If we discovered a granule already discovered, only update it if the ETag or Last-Modified have changed
+         - error: if we discover a granule already discovered, throw and error and terminate execution
+         - replace: If we discovered a granule already discovered, update it anyways
+        :return Dictionary of granules that were new or updated
+        """
+        new_or_updated_granules = {}
+        s3_granule_dict = self.download_from_s3()
+
+        if duplicates == "error":
+            new_or_updated_granules = self.error(granule_dict, s3_granule_dict)
+        elif duplicates == "skip":
+            new_or_updated_granules = self.skip(granule_dict, s3_granule_dict)
+        elif duplicates == "replace":
+            new_or_updated_granules = self.replace(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:
@@ -135,39 +214,42 @@ class DiscoverGranules:
         :rtype: dictionary of urls
         """
         granule_dict = {}
-        try:
-            depth = int(depth)
-            fetched_html = self.html_request(url_path)
-            directory_list = []
-            for a_tag in fetched_html.findAll('a', href=True):
-                url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
-                path = f"{url_path.rstrip('/')}/{url_segment}"
-                '''
-                Checking for a '.' here to see the link that has been discovered is a file. 
-                This assumes that a discovered file will have an appended portion ie file.txt
-                Notice it is only checking the newest discovered portion of the URL.
-                '''
-                if '.' in url_segment and (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
-                    head_resp = self.headers_request(path)
-                    granule_dict[path] = {}
-                    granule_dict[path]['ETag'] = str(head_resp.get('ETag'))
-                    # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
-                    # object which will cause a crashes
-                    if isinstance(head_resp.get('Last-Modified'), str):
-                        granule_dict[path]['Last-Modified'] = str(parse(head_resp.get('Last-Modified')))
+        depth = int(depth)
+        fetched_html = self.html_request(url_path)
+        directory_list = []
+        for a_tag in fetched_html.findAll('a', href=True):
+            url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
+            path = f"{url_path.rstrip('/')}/{url_segment}"
+            '''
+            Checking for a '.' here to see the link that has been discovered is a file. 
+            This assumes that a discovered file will have an appended portion ie file.txt
+            Notice it is only checking the newest discovered portion of the URL.
+            '''
+            head_resp = self.headers_request(path)
+            etag = head_resp.get('ETag')
+            last_modified = head_resp.get('Last-Modified')
 
-                elif '/' in url_segment and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
-                    directory_list.append(f"{path}/")
-            pass
+            if (etag is not None or last_modified is not None) and \
+                    (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
+                granule_dict[path] = {}
+                granule_dict[path]['ETag'] = str(etag)
+                # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
+                # object which will cause a crash
+                if isinstance(head_resp.get('Last-Modified'), str):
+                    granule_dict[path]['Last-Modified'] = str(parse(last_modified))
 
-            depth = min(abs(depth), 3)
-            if depth > 0:
-                for directory in directory_list:
-                    granule_dict.update(
-                        self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
-                                                 dir_reg_ex=dir_reg_ex, depth=(depth - 1))
-                    )
-        except ValueError as ve:
-            logging.error(ve)
+            elif dir_reg_ex is None or re.search(dir_reg_ex, path):
+                directory_list.append(f"{path}/")
+            else:
+                logging.debug(f"Notice: {path} not processed as granule or directory.")
+        pass
+
+        depth = min(abs(depth), 3)
+        if depth > 0:
+            for directory in directory_list:
+                granule_dict.update(
+                    self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
+                                             dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+                )
 
         return granule_dict
