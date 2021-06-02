@@ -10,7 +10,6 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def lambda_handler(event, context=None):
-    print(f"event = {event}")
     config = event['config']
     provider = config['provider']
     collection = event['config']['collection']
