@@ -105,7 +105,8 @@ class DiscoverGranules:
 
         return temp
 
-    def error(self, granule_dict, s3_granule_dict):
+    @staticmethod
+    def error(granule_dict, s3_granule_dict):
         """
         If the "error" flag is set in the collection definition this function will throw an exception and halt
         execution.
@@ -129,7 +130,8 @@ class DiscoverGranules:
 
         return new_granules
 
-    def skip(self, granule_dict, s3_granule_dict):
+    @staticmethod
+    def skip(granule_dict, s3_granule_dict):
         """
         If the skip flag is set in the collection definition this function will only update granules if the ETag or
         Last-Modified meta-data tags have changed.
@@ -160,7 +162,8 @@ class DiscoverGranules:
 
         return new_granules
 
-    def replace(self, granule_dict, s3_granule_dict):
+    @staticmethod
+    def replace(granule_dict, s3_granule_dict):
         """
          If the replace flag is set in the collection definition this function will clear out the previously stored run
          and replace with any discovered granules for this run.
@@ -186,15 +189,8 @@ class DiscoverGranules:
          - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
-        new_or_updated_granules = {}
         s3_granule_dict = self.download_from_s3()
-
-        if duplicates == "error":
-            new_or_updated_granules = self.error(granule_dict, s3_granule_dict)
-        elif duplicates == "skip":
-            new_or_updated_granules = self.skip(granule_dict, s3_granule_dict)
-        elif duplicates == "replace":
-            new_or_updated_granules = self.replace(granule_dict, s3_granule_dict)
+        new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:

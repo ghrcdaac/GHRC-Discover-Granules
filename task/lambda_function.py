@@ -19,8 +19,7 @@ def lambda_handler(event, context=None):
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
     granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf.get('file_reg_ex'),
                                           dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
-    test = discover_tf.get("duplicates", None)
-    ret_dict = dg.check_granule_updates(granule_dict, duplicates=test)
+    ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
     discovered_granules = []
     for key, value in ret_dict.items():
         epoch = parse(value['Last-Modified']).timestamp()
