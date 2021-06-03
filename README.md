@@ -42,57 +42,44 @@ dir_reg_ex: Regular expression used to only search directories it matches
  
  This is an example of a collection with the added block:
  ```json
-{	
- "name": "rssmif16d",
-	"version": "7",
-	"process": "rss",
-	"url_path": "rssmif16d__7",
-	"duplicateHandling": "skip",
-	"granuleId": "^(f16_\\d{8}v7).*$",
-	"granuleIdExtraction": "^(f16_\\d{8}v7.gz)$",
+{
+	"name": "msutls",
+	"version": "6",
+	"dataType": "msut",
+	"process": "msut",
+	"url_path": "msutls__6",
+	"duplicateHandling": "replace",
+	"granuleId": "^(tls|uah).*_6\\.0\\.(nc|txt)$",
+	"granuleIdExtraction": "((tls|uah).*_6\\.0(\\.nc)?)",
 	"reportToEms": true,
-	"sampleFileName": "f16_20190301v7.gz",
+	"sampleFileName": "tlsmonamg.2019_6.0.nc",
 	"files": [
 		{
-			"bucket": "internal",
-			"regex": "^(f16_.*)\\dv7.gz$",
-			"sampleFileName": "f16_20190301v7.gz",
-			"reportToEms": true
-		},
-		{
 			"bucket": "protected",
-			"regex": "^(f16_.*)\\.(dmrpp|nc)$",
-			"sampleFileName": "f16_ssmis_20190316v7.nc",
+			"regex": "^(tls|uah).*_6\\.0(\\.nc|\\.txt)?$",
+			"sampleFileName": "uahncdc_ls_6.0.txt",
 			"reportToEms": true
 		},
 		{
 			"bucket": "public",
-			"regex": "^(f16_.*).nc\\.cmr\\.xml$",
-			"sampleFileName": "f16_ssmis_20190316v7.nc.cmr.xml",
+			"regex": "^(tls|uah).*_6\\.0\\.(nc|txt)\\.cmr\\.xml$",
+			"sampleFileName": "tlsmonamg.1999_6.0.nc.cmr.xml",
 			"reportToEms": true
 		}
 	],
-	"updatedAt": 1622663562684,
 	"meta": {
-		"discover_tf": {
-			"depth": 2,
-			"file_reg_ex": ".*",
-			"dir_reg_ex": ".*"
-		},
+        "discover_tf": { 
+            "depth": 0, 
+            "file_reg_ex": ".*", 
+            "dir_reg_ex": ".*" 
+        },
 		"hyrax_processing": "false",
-		"payload": [],
-		"provider_path": "/ssmi/f16/bmaps_v07/y%YYYY/m%MM/",
-		"collectionVersion": "7",
-		"recursive_discover": "true",
-		"collectionName": "rssmif16d",
+		"provider_path": "/public/msu/v6.0/tls/",
+		"collection_type": "ongoing",
 		"metadata_extractor": [
 			{
-				"lon_var_key": "longitude",
-				"regex": "^(f16_.*).nc$",
-				"time_units": "units",
-				"module": "netcdf",
-				"time_var_key": "time",
-				"lat_var_key": "latitude"
+				"regex": "^.*(nc|txt)$",
+				"module": "netcdf"
 			}
 		]
 	}
