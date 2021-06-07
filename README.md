@@ -82,14 +82,16 @@ This is an example of a collection with the added block:
 }
 ```
 
-The last relevant value in the collection definition is "duplicateHandling".  Discovere granules handles 3 possible value for this:
- - skip: Only overrite the ETag or Last-Modified values pulled from S3 if they differ
+The last relevant value in the collection definition is "duplicateHandling".  Discover granules handles 3 possible value for this:
+ - skip: Overrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for this run
  - replace: The results that are currently stored in S3 will be overwritten with the results of this run
- - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease
+ - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease 
 
 # Results
-The results of a successful run will be stored in S3. The bucket is currently ghrcsbxw-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv
+The results of a successful run will be stored in S3. The bucket is currently ghrcsbxw-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv  
+The step function returns a dictionary of granules that were discovered this run.
 
 # Testing
 If code changes need to be made to the discover-granules-tf-module code it is advised to clone this repo and the dev stack repo http://gitlab.com/ghrc-cloud/ghrc-tf-deploy
-There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.
+There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.  
+You can download the CSV stored in S3 and modify it for testing. If you do this it is advised to use a basic text editor as Excel can leave extraneous newline characters.
