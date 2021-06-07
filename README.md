@@ -7,7 +7,7 @@
 ```
 
 # Overview
-A discover granules terraform module uses a lambda function to recursively discover files provided via protocol X
+A discover granules terraform module uses a lambda function to recursively discover files provided via protocol X. The code retrieves the granule names, ETag and Last-Modified values from the provider are stores the results as a CSV in S3. 
 
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
@@ -26,21 +26,18 @@ In order to use the recursive discover granules the following block must be adde
 ```json
 "discover_tf": {
  "depth": 0,
- "file_reg_ex": ".*",
  "dir_reg_ex": ".*"
 }
 ```
-
 Collection definitions can be found in this repo: https://gitlab.com/ghrc-cloud/ghrc-tf-configuration/-/tree/master/collections  
 
 depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level and traverse directories until there are no directories or depth is reached.  
 Note: The absolute value will be taken of this parameter so negative values are not intended to be used for upward traversal.
 
-file_reg_ex: Regular expression used to search for matching granules  
 dir_reg_ex: Regular expression used to only search directories it matches
 
- 
- This is an example of a collection with the added block:
+In order to match against specific granules the granuleIdExtraction value must be used.  
+This is an example of a collection with the added block:
  ```json
 {
 	"name": "msutls",
@@ -70,7 +67,6 @@ dir_reg_ex: Regular expression used to only search directories it matches
 	"meta": {
         "discover_tf": { 
             "depth": 0, 
-            "file_reg_ex": ".*", 
             "dir_reg_ex": ".*" 
         },
 		"hyrax_processing": "false",
@@ -86,10 +82,10 @@ dir_reg_ex: Regular expression used to only search directories it matches
 }
 ```
 
-The last relevant value in the collection definition is "duplicateHandling". Discovere granules handles 3 possible value for this:
- - skip: Only overrite the ETag and Last-Modified values pulled from S3 if they differ
- - replace: Erases the previous runs to force a clean collection run
- - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown and execution will cease
+The last relevant value in the collection definition is "duplicateHandling".  Discovere granules handles 3 possible value for this:
+ - skip: Only overrite the ETag or Last-Modified values pulled from S3 if they differ
+ - replace: The results that are currently stored in S3 will be overwritten with the results of this run
+ - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease
 
 # Results
 The results of a successful run will be stored in S3. The bucket is currently ghrcsbxw-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv
