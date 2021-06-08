@@ -92,7 +92,7 @@ The last relevant value in the collection definition is "duplicateHandling".  Th
  - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease 
 
 # Results
-The results of a successful run will be stored in S3. The bucket is currently <prefix>-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv  
+The results of a successful run will be stored in S3. The bucket is currently &lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv  
 Here is a sample excerpt from the CSV:  
 
 http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
