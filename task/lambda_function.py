@@ -17,7 +17,7 @@ def lambda_handler(event, context=None):
     csv_file_name = f"{collection['name']}__{collection['version']}.csv"
     dg = DiscoverGranules(csv_file_name=csv_file_name)
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=discover_tf.get('file_reg_ex'),
+    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
                                           dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
     ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
     discovered_granules = []
