@@ -7,7 +7,9 @@
 ```
 
 # Overview
-A discover granules terraform module uses a lambda function to recursively discover files provided via protocol X
+The discover granules terraform module uses a lambda function to recursively discover files provided via protocol X. The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a CSV in S3.  
+ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
+Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
@@ -21,6 +23,8 @@ This module is meant to run within Cumulus stack.
 If you don't have Cumulus stack deployed yet please consult [this repo](https://github.com/nasa/cumulus) 
 and follow the [documetation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.
 
+The dev stack repo is also needed to deploy and test changes to discover-granules-tf-module: https://gitlab.com/ghrc-cloud/ghrc-tf-deploy
+
 # How to
 In order to use the recursive discover granules the following block must be added to the collection definition inside of the meta block:
 ```json
@@ -28,14 +32,16 @@ In order to use the recursive discover granules the following block must be adde
  "depth": 0,
  "dir_reg_ex": ".*"
 }
-```  
-depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level and traverse directories until there are no directories or depth is reached. A depth value of 0 will not explore any discovered directories.  
+```
+Collection definitions can be found in this repo: https://gitlab.com/ghrc-cloud/ghrc-tf-configuration/-/tree/master/collections  
+
+depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level and traverse directories until there are no directories or depth is reached.  
 Note: The absolute value will be taken of this parameter so negative values are not intended to be used for upward traversal.
 
 dir_reg_ex: Regular expression used to only search directories it matches
 
-In order to do pattern matching against granules the granuleIdExtraction field must be given the desired regular expression. 
- This is an example of a collection with the added block and granuleIdExtraction using a regular expression:
+In order to match against specific granules the granuleIdExtraction value must be used.  
+This is an example of a collection with the added block:
  ```json
 {
 	"name": "msutls",
@@ -79,19 +85,43 @@ In order to do pattern matching against granules the granuleIdExtraction field m
 	}
 }
 ```
-Collection definitions can be found in this repo: https://gitlab.com/ghrc-cloud/ghrc-tf-configuration/-/tree/master/collections   
 
-The last relevant value in the collection definition is "duplicateHandling". After each successful run an output file is created in S3 with the results of the run. So for each subsequent run there are 3 options to tell the code what to do about duplicate values. The 3 possible value for this are:
- - skip: If a granule is discovered that we have discovered before, overrite the ETag and Last-Modified values pulled from S3 if they differ
- - replace: The values for the previous discoveries will be erased and replaced with the results of the current run
- - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease
+The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell discover-granules-tf-module how to handle granules the exist in the CSV lookup file but also are discovered on the current run. Discover granules handles 3 possible value for this:
+ - skip: Overrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for this run
+ - replace: The results that are currently stored in S3 will be overwritten with the results of this run
+ - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease 
 
 # Results
-The results of a successful run will be stored in S3. The bucket is currently ghrcsbxw-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv.
-The format of the csv is 3 columns that contain the granule's full path, ETag, and Last-Modified values. The ETag and Last-Modified are retrievied from the providers head response. requests.head(url).headers will contain both of these. If any changes are made to the file on the provider's server the ETag will be changed as well as the Last-Modified value. 
+The results of a successful run will be stored in S3. The bucket is currently &lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv  
+Here is a sample excerpt from the CSV:  
+
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7_d3d.gz,"bf74b470603fd71:0",2021-05-02 14:35:47+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7.gz,"4d338a972940d71:0",2021-05-03 14:35:41+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7_d3d.gz,"c6f29b982940d71:0",2021-05-03 14:35:42+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210503v7.gz,"65f3f5cff040d71:0",2021-05-04 14:21:45+00:00  
+
+The step function returns a dictionary of granules that were discovered this run. This is an example of one of the dictionary entries:   
+```json
+{
+  "granuleId": "f16_20210601v7.gz",
+  "dataType": "rssmif16d",
+  "version": "7",
+  "files": [
+    {
+      "name": "f16_20210601v7.gz",
+      "path": "/ssmi/f16/bmaps_v07/y2021/m06/",
+      "size": "",
+      "time": 1622743794.0,
+      "bucket": "ghrcsbxw-internal",
+      "url_path": "rssmif16d__7",
+      "type": ""
+    }
+  ]
+}
+```
+Note: The actual output uses single quotes but double quotes were used here to avoid syntax error hughlighting.  
 
 # Testing
-If code changes need to be made to the discover-granules-tf-module code it is advised to clone this repo and the dev stack repo http://gitlab.com/ghrc-cloud/ghrc-tf-deploy
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.  
-It is possible to modify the csv and reupload it to S3. It is best to do this using notepad or a basic text editor to prevent extraneous newline characters from being add in the file. Modifying it in Excel has caused this to happen.
-
+You can download the CSV lookup file stored in S3 and modify it for testing. If you do this, it is advised to use a basic text editor as Excel can leave extraneous newline characters.
