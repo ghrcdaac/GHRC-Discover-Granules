@@ -197,7 +197,7 @@ class DiscoverGranules:
             self.upload_to_s3(s3_granule_dict)
         return new_or_updated_granules
 
-    def get_file_links_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
+    def discover_granules_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
         Fetch the link of the granules in the host url_path
         :param url_path: The base URL where the files are served
@@ -232,7 +232,7 @@ class DiscoverGranules:
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash
                 if isinstance(head_resp.get('Last-Modified'), str):
-                    granule_dict[path]['Last-Modified'] = str(parse(last_modified))
+                    granule_dict[path]['Last-Modified'] = str(parse(last_modified).timestamp())
 
             elif dir_reg_ex is None or re.search(dir_reg_ex, path):
                 directory_list.append(f"{path}/")
@@ -244,8 +244,44 @@ class DiscoverGranules:
         if depth > 0:
             for directory in directory_list:
                 granule_dict.update(
-                    self.get_file_links_http(url_path=directory, file_reg_ex=file_reg_ex,
-                                             dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+                    self.discover_granules_http(url_path=directory, file_reg_ex=file_reg_ex,
+                                                dir_reg_ex=dir_reg_ex, depth=(depth - 1))
                 )
 
         return granule_dict
+
+    @staticmethod
+    def discover_granules_s3(host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None, depth=0):
+        """
+        Fetch the link of the granules in the host s3 bucket
+        :param host: The bucket where the files are served
+        :type host: str
+        :param prefix: The path for the s3 granule
+        :type prefix: str
+        :param file_reg_ex: Regular expression used to filter files
+        :type file_reg_ex: string
+        :param dir_reg_ex: Regular expression used to filter directories
+        :param depth: The positive number of levels to search down, will use the lesser of 3 or depth
+        :return: links of files matching reg_ex (if reg_ex is defined)
+        :rtype: dictionary of urls
+        """
+        s3_client = boto3.client('s3')
+        s3_paginator = s3_client.get_paginator('list_objects')
+
+        response_iterator = s3_paginator.paginate(
+            Bucket=host,
+            Prefix=prefix,
+            PaginationConfig={
+                'PageSize': 1000
+            }
+        )
+
+        ret_dict = {}
+        for page in response_iterator:
+            for s3_object in page['Contents']:
+                ret_dict[s3_object['Key']] = {
+                    'ETag': s3_object['ETag'],
+                    'Last-Modified': s3_object['LastModified'].timestamp()
+                }
+
+        return ret_dict

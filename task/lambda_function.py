@@ -1,9 +1,7 @@
 import os
 import sys
-from dateutil.parser import parse
 from main import DiscoverGranules
 
-run_cumulus_task = None
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
     from run_cumulus_task import run_cumulus_task
@@ -17,12 +15,16 @@ def lambda_handler(event, context=None):
     csv_file_name = f"{collection['name']}__{collection['version']}.csv"
     dg = DiscoverGranules(csv_file_name=csv_file_name)
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-    granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
-                                          dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
+    if provider['protocol'] != 's3':
+        granule_dict = dg.discover_granules_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
+                                                 dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
+    else:
+        granule_dict = dg.discover_granules_s3(provider['host'], collection['meta']['provider_path'])
     ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
+
     discovered_granules = []
     for key, value in ret_dict.items():
-        epoch = parse(value['Last-Modified']).timestamp()
+        epoch = value['Last-Modified']
         host = config['provider']["host"]
         filename = key.rsplit('/')[-1]
         path = key[key.find(host) + len(host): key.find(filename)]

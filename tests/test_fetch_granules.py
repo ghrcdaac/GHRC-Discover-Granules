@@ -35,7 +35,7 @@ class TestDiscoverGranules(unittest.TestCase):
         msut_header_responses = self.get_header_responses('remss')
         dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
         dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.get_file_links_http(url_path='fake_url')
+        retrieved_dict = dg.discover_granules_http(url_path='fake_url')
         self.assertEqual(len(retrieved_dict), 5)
 
     def test_get_file_link_wregex(self):
@@ -45,7 +45,7 @@ class TestDiscoverGranules(unittest.TestCase):
         msut_header_responses = self.get_header_responses('remss')
         dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
         dg.headers_request = MagicMock(side_effects=msut_header_responses)
-        retrieved_dict = dg.get_file_links_http(url_path='fake_url', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        retrieved_dict = dg.discover_granules_http(url_path='fake_url', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(retrieved_dict), 1)
 
 
@@ -56,7 +56,7 @@ class TestDiscoverGranules(unittest.TestCase):
         msut_header_responses = self.get_header_responses('msut')
         dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
         dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.get_file_links_http(url_path="fake_url")
+        retrieved_dict = dg.discover_granules_http(url_path="fake_url")
         self.assertEqual(len(retrieved_dict), 4)
 
     def test_get_file_link_msut_wregex(self):
@@ -66,14 +66,14 @@ class TestDiscoverGranules(unittest.TestCase):
         msut_header_responses = self.get_header_responses('msut')
         dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
         dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.get_file_links_http(url_path="fake_url", file_reg_ex="^tlt.*\\d{4}_6.\\d+")
+        retrieved_dict = dg.discover_granules_http(url_path="fake_url", file_reg_ex="^tlt.*\\d{4}_6.\\d+")
         self.assertEqual(len(retrieved_dict), 1)
 
     def test_bad_url(self):
         dg = DiscoverGranules()
         dg.html_request = MagicMock(return_value=BeautifulSoup("", features="html.parser"))
         dg.headers_request = MagicMock(return_value={})
-        retrieved_dict = dg.get_file_links_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        retrieved_dict = dg.discover_granules_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(retrieved_dict), 0)
 
     def test_error_exception(self):
