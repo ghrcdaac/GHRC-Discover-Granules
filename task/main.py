@@ -216,11 +216,6 @@ class DiscoverGranules:
         for a_tag in fetched_html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
             path = f"{url_path.rstrip('/')}/{url_segment}"
-            '''
-            Checking for a '.' here to see the link that has been discovered is a file. 
-            This assumes that a discovered file will have an appended portion ie file.txt
-            Notice it is only checking the newest discovered portion of the URL.
-            '''
             head_resp = self.headers_request(path)
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
@@ -251,19 +246,14 @@ class DiscoverGranules:
         return granule_dict
 
     @staticmethod
-    def discover_granules_s3(host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None, depth=0):
+    def discover_granules_s3(host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None):
         """
         Fetch the link of the granules in the host s3 bucket
         :param host: The bucket where the files are served
-        :type host: str
         :param prefix: The path for the s3 granule
-        :type prefix: str
         :param file_reg_ex: Regular expression used to filter files
-        :type file_reg_ex: string
         :param dir_reg_ex: Regular expression used to filter directories
-        :param depth: The positive number of levels to search down, will use the lesser of 3 or depth
         :return: links of files matching reg_ex (if reg_ex is defined)
-        :rtype: dictionary of urls
         """
         s3_client = boto3.client('s3')
         s3_paginator = s3_client.get_paginator('list_objects')
@@ -279,9 +269,13 @@ class DiscoverGranules:
         ret_dict = {}
         for page in response_iterator:
             for s3_object in page['Contents']:
-                ret_dict[s3_object['Key']] = {
-                    'ETag': s3_object['ETag'],
-                    'Last-Modified': s3_object['LastModified'].timestamp()
-                }
+                key = s3_object['Key']
+                key_dir = str(key).rsplit('/', 1)[0]
+                if (file_reg_ex is None or re.search(file_reg_ex, key)) and \
+                        (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
+                    ret_dict[key] = {
+                        'ETag': s3_object['ETag'],
+                        'Last-Modified': s3_object['LastModified'].timestamp()
+                    }
 
         return ret_dict

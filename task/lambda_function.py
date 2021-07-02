@@ -17,9 +17,12 @@ def lambda_handler(event, context=None):
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
     if provider['protocol'] != 's3':
         granule_dict = dg.discover_granules_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
-                                                 dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
+                                                 dir_reg_ex=discover_tf.get('dir_reg_ex'),
+                                                 depth=discover_tf.get('depth'))
     else:
-        granule_dict = dg.discover_granules_s3(provider['host'], collection['meta']['provider_path'])
+        granule_dict = dg.discover_granules_s3(host=provider['host'], prefix=collection['meta']['provider_path'],
+                                               file_reg_ex=collection.get('granuleIdExtraction'),
+                                               dir_reg_ex=discover_tf.get('dir_reg_ex'))
     ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
 
     discovered_granules = []
