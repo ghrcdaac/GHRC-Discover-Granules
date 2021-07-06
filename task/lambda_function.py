@@ -15,14 +15,20 @@ def lambda_handler(event, context=None):
     csv_file_name = f"{collection['name']}__{collection['version']}.csv"
     dg = DiscoverGranules(csv_file_name=csv_file_name)
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
-    if provider['protocol'] != 's3':
+    granule_dict = {}
+    if provider['protocol'] == 'http':
+        print(f'{provider["protocol"]} protocol request.')
         granule_dict = dg.discover_granules_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
                                                  dir_reg_ex=discover_tf.get('dir_reg_ex'),
                                                  depth=discover_tf.get('depth'))
-    else:
+    elif provider['protocol'] == 's3':
+        print(f'{provider["protocol"]} protocol request.')
         granule_dict = dg.discover_granules_s3(host=provider['host'], prefix=collection['meta']['provider_path'],
                                                file_reg_ex=collection.get('granuleIdExtraction'),
                                                dir_reg_ex=discover_tf.get('dir_reg_ex'))
+    else:
+        print(f'{provider["protocol"]} protocol is not supported.')
+
     ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
 
     discovered_granules = []

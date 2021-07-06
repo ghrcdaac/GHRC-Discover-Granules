@@ -270,8 +270,10 @@ class DiscoverGranules:
         for page in response_iterator:
             for s3_object in page['Contents']:
                 key = s3_object['Key']
-                key_dir = str(key).rsplit('/', 1)[0]
-                if (file_reg_ex is None or re.search(file_reg_ex, key)) and \
+                sections = str(key).rsplit('/', 1)
+                key_dir = sections[0]
+                file_name = sections[1]
+                if (file_reg_ex is None or re.search(file_reg_ex, file_name)) and \
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
                     ret_dict[key] = {
                         'ETag': s3_object['ETag'],
