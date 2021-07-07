@@ -3,10 +3,8 @@ import datetime
 import json
 import sys
 import os
-from unittest import mock
 
 from dateutil.tz import tzutc
-from requests import Session
 
 from task.main import DiscoverGranules
 from unittest.mock import MagicMock
