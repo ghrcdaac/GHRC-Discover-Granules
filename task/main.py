@@ -246,7 +246,23 @@ class DiscoverGranules:
         return granule_dict
 
     @staticmethod
-    def discover_granules_s3(host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None):
+    def get_s3_resp_iterator(host, prefix, s3_client):
+        """
+        Returns an s3 paginator.
+        :param host: The bucket
+        :param prefix: The path for the s3 granules
+        :param s3_client: S3 client to create paginator with
+        """
+        s3_paginator = s3_client.get_paginator('list_objects')
+        return s3_paginator.paginate(
+            Bucket=host,
+            Prefix=prefix,
+            PaginationConfig={
+                'PageSize': 1000
+            }
+        )
+
+    def discover_granules_s3(self, host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None):
         """
         Fetch the link of the granules in the host s3 bucket
         :param host: The bucket where the files are served
@@ -256,15 +272,7 @@ class DiscoverGranules:
         :return: links of files matching reg_ex (if reg_ex is defined)
         """
         s3_client = boto3.client('s3')
-        s3_paginator = s3_client.get_paginator('list_objects')
-
-        response_iterator = s3_paginator.paginate(
-            Bucket=host,
-            Prefix=prefix,
-            PaginationConfig={
-                'PageSize': 1000
-            }
-        )
+        response_iterator = self.get_s3_resp_iterator(host, prefix, s3_client)
 
         ret_dict = {}
         for page in response_iterator:

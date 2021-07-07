@@ -1,9 +1,11 @@
 # Test here
+import datetime
 import json
 import sys
 import os
 from unittest import mock
 
+from dateutil.tz import tzutc
 from requests import Session
 
 from task.main import DiscoverGranules
@@ -168,6 +170,72 @@ class TestDiscoverGranules(unittest.TestCase):
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
         dg.check_granule_updates(discovered_granules, "replace")
         self.assertTrue(dg.replace.called)
+
+    def test_discover_granules_s3(self):
+        test_resp_iter = [
+            {
+                'Contents': [
+                    {
+                        'Key': 'key/key1',
+                        'ETag': 'etag1',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    },
+                    {
+                        'Key': 'key/key2',
+                        'ETag': 'etag2',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    }
+                ]
+            }
+        ]
+        dg = DiscoverGranules()
+        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=None)
+        self.assertEqual(len(ret_dict), 2)
+
+    def test_discover_granules_s3_file_regex(self):
+        test_resp_iter = [
+            {
+                'Contents': [
+                    {
+                        'Key': 'key/key1.txt',
+                        'ETag': 'etag1',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    },
+                    {
+                        'Key': 'key/key2.txt',
+                        'ETag': 'etag2',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    }
+                ]
+            }
+        ]
+        dg = DiscoverGranules()
+        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=".*(1.txt)", dir_reg_ex=None)
+        self.assertEqual(len(ret_dict), 1)
+
+    def test_discover_granules_s3_dir_regex(self):
+        test_resp_iter = [
+            {
+                'Contents': [
+                    {
+                        'Key': 'key1/key1.txt',
+                        'ETag': 'etag1',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    },
+                    {
+                        'Key': 'key2/key2.txt',
+                        'ETag': 'etag2',
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                    }
+                ]
+            }
+        ]
+        dg = DiscoverGranules()
+        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
+        self.assertEqual(len(ret_dict), 1)
 
 
 if __name__ == "__main__":
