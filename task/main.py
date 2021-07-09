@@ -20,13 +20,17 @@ class DiscoverGranules:
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
 
-    def __init__(self, csv_file_name='granules.csv'):
+    def __init__(self, event=None, csv_file_name='granules.csv', s3_key='temp', bucket_name=None):
         """
         Default values goes here
         """
+        self.config = event.get('config') if event else None
+        self.provider = self.config.get('provider') if event else None
+        self.collection = self.config.get('collection') if event else None
+        self.discover_tf = self.collection.get('meta').get('discover_tf') if event else None
         self.csv_file_name = csv_file_name
-        self.s3_key = f"{os.getenv('s3_key_prefix', default='temp').rstrip('/')}/{self.csv_file_name}"
-        self.s3_bucket_name = os.getenv("bucket_name")
+        self.s3_key = f"{os.getenv('s3_key_prefix', default=s3_key).rstrip('/')}/{self.csv_file_name}"
+        self.s3_bucket_name = bucket_name or os.getenv("bucket_name")
         self.session = requests.Session()
 
     def fetch_session(self, url):
@@ -163,7 +167,7 @@ class DiscoverGranules:
         return new_granules
 
     @staticmethod
-    def replace(granule_dict, s3_granule_dict):
+    def replace(granule_dict: {}, s3_granule_dict: {}):
         """
          If the replace flag is set in the collection definition this function will clear out the previously stored run
          and replace with any discovered granules for this run.
@@ -179,7 +183,7 @@ class DiscoverGranules:
 
         return s3_granule_dict
 
-    def check_granule_updates(self, granule_dict: {}, duplicates="skip"):
+    def check_granule_updates(self, granule_dict: {}, duplicates=None):
         """
         Checks stored granules and updates the datetime and ETag if updated
         :param granule_dict: Dictionary of granules to check
@@ -189,13 +193,30 @@ class DiscoverGranules:
          - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
+        duplicates = duplicates or self.collection.get("duplicateHandling")
         s3_granule_dict = self.download_from_s3()
+        print(type(s3_granule_dict))
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:
             self.upload_to_s3(s3_granule_dict)
         return new_or_updated_granules
+
+    def discover_granules(self):
+        return getattr(self, f'prep_{self.provider["protocol"]}')()
+
+    def prep_s3(self):
+        return self.discover_granules_s3(host=self.provider['host'], prefix=self.collection['meta']['provider_path'],
+                                         file_reg_ex=self.collection.get('granuleIdExtraction'),
+                                         dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
+
+    def prep_http(self):
+        path = f"{self.provider['protocol']}://{self.provider['host'].rstrip('/')}/" \
+               f"{self.config['provider_path'].lstrip('/')}"
+        return self.discover_granules_http(path, file_reg_ex=self.collection.get('granuleIdExtraction'),
+                                           dir_reg_ex=self.discover_tf.get('dir_reg_ex'),
+                                           depth=self.discover_tf.get('depth'))
 
     def discover_granules_http(self, url_path, file_reg_ex=None, dir_reg_ex=None, depth=0):
         """
@@ -289,3 +310,29 @@ class DiscoverGranules:
                     }
 
         return ret_dict
+
+    def generate_cumulus_output(self, ret_dict):
+        discovered_granules = []
+        for key, value in ret_dict.items():
+            epoch = value['Last-Modified']
+            host = self.provider["host"]
+            filename = key.rsplit('/')[-1]
+            path = key[key.find(host) + len(host): key.find(filename)]
+            discovered_granules.append({
+                "granuleId": filename,
+                "dataType": self.collection.get("name", ""),
+                "version": self.collection.get("version", ""),
+                "files": [
+                    {
+                        "name": filename,
+                        "path": path,
+                        "size": "",
+                        "time": epoch,
+                        "bucket": self.s3_bucket_name,
+                        "url_path": self.collection.get("url_path", ""),
+                        "type": ""
+                    }
+                ]
+            })
+
+        return {"granules": discovered_granules}

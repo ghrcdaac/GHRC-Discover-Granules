@@ -28,6 +28,11 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r') as test_file:
             return json.load(test_file)['head_responses']
 
+    @staticmethod
+    def get_sample_event():
+        with open(os.path.join(THIS_DIR, 'input_event.json'), 'r') as test_event_file:
+            return json.load(test_event_file)
+
     def test_get_file_link_remss(self):
         dg = DiscoverGranules()
         dg.getSession = MagicMock()
