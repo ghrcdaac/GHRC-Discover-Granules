@@ -28,7 +28,7 @@ class DiscoverGranules:
         self.provider = self.config.get('provider') if event else None
         self.collection = self.config.get('collection') if event else None
         self.discover_tf = self.collection.get('meta').get('discover_tf') if event else None
-        self.csv_file_name = csv_file_name
+        self.csv_file_name = f"{self.collection['name']}__{self.collection['version']}.csv" if event else csv_file_name
         self.s3_key = f"{os.getenv('s3_key_prefix', default=s3_key).rstrip('/')}/{self.csv_file_name}"
         self.s3_bucket_name = bucket_name or os.getenv("bucket_name")
         self.session = requests.Session()
