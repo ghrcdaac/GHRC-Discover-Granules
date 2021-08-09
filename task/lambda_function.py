@@ -19,7 +19,13 @@ def lambda_handler(event, context=None):
     path = f"{provider['protocol']}://{provider['host'].rstrip('/')}/{config['provider_path'].lstrip('/')}"
     granule_dict = dg.get_file_links_http(url_path=path, file_reg_ex=collection.get('granuleIdExtraction'),
                                           dir_reg_ex=discover_tf.get('dir_reg_ex'), depth=discover_tf.get('depth'))
-    ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None))
+    '''
+    Note: To navigate around an issue with the cumulus replace flag in the ingest workflow the following line has 
+    been commented out:
+    ret_dict = dg.check_granule_updates(granule_dict, duplicates=collection.get("duplicateHandling", None)) 
+    Once a resolution has been achieved replace the current check_granule_updates call below with this one.
+    '''
+    ret_dict = dg.check_granule_updates(granule_dict, duplicates='error')
     discovered_granules = []
     for key, value in ret_dict.items():
         epoch = parse(value['Last-Modified']).timestamp()
