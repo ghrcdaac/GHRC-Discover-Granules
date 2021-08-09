@@ -33,6 +33,13 @@ class DiscoverGranules:
         self.s3_bucket_name = bucket_name or os.getenv("bucket_name")
         self.session = requests.Session()
 
+    @staticmethod
+    def populate_dict(dict, key, etag, lm):
+        dict[key] = {
+            'ETag': etag,
+            'Last-Modified': lm
+        }
+
     def fetch_session(self, url):
         """
         Establishes a session for requests.
@@ -84,9 +91,7 @@ class DiscoverGranules:
             lines = response['Body'].read().decode('utf-8').split('\n')
             for row in lines:
                 values = str(row).split(',')
-                granule_dict[values[0]] = {}
-                granule_dict[values[0]]['ETag'] = values[1]
-                granule_dict[values[0]]['Last-Modified'] = values[2]
+                self.populate_dict(granule_dict, values[0], values[1], values[2])
 
         except botocore.exceptions.ClientError as nk:
             logging.debug(nk)
@@ -195,7 +200,6 @@ class DiscoverGranules:
         """
         duplicates = duplicates or self.collection.get("duplicateHandling")
         s3_granule_dict = self.download_from_s3()
-        print(type(s3_granule_dict))
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
@@ -210,6 +214,9 @@ class DiscoverGranules:
         return self.discover_granules_s3(host=self.provider['host'], prefix=self.collection['meta']['provider_path'],
                                          file_reg_ex=self.collection.get('granuleIdExtraction'),
                                          dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
+
+    def prep_https(self):
+        return self.prep_http()
 
     def prep_http(self):
         path = f"{self.provider['protocol']}://{self.provider['host'].rstrip('/')}/" \
