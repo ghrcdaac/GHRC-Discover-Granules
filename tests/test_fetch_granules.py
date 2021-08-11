@@ -34,7 +34,7 @@ class TestDiscoverGranules(unittest.TestCase):
             return json.load(test_event_file)
 
     def test_get_file_link_remss(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.getSession = MagicMock()
         msut_html = self.get_html('remss')
         msut_header_responses = self.get_header_responses('remss')
@@ -44,7 +44,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(len(retrieved_dict), 5)
 
     def test_get_file_link_wregex(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.getSession = MagicMock()
         msut_html = self.get_html('remss')
         msut_header_responses = self.get_header_responses('remss')
@@ -55,7 +55,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
 
     def test_get_file_link_msut(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.getSession = MagicMock()
         msut_html = self.get_html('msut')
         msut_header_responses = self.get_header_responses('msut')
@@ -65,7 +65,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(len(retrieved_dict), 4)
 
     def test_get_file_link_msut_wregex(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.getSession = MagicMock()
         msut_html = self.get_html('msut')
         msut_header_responses = self.get_header_responses('msut')
@@ -75,14 +75,14 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(len(retrieved_dict), 1)
 
     def test_bad_url(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.html_request = MagicMock(return_value=BeautifulSoup("", features="html.parser"))
         dg.headers_request = MagicMock(return_value={})
         retrieved_dict = dg.discover_granules_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(retrieved_dict), 0)
 
     def test_error_exception(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"key1": "value1"}
         s3_granules = {"key1": "value1"}
         # with self.assertRaises()
@@ -92,7 +92,7 @@ class TestDiscoverGranules(unittest.TestCase):
             self.assertTrue('A duplicate granule was found' in context.exception)
 
     def test_error_no_exception(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1", "Last-Modified": "modified"}}
         s3_granules = {"granule_b": {"ETag": "tag2", "Last-Modified": "modified"}}
         ret_dict = dg.error(discovered_granules, s3_granules)
@@ -100,7 +100,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertIn("granule_a", ret_dict)
 
     def test_skip_no_update(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1", "Last-Modified": "modified"}}
         s3_granules = discovered_granules
         ret_dict = dg.skip(discovered_granules, s3_granules)
@@ -108,7 +108,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_skip_update_etag(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1", "Last-Modified": "modified"}}
         s3_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modified"}}
         ret_dict = dg.skip(discovered_granules, s3_granules)
@@ -118,7 +118,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_skip_update_modified(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1", "Last-Modified": "modified"}}
         s3_granules = {"granule_a": {"ETag": "tag1", "Last-Modified": "modifieda"}}
         ret_dict = dg.skip(discovered_granules, s3_granules)
@@ -128,7 +128,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_skip_new_granule(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
         s3_granules = {"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}}
         ret_dict = dg.skip(discovered_granules, s3_granules)
@@ -138,7 +138,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_skip_replace(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
         s3_granules = {"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}}
         ret_dict = dg.replace(discovered_granules, s3_granules)
@@ -148,7 +148,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_check_granule_updates_error(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.error = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
@@ -157,7 +157,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertTrue(dg.error.called)
 
     def test_check_granule_updates_skip(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.skip = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
@@ -166,7 +166,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertTrue(dg.skip.called)
 
     def test_check_granule_updates_replace(self):
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.replace = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
@@ -191,7 +191,7 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=None)
         self.assertEqual(len(ret_dict), 2)
@@ -213,7 +213,7 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=".*(1.txt)", dir_reg_ex=None)
         self.assertEqual(len(ret_dict), 1)
@@ -235,7 +235,7 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules()
+        dg = DiscoverGranules(self.get_sample_event())
         dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
         self.assertEqual(len(ret_dict), 1)

@@ -57,7 +57,7 @@ class DiscoverGranules:
         """
         dict1[key] = {
             'ETag': dict2.get(key).get('ETag'),
-            'Last-modified': dict2.get(key).get('Last-modified')
+            'Last-Modified': dict2.get(key).get('Last-Modified')
         }
 
     def fetch_session(self, url):
