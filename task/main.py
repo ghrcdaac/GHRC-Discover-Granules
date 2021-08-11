@@ -384,17 +384,3 @@ class DiscoverGranules:
             })
 
         return {'granules': discovered_granules}
-
-
-def somename(target_dict, key, etag, last_mod):
-    """
-    Helper function to populate a dictionary with ETag and Last-Modified fields.
-    :param target_dict: Dictionary to add a sub-dictionary to
-    :param key: Value that will function as the new dictionary element key
-    :param etag: The value of the ETag retrieved from the provider server
-    :param last_mod: The value of the Last-Modified value retrieved from the provider server
-    """
-    target_dict[key] = {
-        'ETag': etag,
-        'Last-Modified': last_mod
-    }
