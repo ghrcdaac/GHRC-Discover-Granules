@@ -20,17 +20,17 @@ class DiscoverGranules:
     It will return the files if they don't exist in S3 or the md5 doesn't match
     """
 
-    def __init__(self, event=None, csv_file_name='granules.csv', s3_key='temp', bucket_name=None):
+    def __init__(self, event):
         """
         Default values goes here
         """
-        self.config = event.get('config') if event else None
-        self.provider = self.config.get('provider') if event else None
-        self.collection = self.config.get('collection') if event else None
-        self.discover_tf = self.collection.get('meta').get('discover_tf') if event else None
-        self.csv_file_name = csv_file_name
-        self.s3_key = f'{os.getenv("s3_key_prefix", default=s3_key).rstrip("/")}/{self.csv_file_name}'
-        self.s3_bucket_name = bucket_name or os.getenv('bucket_name')
+        self.config = event.get('config')
+        self.provider = self.config.get('provider')
+        self.collection = self.config.get('collection')
+        self.discover_tf = self.collection.get('meta').get('discover_tf')
+        csv_filename = f'{self.collection["name"]}__{self.collection["version"]}.csv'
+        self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
+        self.s3_bucket_name = os.getenv('bucket_name')
         self.session = requests.Session()
 
     @staticmethod
@@ -87,7 +87,7 @@ class DiscoverGranules:
         Upload a file to an S3 bucket
         :param granule_dict: List of granules to be written to S3
         """
-        temp_str = ''
+        temp_str = "Name,ETag,Last-Modified (epoch)\n"
         for key, value in granule_dict.items():
             temp_str += f'{str(key)},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
@@ -109,6 +109,7 @@ class DiscoverGranules:
             response = obj.get()
 
             lines = response['Body'].read().decode('utf-8').split('\n')
+            lines.pop(0)
             for row in lines:
                 values = str(row).split(',')
                 self.populate_dict(granule_dict, values[0], values[1], values[2])
@@ -383,3 +384,32 @@ class DiscoverGranules:
             })
 
         return {'granules': discovered_granules}
+
+
+def somename(target_dict, key, etag, last_mod):
+    """
+    Helper function to populate a dictionary with ETag and Last-Modified fields.
+    :param target_dict: Dictionary to add a sub-dictionary to
+    :param key: Value that will function as the new dictionary element key
+    :param etag: The value of the ETag retrieved from the provider server
+    :param last_mod: The value of the Last-Modified value retrieved from the provider server
+    """
+    target_dict[key] = {
+        'ETag': etag,
+        'Last-Modified': last_mod
+    }
+
+
+if __name__ == '__main__':
+    diction = {}
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket('ghrcsbxw-internal')
+    obj = bucket.Object(key='discover-granule/lookup/rssmif16d__7.csv')
+    response = obj.get()
+
+    lines = response['Body'].read().decode('utf-8').split('\n')
+    lines.pop(0)
+    for row in lines:
+        print(row)
+        values = str(row).split(',')
+        somename(diction, values[0], values[1], values[2])
