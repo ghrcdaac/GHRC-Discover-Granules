@@ -29,15 +29,35 @@ class DiscoverGranules:
         self.collection = self.config.get('collection') if event else None
         self.discover_tf = self.collection.get('meta').get('discover_tf') if event else None
         self.csv_file_name = csv_file_name
-        self.s3_key = f"{os.getenv('s3_key_prefix', default=s3_key).rstrip('/')}/{self.csv_file_name}"
-        self.s3_bucket_name = bucket_name or os.getenv("bucket_name")
+        self.s3_key = f'{os.getenv("s3_key_prefix", default=s3_key).rstrip("/")}/{self.csv_file_name}'
+        self.s3_bucket_name = bucket_name or os.getenv('bucket_name')
         self.session = requests.Session()
 
     @staticmethod
-    def populate_dict(dict, key, etag, lm):
-        dict[key] = {
+    def populate_dict(target_dict, key, etag, last_mod):
+        """
+        Helper function to populate a dictionary with ETag and Last-Modified fields.
+        :param target_dict: Dictionary to add a sub-dictionary to
+        :param key: Value that will function as the new dictionary element key
+        :param etag: The value of the ETag retrieved from the provider server
+        :param last_mod: The value of the Last-Modified value retrieved from the provider server
+        """
+        target_dict[key] = {
             'ETag': etag,
-            'Last-Modified': lm
+            'Last-Modified': last_mod
+        }
+
+    @staticmethod
+    def update_etag_lm(dict1, dict2, key):
+        """
+        Helper function to update the Etag and Last-Modified fields when comparing two dictionaries.
+        :param dict1: The dictionary to be updated
+        :param dict2: The source dictionary
+        :param key: The key of the entry to be updated
+        """
+        dict1[key] = {
+            'ETag': dict2.get(key).get('ETag'),
+            'Last-modified': dict2.get(key).get('Last-modified')
         }
 
     def fetch_session(self, url):
@@ -52,7 +72,7 @@ class DiscoverGranules:
         :return: The html of the page if the fetch is successful
         """
         opened_url = self.fetch_session(url_path)
-        return BeautifulSoup(opened_url.text, features="html.parser")
+        return BeautifulSoup(opened_url.text, features='html.parser')
 
     def headers_request(self, url_path: str):
         """
@@ -67,9 +87,9 @@ class DiscoverGranules:
         Upload a file to an S3 bucket
         :param granule_dict: List of granules to be written to S3
         """
-        temp_str = ""
+        temp_str = ''
         for key, value in granule_dict.items():
-            temp_str += f"{str(key)},{value.get('ETag')},{value.get('Last-Modified')}\n"
+            temp_str += f'{str(key)},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
@@ -114,8 +134,7 @@ class DiscoverGranules:
 
         return temp
 
-    @staticmethod
-    def error(granule_dict, s3_granule_dict):
+    def error(self, granule_dict, s3_granule_dict):
         """
         If the "error" flag is set in the collection definition this function will throw an exception and halt
         execution.
@@ -126,21 +145,16 @@ class DiscoverGranules:
         new_granules = {}
         for key, value in granule_dict.items():
             if key in s3_granule_dict:
-                raise ValueError(f"A duplicate granule was found: {key}")
+                raise ValueError(f'A duplicate granule was found: {key}')
             else:
                 # Update for S3
-                s3_granule_dict[key] = {}
-                s3_granule_dict[key]["ETag"] = granule_dict[key]["ETag"]
-                s3_granule_dict[key]["Last-Modified"] = granule_dict[key]["Last-Modified"]
+                self.update_etag_lm(s3_granule_dict, granule_dict, key)
                 # Dictionary for new or updated granules
-                new_granules[key] = {}
-                new_granules[key]["ETag"] = granule_dict[key]["ETag"]
-                new_granules[key]["Last-Modified"] = granule_dict[key]["Last-Modified"]
+                self.update_etag_lm(new_granules, granule_dict, key)
 
         return new_granules
 
-    @staticmethod
-    def skip(granule_dict, s3_granule_dict):
+    def skip(self, granule_dict, s3_granule_dict):
         """
         If the skip flag is set in the collection definition this function will only update granules if the ETag or
         Last-Modified meta-data tags have changed.
@@ -151,23 +165,18 @@ class DiscoverGranules:
         new_granules = {}
         for key, value in granule_dict.items():
             is_new_or_modified = False
+            # if the key exists in the s3 dict, update it and add to new_granules
             if key in s3_granule_dict:
-                if s3_granule_dict[key]['ETag'] != granule_dict[key]['ETag']:
-                    s3_granule_dict[key]['ETag'] = granule_dict[key]['ETag']
-                    is_new_or_modified = True
-                if s3_granule_dict[key]['Last-Modified'] != granule_dict[key]['Last-Modified']:
-                    s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+                if s3_granule_dict[key] != granule_dict[key]:
+                    self.update_etag_lm(s3_granule_dict, granule_dict, key)
                     is_new_or_modified = True
             else:
-                s3_granule_dict[key] = {}
-                s3_granule_dict[key]["ETag"] = granule_dict[key]['ETag']
-                s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+                # else just add it to the s3 dict and new granules
+                self.update_etag_lm(s3_granule_dict, granule_dict, key)
                 is_new_or_modified = True
 
             if is_new_or_modified:
-                new_granules[key] = {}
-                new_granules[key]["ETag"] = granule_dict[key]['ETag']
-                new_granules[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
+                self.update_etag_lm(new_granules, granule_dict, key)
 
         return new_granules
 
@@ -181,11 +190,7 @@ class DiscoverGranules:
          :return new_granules Only the granules that are newly discovered
          """
         s3_granule_dict.clear()
-        for key, value in granule_dict.items():
-            s3_granule_dict[key] = {}
-            s3_granule_dict[key]["ETag"] = granule_dict[key]['ETag']
-            s3_granule_dict[key]['Last-Modified'] = granule_dict[key]['Last-Modified']
-
+        s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
     def check_granule_updates(self, granule_dict: {}, duplicates=None):
@@ -198,7 +203,7 @@ class DiscoverGranules:
          - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
-        duplicates = duplicates or self.collection.get("duplicateHandling")
+        duplicates = duplicates or self.collection.get('duplicateHandling')
         s3_granule_dict = self.download_from_s3()
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
@@ -208,19 +213,32 @@ class DiscoverGranules:
         return new_or_updated_granules
 
     def discover_granules(self):
+        """
+        Function to be called to trigger the granule discover process once the class has been initialized with the
+        correct cumulus event
+        """
         return getattr(self, f'prep_{self.provider["protocol"]}')()
 
     def prep_s3(self):
+        """
+        Extracts the appropriate information for discovering granules using the S3 protocol
+        """
         return self.discover_granules_s3(host=self.provider['host'], prefix=self.collection['meta']['provider_path'],
                                          file_reg_ex=self.collection.get('granuleIdExtraction'),
                                          dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
 
     def prep_https(self):
+        """
+        Constructs an https url from the event provided at initialization and calls the http discovery function
+        """
         return self.prep_http()
 
     def prep_http(self):
-        path = f"{self.provider['protocol']}://{self.provider['host'].rstrip('/')}/" \
-               f"{self.config['provider_path'].lstrip('/')}"
+        """
+        Constructs an http url from the event provided at initialization and calls the http discovery function
+        """
+        path = f'{self.provider["protocol"]}://{self.provider["host"].rstrip("/")}/' \
+               f'{self.config["provider_path"].lstrip("/")}'
         return self.discover_granules_http(path, file_reg_ex=self.collection.get('granuleIdExtraction'),
                                            dir_reg_ex=self.discover_tf.get('dir_reg_ex'),
                                            depth=self.discover_tf.get('depth'))
@@ -243,7 +261,7 @@ class DiscoverGranules:
         directory_list = []
         for a_tag in fetched_html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
-            path = f"{url_path.rstrip('/')}/{url_segment}"
+            path = f'{url_path.rstrip("/")}/{url_segment}'
             head_resp = self.headers_request(path)
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
@@ -256,11 +274,12 @@ class DiscoverGranules:
                 # object which will cause a crash
                 if isinstance(head_resp.get('Last-Modified'), str):
                     granule_dict[path]['Last-Modified'] = str(parse(last_modified).timestamp())
-
-            elif dir_reg_ex is None or re.search(dir_reg_ex, path):
-                directory_list.append(f"{path}/")
+            elif (etag is None and last_modified is None) and \
+                    (dir_reg_ex is None or re.search(dir_reg_ex, path)):
+                directory_list.append(f'{path}/')
+                # print(f'Found path: {directory_list[-1]}')
             else:
-                logging.debug(f"Notice: {path} not processed as granule or directory.")
+                logging.debug(f'Notice: {path} not processed as granule or directory.')
         pass
 
         depth = min(abs(depth), 3)
@@ -304,42 +323,63 @@ class DiscoverGranules:
 
         ret_dict = {}
         for page in response_iterator:
-            for s3_object in page['Contents']:
+            for s3_object in page.get('Contents'):
                 key = s3_object['Key']
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
                 file_name = sections[1]
                 if (file_reg_ex is None or re.search(file_reg_ex, file_name)) and \
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
-                    ret_dict[key] = {
-                        'ETag': s3_object['ETag'],
-                        'Last-Modified': s3_object['LastModified'].timestamp()
-                    }
+                    self.populate_dict(ret_dict, key, s3_object['ETag'], s3_object['LastModified'].timestamp())
 
         return ret_dict
 
+    @staticmethod
+    def get_s3_filename(filename: str):
+        """
+        Helper function to prevent having to check the protocol for each file name assignment when generating the
+        cumulus output.
+        :param filename: In the case of granules discovered in S3 the entire key of the file has to be stored otherwise
+        the ingest stage will fail
+        """
+        return filename
+
+    @staticmethod
+    def get_non_s3_filename(filename: str):
+        """
+        Helper function to prevent having to check the protocol for each file name assignment when generating the
+        cumulus output.
+        :param filename: The current non-S3 protocols supported (http/https) require the base file name only
+        """
+        return filename.rsplit('/')[-1]
+
     def generate_cumulus_output(self, ret_dict):
         discovered_granules = []
+        if self.provider["protocol"] == 's3':
+            filename_funct = self.get_s3_filename
+        else:
+            filename_funct = self.get_non_s3_filename
+
         for key, value in ret_dict.items():
-            epoch = value['Last-Modified']
-            host = self.provider["host"]
-            filename = key.rsplit('/')[-1]
+            epoch = value.get('Last-Modified')
+            host = self.provider.get('host')
+            filename = filename_funct(key)
             path = key[key.find(host) + len(host): key.find(filename)]
             discovered_granules.append({
-                "granuleId": filename,
-                "dataType": self.collection.get("name", ""),
-                "version": self.collection.get("version", ""),
-                "files": [
+                'granuleId': filename,
+                'dataType': self.collection.get('name', ''),
+                'version': self.collection.get('version', ''),
+                'files': [
                     {
-                        "name": filename,
-                        "path": path,
-                        "size": "",
-                        "time": epoch,
-                        "bucket": self.s3_bucket_name,
-                        "url_path": self.collection.get("url_path", ""),
-                        "type": ""
+                        'name': filename,
+                        'path': path,
+                        'size': '',
+                        'time': epoch,
+                        'bucket': self.s3_bucket_name,
+                        'url_path': self.collection.get('url_path', ''),
+                        'type': ''
                     }
                 ]
             })
 
-        return {"granules": discovered_granules}
+        return {'granules': discovered_granules}
