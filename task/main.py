@@ -398,18 +398,3 @@ def somename(target_dict, key, etag, last_mod):
         'ETag': etag,
         'Last-Modified': last_mod
     }
-
-
-if __name__ == '__main__':
-    diction = {}
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket('ghrcsbxw-internal')
-    obj = bucket.Object(key='discover-granule/lookup/rssmif16d__7.csv')
-    response = obj.get()
-
-    lines = response['Body'].read().decode('utf-8').split('\n')
-    lines.pop(0)
-    for row in lines:
-        print(row)
-        values = str(row).split(',')
-        somename(diction, values[0], values[1], values[2])
