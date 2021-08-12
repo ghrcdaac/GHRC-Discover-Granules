@@ -204,7 +204,9 @@ class DiscoverGranules:
          - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
-        duplicates = duplicates or self.collection.get('duplicateHandling')
+        if not duplicates:
+            duplicates = 'error' if self.collection.get('duplicateHandling') == 'error' else 'replace'
+
         s3_granule_dict = self.download_from_s3()
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
