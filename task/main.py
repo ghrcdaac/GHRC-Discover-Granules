@@ -37,6 +37,7 @@ class DiscoverGranules:
     def populate_dict(target_dict, key, etag, last_mod):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
+        Clarifying Note: This function works by exploiting the mutability of dictionaries
         :param target_dict: Dictionary to add a sub-dictionary to
         :param key: Value that will function as the new dictionary element key
         :param etag: The value of the ETag retrieved from the provider server
@@ -51,6 +52,7 @@ class DiscoverGranules:
     def update_etag_lm(dict1, dict2, key):
         """
         Helper function to update the Etag and Last-Modified fields when comparing two dictionaries.
+        Clarifying Note: This function works by exploiting the mutability of dictionaries
         :param dict1: The dictionary to be updated
         :param dict2: The source dictionary
         :param key: The key of the entry to be updated
@@ -365,11 +367,7 @@ class DiscoverGranules:
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
         discovered_granules = []
-        if self.provider["protocol"] == 's3':
-            filename_funct = self.get_s3_filename
-        else:
-            filename_funct = self.get_non_s3_filename
-
+        filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         for key, value in ret_dict.items():
             epoch = value.get('Last-Modified')
             host = self.provider.get('host')
