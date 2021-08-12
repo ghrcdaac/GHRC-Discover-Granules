@@ -297,9 +297,9 @@ class DiscoverGranules:
     def get_s3_resp_iterator(host, prefix, s3_client):
         """
         Returns an s3 paginator.
-        :param host: The bucket
-        :param prefix: The path for the s3 granules
-        :param s3_client: S3 client to create paginator with
+        :param host: The bucket.
+        :param prefix: The path for the s3 granules.
+        :param s3_client: S3 client to create paginator with.
         """
         s3_paginator = s3_client.get_paginator('list_objects')
         return s3_paginator.paginate(
@@ -312,12 +312,12 @@ class DiscoverGranules:
 
     def discover_granules_s3(self, host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None):
         """
-        Fetch the link of the granules in the host s3 bucket
-        :param host: The bucket where the files are served
-        :param prefix: The path for the s3 granule
-        :param file_reg_ex: Regular expression used to filter files
-        :param dir_reg_ex: Regular expression used to filter directories
-        :return: links of files matching reg_ex (if reg_ex is defined)
+        Fetch the link of the granules in the host s3 bucket.
+        :param host: The bucket where the files are served.
+        :param prefix: The path for the s3 granule.
+        :param file_reg_ex: Regular expression used to filter files.
+        :param dir_reg_ex: Regular expression used to filter directories.
+        :return: links of files matching reg_ex (if reg_ex is defined).
         """
         s3_client = boto3.client('s3')
         response_iterator = self.get_s3_resp_iterator(host, prefix, s3_client)
@@ -341,7 +341,8 @@ class DiscoverGranules:
         Helper function to prevent having to check the protocol for each file name assignment when generating the
         cumulus output.
         :param filename: In the case of granules discovered in S3 the entire key of the file has to be stored otherwise
-        the ingest stage will fail
+        the ingest stage will fail.
+        :return: The unmodified filename
         """
         return filename
 
@@ -350,11 +351,17 @@ class DiscoverGranules:
         """
         Helper function to prevent having to check the protocol for each file name assignment when generating the
         cumulus output.
-        :param filename: The current non-S3 protocols supported (http/https) require the base file name only
+        :param filename: The current non-S3 protocols supported (http/https) require the base file name only.
+        :return: The last part of the filename ie some/name/with/slashes will return slashes
         """
         return filename.rsplit('/')[-1]
 
     def generate_cumulus_output(self, ret_dict):
+        """
+        Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
+        :param ret_dict: Dictionary containing only newly discovered granules.
+        :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
+        """
         discovered_granules = []
         if self.provider["protocol"] == 's3':
             filename_funct = self.get_s3_filename
