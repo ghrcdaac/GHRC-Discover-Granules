@@ -12,7 +12,8 @@ resource "aws_lambda_function" "discover_granules" {
    runtime = "python3.8"
    filename = "${path.module}/../../package.zip"
    role = var.cumulus_lambda_role_arn
-   timeout = var.timeout
+   timeout = 900
+   memory_size = 512
    tags = local.default_tags
    layers           = var.layers
    vpc_config {
