@@ -1,30 +1,48 @@
-variable "region" {
+variable "aws_profile" {
   type    = string
-  default = "us-east-2"
-}
-
-variable "prefix" {
-  type = string
-}
-
-variable "s3_bucket_name" {
-  type = string
+  default = "SBX"
 }
 
 variable "cumulus_lambda_role_arn" {
   type = string
 }
 
-variable "lambda_subnet_ids" {
-  type = list(string)
+variable "env_variables" {
+  type        = map(string)
+  default     = {}
 }
 
 variable "lambda_security_group_ids" {
   type = list(string)
+  default = null
 }
 
-variable "timeout" {
-  description = "Lambda function time-out"
+variable "lambda_subnet_ids" {
+  type = list(string)
+  default = null
+}
+
+variable "layers" {
+  type = list(string)
+  default = []
+}
+
+variable "memory_size" {
+  description = "Lambda RAM limit"
+  default = 128
+}
+
+variable "prefix" {
+  type = string
+}
+
+variable "region" {
+  type    = string
+  default = "us-west-2"
+}
+
+variable "s3_bucket_name" {
+  type = string
 }
 
 variable "s3_key_prefix" {
@@ -32,9 +50,13 @@ variable "s3_key_prefix" {
   default = "discover-granule/lookup"
 }
 
-variable "env_variables" {
-  type        = map(string)
+variable "timeout" {
+  description = "Lambda function time-out"
+  default = 300
 }
-variable "layers" {
-  type = list(string)
-}
+
+
+
+
+
+

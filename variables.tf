@@ -3,31 +3,8 @@ variable "aws_profile" {
   default = "SBX"
 }
 
-variable "region" {
-  type    = string
-  default = "us-west-2"
-}
-
-variable "prefix" {
-  type = string
-}
-
-variable "s3_bucket_name" {
-  type = string
-}
-
 variable "cumulus_lambda_role_arn" {
   type = string
-}
-
-variable "lambda_subnet_ids" {
-  type = list(string)
-  default = null
-}
-
-variable "lambda_security_group_ids" {
-  type = list(string)
-  default = null
 }
 
 variable "env_variables" {
@@ -35,12 +12,46 @@ variable "env_variables" {
   default     = {}
 }
 
+variable "lambda_security_group_ids" {
+  type = list(string)
+  default = null
+}
+
+variable "lambda_subnet_ids" {
+  type = list(string)
+  default = null
+}
+
 variable "layers" {
   type = list(string)
   default = []
+}
+
+variable "memory_size" {
+  description = "Lambda RAM limit"
+  default = 128
+}
+
+variable "prefix" {
+  type = string
+}
+
+variable "region" {
+  type    = string
+  default = "us-west-2"
+}
+
+variable "s3_bucket_name" {
+  type = string
 }
 
 variable "timeout" {
   description = "Lambda function time-out"
   default = 300
 }
+
+
+
+
+
+
