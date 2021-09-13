@@ -13,6 +13,7 @@ resource "aws_lambda_function" "discover_granules" {
    filename = "${path.module}/../../package.zip"
    role = var.cumulus_lambda_role_arn
    timeout = var.timeout
+   memory_size = var.memory_size
    tags = local.default_tags
    layers           = var.layers
    vpc_config {

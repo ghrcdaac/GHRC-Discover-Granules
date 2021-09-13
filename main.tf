@@ -17,5 +17,5 @@ module "aws_lambda_function" {
    env_variables = var.env_variables
    layers = var.layers
    timeout = var.timeout
-   
+   memory_size = var.memory_size
 }
