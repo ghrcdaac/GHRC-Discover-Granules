@@ -44,8 +44,8 @@ class DiscoverGranules:
         :param last_mod: The value of the Last-Modified value retrieved from the provider server
         """
         target_dict[key] = {
-            'ETag': etag,
-            'Last-Modified': last_mod
+            'ETag': str(etag),
+            'Last-Modified': str(last_mod)
         }
 
     @staticmethod
@@ -91,7 +91,7 @@ class DiscoverGranules:
         """
         temp_str = "Name,ETag,Last-Modified (epoch)\n"
         for key, value in granule_dict.items():
-            temp_str += f'{str(key)},{value.get("ETag")},{value.get("Last-Modified")}\n'
+            temp_str += f'{key},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
@@ -169,8 +169,11 @@ class DiscoverGranules:
         for key, value in granule_dict.items():
             is_new_or_modified = False
             # if the key exists in the s3 dict, update it and add to new_granules
+            print(f'key presence test: {key}')
             if key in s3_granule_dict:
+                print(f'Comparing {s3_granule_dict[key]} vs {granule_dict[key]}')
                 if s3_granule_dict[key] != granule_dict[key]:
+                    print(f'{key} is new')
                     self.update_etag_lm(s3_granule_dict, granule_dict, key)
                     is_new_or_modified = True
             else:
@@ -196,20 +199,14 @@ class DiscoverGranules:
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
-    def check_granule_updates(self, granule_dict: {}, duplicates=None):
+    def check_granule_updates(self, granule_dict: {}):
         """
         Checks stored granules and updates the datetime and ETag if updated
         :param granule_dict: Dictionary of granules to check
-        :param duplicates Variable for telling the code how to handle when a duplicate granule is discovered
-         - skip: If we discovered a granule already discovered, only update it if the ETag or Last-Modified have changed
-         - error: if we discover a granule already discovered, throw and error and terminate execution
-         - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
-        if not duplicates:
-            duplicates = 'error' if self.collection.get('duplicateHandling') == 'error' else 'replace'
-
         s3_granule_dict = self.download_from_s3()
+        duplicates = self.collection.get('duplicateHandling', 'skip')
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
@@ -391,3 +388,9 @@ class DiscoverGranules:
             })
 
         return {'granules': discovered_granules}
+
+
+if __name__ == '__main__':
+    dict1 = {'ETag': '"56421f81e7b1e7fe21e0843d600849d9"', 'Last-Modified': '1631567317.0'}
+    dict2 = {'ETag': '"56421f81e7b1e7fe21e0843d600849d9"', 'Last-Modified': '1631567317.0'}
+    print(dict1 == dict2)
