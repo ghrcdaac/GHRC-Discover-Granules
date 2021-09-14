@@ -169,11 +169,8 @@ class DiscoverGranules:
         for key, value in granule_dict.items():
             is_new_or_modified = False
             # if the key exists in the s3 dict, update it and add to new_granules
-            print(f'key presence test: {key}')
             if key in s3_granule_dict:
-                print(f'Comparing {s3_granule_dict[key]} vs {granule_dict[key]}')
                 if s3_granule_dict[key] != granule_dict[key]:
-                    print(f'{key} is new')
                     self.update_etag_lm(s3_granule_dict, granule_dict, key)
                     is_new_or_modified = True
             else:
@@ -279,7 +276,6 @@ class DiscoverGranules:
             elif (etag is None and last_modified is None) and \
                     (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
-                # print(f'Found path: {directory_list[-1]}')
             else:
                 logging.debug(f'Notice: {path} not processed as granule or directory.')
         pass
@@ -391,6 +387,4 @@ class DiscoverGranules:
 
 
 if __name__ == '__main__':
-    dict1 = {'ETag': '"56421f81e7b1e7fe21e0843d600849d9"', 'Last-Modified': '1631567317.0'}
-    dict2 = {'ETag': '"56421f81e7b1e7fe21e0843d600849d9"', 'Last-Modified': '1631567317.0'}
-    print(dict1 == dict2)
+    pass
