@@ -120,7 +120,7 @@ The step function returns a dictionary of granules that were discovered this run
   ]
 }
 ```
-Note: The actual output uses single quotes but double quotes were used here to avoid syntax error hughlighting.  
+Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.  
 
 # Testing
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.  
