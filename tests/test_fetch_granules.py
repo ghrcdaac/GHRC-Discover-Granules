@@ -29,8 +29,8 @@ class TestDiscoverGranules(unittest.TestCase):
             return json.load(test_file)['head_responses']
 
     @staticmethod
-    def get_sample_event():
-        with open(os.path.join(THIS_DIR, 'input_event.json'), 'r') as test_event_file:
+    def get_sample_event(event_type='skip'):
+        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r') as test_event_file:
             return json.load(test_event_file)
 
     def test_get_file_link_remss(self):
@@ -138,7 +138,7 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_skip_replace(self):
-        dg = DiscoverGranules(self.get_sample_event())
+        dg = DiscoverGranules(self.get_sample_event('replace'))
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
         s3_granules = {"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}}
         ret_dict = dg.replace(discovered_granules, s3_granules)
@@ -148,30 +148,30 @@ class TestDiscoverGranules(unittest.TestCase):
         pass
 
     def test_check_granule_updates_error(self):
-        dg = DiscoverGranules(self.get_sample_event())
+        dg = DiscoverGranules(self.get_sample_event('error'))
         dg.error = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules, "error")
+        dg.check_granule_updates(discovered_granules)
         self.assertTrue(dg.error.called)
 
     def test_check_granule_updates_skip(self):
-        dg = DiscoverGranules(self.get_sample_event())
+        dg = DiscoverGranules(self.get_sample_event('skip'))
         dg.skip = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules, "skip")
+        dg.check_granule_updates(discovered_granules)
         self.assertTrue(dg.skip.called)
 
     def test_check_granule_updates_replace(self):
-        dg = DiscoverGranules(self.get_sample_event())
+        dg = DiscoverGranules(self.get_sample_event('replace'))
         dg.replace = MagicMock()
         dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
         dg.upload_to_s3 = MagicMock()
         discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules, "replace")
+        dg.check_granule_updates(discovered_granules)
         self.assertTrue(dg.replace.called)
 
     def test_discover_granules_s3(self):

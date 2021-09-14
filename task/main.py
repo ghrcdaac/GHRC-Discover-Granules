@@ -44,8 +44,8 @@ class DiscoverGranules:
         :param last_mod: The value of the Last-Modified value retrieved from the provider server
         """
         target_dict[key] = {
-            'ETag': etag,
-            'Last-Modified': last_mod
+            'ETag': str(etag),
+            'Last-Modified': str(last_mod)
         }
 
     @staticmethod
@@ -91,7 +91,7 @@ class DiscoverGranules:
         """
         temp_str = "Name,ETag,Last-Modified (epoch)\n"
         for key, value in granule_dict.items():
-            temp_str += f'{str(key)},{value.get("ETag")},{value.get("Last-Modified")}\n'
+            temp_str += f'{key},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
 
         client = boto3.client('s3')
@@ -196,20 +196,14 @@ class DiscoverGranules:
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
-    def check_granule_updates(self, granule_dict: {}, duplicates=None):
+    def check_granule_updates(self, granule_dict: {}):
         """
         Checks stored granules and updates the datetime and ETag if updated
         :param granule_dict: Dictionary of granules to check
-        :param duplicates Variable for telling the code how to handle when a duplicate granule is discovered
-         - skip: If we discovered a granule already discovered, only update it if the ETag or Last-Modified have changed
-         - error: if we discover a granule already discovered, throw and error and terminate execution
-         - replace: If we discovered a granule already discovered, update it anyways
         :return Dictionary of granules that were new or updated
         """
-        if not duplicates:
-            duplicates = 'error' if self.collection.get('duplicateHandling') == 'error' else 'replace'
-
         s3_granule_dict = self.download_from_s3()
+        duplicates = self.collection.get('duplicateHandling', 'skip')
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
@@ -282,7 +276,6 @@ class DiscoverGranules:
             elif (etag is None and last_modified is None) and \
                     (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
-                # print(f'Found path: {directory_list[-1]}')
             else:
                 logging.debug(f'Notice: {path} not processed as granule or directory.')
         pass
@@ -391,3 +384,7 @@ class DiscoverGranules:
             })
 
         return {'granules': discovered_granules}
+
+
+if __name__ == '__main__':
+    pass
