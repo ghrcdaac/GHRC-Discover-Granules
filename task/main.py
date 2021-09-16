@@ -203,7 +203,10 @@ class DiscoverGranules:
         :return Dictionary of granules that were new or updated
         """
         s3_granule_dict = self.download_from_s3()
-        duplicates = self.collection.get('duplicateHandling', 'skip')
+        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
+        if duplicates == 'replace':
+            duplicates = 'skip'
         new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         # Only re-upload if there were new or updated granules
