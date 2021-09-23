@@ -1,12 +1,16 @@
 import logging
 import os
 import boto3
+import psutil
 
 from bs4 import BeautifulSoup
 import requests
 import re
 import botocore.exceptions
 from dateutil.parser import parse
+from peewee import ModelObjectCursorWrapper
+
+from dgm import *
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -29,6 +33,8 @@ class DiscoverGranules:
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
         csv_filename = f'{self.collection["name"]}__{self.collection["version"]}.csv'
+        db_filename = f'discover_granules.db.'
+        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{db_filename}'
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.session = requests.Session()
@@ -181,10 +187,19 @@ class DiscoverGranules:
             if is_new_or_modified:
                 self.update_etag_lm(new_granules, granule_dict, key)
 
+            data = []
+            for granule in granule_dict:
+                data.append((granule, granule['ETag'], granule['Last-Modified']))
+
+            with db.atomic():
+                Granule.insert_many(data, [Granule.name, Granule.etag, Granule.last_modified])
+
+
+
         return new_granules
 
     @staticmethod
-    def replace(granule_dict: {}, s3_granule_dict: {}):
+    def replace(granule_dict: {}, s3_granule_dict: {} = {}):
         """
          If the replace flag is set in the collection definition this function will clear out the previously stored run
          and replace with any discovered granules for this run.
@@ -192,9 +207,64 @@ class DiscoverGranules:
          :param s3_granule_dict the downloaded last run stored in s3
          :return new_granules Only the granules that are newly discovered
          """
-        s3_granule_dict.clear()
-        s3_granule_dict.update(granule_dict)
-        return s3_granule_dict
+        Granule.delete().execute()
+        data = []
+        for granule in granule_dict:
+            data.append((granule, granule['ETag'], granule['Last-Modified']))
+
+        with db.atomic():
+            Granule.insert_many(data, [Granule.name, Granule.etag, Granule.last_modified])
+
+        return granule_dict
+
+    def db_skip(self, granule_dict):
+        etags = ''
+        last_mods = ''
+        names = ''
+        for key, value in granule_dict.items():
+            names = f'{names}\'{key}\','
+            etags = f'{etags}\'{value["ETag"]}\','
+            last_mods = f'{last_mods}\'{value["Last-Modified"]}\','
+
+        etags = f'({etags.rstrip(",")})'
+        last_mods = f'({last_mods.rstrip(",")})'
+        names = f'({names.rstrip(",")})'
+        sub = Granule.raw(f'SELECT name FROM granule'
+                          f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
+        for name in sub.tuples().iterator():
+            # print(name[0])
+            granule_dict.pop(name[0])
+
+        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
+        # print(data)
+        with db.atomic():
+            Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                .on_conflict_replace().execute()
+
+        print(granule_dict)
+        # return granule_dict
+
+    def db_replace(self, granule_dict):
+        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
+        # print(data)
+        with db.atomic():
+            Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                .on_conflict_replace().execute()
+
+    def db_error(self, granule_dict):
+        names = ''
+        for key, value in granule_dict.items():
+            names = f'{names}\'{key}\','
+        names = f'({names.rstrip(",")})'
+        res = Granule.raw(f'SELECT name FROM granule WHERE name IN {names}')
+        if res:
+            raise ValueError('Granule already exists in the databse.')
+
+        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
+        # print(data)
+        with db.atomic():
+            Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                .on_conflict_replace().execute()
 
     def check_granule_updates(self, granule_dict: {}):
         """
@@ -202,12 +272,17 @@ class DiscoverGranules:
         :param granule_dict: Dictionary of granules to check
         :return Dictionary of granules that were new or updated
         """
+
         s3_granule_dict = self.download_from_s3()
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
-        if duplicates == 'replace':
-            duplicates = 'skip'
-        new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
+        # if duplicates == 'replace':
+        #     duplicates = 'skip'
+        # new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
+        # new_or_updated_granules = getattr(self, duplicates)(granule_dict)
+        self.__read_db_file()
+        new_or_updated_granules = getattr(self, f'db_{duplicates}')(granule_dict)
+        self.__write_db_file()
 
         # Only re-upload if there were new or updated granules
         if new_or_updated_granules:
@@ -385,9 +460,164 @@ class DiscoverGranules:
                     }
                 ]
             })
+        print(f'Post cumulus output memory: {memory_check()}')
+        print(f'Discovered {len(discovered_granules)} granules.')
+        return {'granules': []}
 
-        return {'granules': discovered_granules}
+    def __read_db_file(self):
+        client = boto3.client('s3')
+        try:
+            client.download_file(self.s3_bucket_name, self.db_key, '/tmp/discover_granules.db')
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == '404':
+                # Database file does not exist so create it
+                print(f'DB file did not exist, trying to connect/create.')
+                db.connect()
+                db.create_tables([Granule])
+            else:
+                raise error
+        pass
+
+    def __write_db_file(self):
+        client = boto3.client('s3')
+        db.close()
+        client.upload_file('/tmp/discover_granules.db', self.s3_bucket_name, self.db_key)
+        pass
+
+    def __update_db(self, granules):
+        client = boto3.client('s3')
+        client.download_file(self.s3_bucket_name, self.db_key, '/tmp/discover_granules.db')
+        try:
+            client.download_file('ghrcsbxw-internal', 'some/key', '/tmp/discover_granules.db')
+        except botocore.exceptions.ClientError:
+            # DB file does not exist in S3 so create it
+            db.create_tables([Granule])
+
+        for key, value in granules:
+            Granule.create(name=key, etag=key['ETag'], last_modified='Last-Modified')
+
+        client.upload_file('/tmp/discover_granules.db', self.s3_bucket_name, self.db_key)
+        pass
+
+
+def populate_db(count):
+    lst = []
+    for x in range(count):
+        lst.append(Granule(name=f'name{x}', etag=f'etag{x}', last_modified=f'last{x}'))
+
+    with db.atomic():
+        Granule.bulk_create(lst, batch_size=100)
+
+
+def create_list():
+    lst = []
+    for x in range(100):
+        lst.append(Granule(name=f'name{x}', etag=f'etag{x}', last_modified=f'last{x}'))
+    return lst
+
+
+def clear_db():
+    q = Granule.delete().execute()
+
+
+def bulk_update():
+    data = [('name1', 'etag1a', 'last1a'), ('name2', 'etag2a', 'last2a'), ('name3', 'etag3a', 'last3a')]
+    ValuesList(data, columns=(Granule.name, Granule.etag, Granule.last_modified))
+
+    rowid = Granule.insert_many(data, [Granule.name, Granule.etag, Granule.last_modified]) \
+        .on_conflict(conflict_target=[Granule.name],
+                     update={Granule.etag: 'new_tag', Granule.last_modified: 'new_last'})\
+        .execute()
+    print(rowid)
+    
+
+
+
+
+def genereate_test_dict(count):
+    test_dict = {}
+    for x in range(count):
+        test_dict[f'name{x}'] = {'ETag': f'etag{x}', 'Last-Modified': f'last{x}'}
+
+    # print(test_dict)
+    return test_dict
+
+
+def read_db_file():
+    client = boto3.client('s3')
+    try:
+        client.download_file('ghrcsbxw-internal', 'discover-granules-db', '/tmp/discover_granules.db')
+    except botocore.exceptions.ClientError as error:
+        if error.response['Error']['Code'] == '404':
+            # Database file does not exist so create it
+            db.connect()
+            db.create_tables([Granule])
+        else:
+            raise error
+
+
+def big_list():
+    dict = {}
+    for x in range(1000000):
+        dict[x] = {'etag': f'{x}e', 'last': f'{x}l'}
+    # memory_check()
+    return dict
+
+
+def memory_check():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 ** 2
+
+
+def create_generator(test_dict):
+    for entry in test_dict:
+        print(entry)
 
 
 if __name__ == '__main__':
+    db.connect()
+    # count = 5000
+    # test_dict = genereate_test_dict(count)
+    # dict1 = big_list()
+    # create_generator(dict1)
+    # dict2 = big_list()
+    # memory_check()
+    # read_db_file()
+    # db.connect()
+    # db.create_tables([Granule])
+    # bulk_update()
+    # model_update()
+    # db.create_tables([Granule])
+    # clear_db()
+    # populate_db(1000000)
+    # model_update()
+    # db_skip(test_dict)
+    # db_error(test_dict)
+
+    # discovered_granules = []
+    # for key, value in dict1.items():
+    # # for x in range(1000000):
+    #     epoch = 'This is the last mod'
+    #     host = 'host'
+    #     filename = 'This is a file name'
+    #     path = 'This is a path'
+    #     discovered_granules.append({
+    #         'granuleId': filename,
+    #         'dataType': 'This is the data type',
+    #         'version': 'This is a version',
+    #         'files': [
+    #             {
+    #                 'name': 'filename',
+    #                 'path': 'path',
+    #                 'size': '',
+    #                 'time': 'epoch',
+    #                 'bucket': 'self.s3_bucket_name',
+    #                 'url_path': 'This is the url path',
+    #                 'type': ''
+    #             }
+    #         ]
+    #     })
+    #
+    # memory_check()
+
     pass
