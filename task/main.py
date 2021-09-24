@@ -1,4 +1,5 @@
 import concurrent.futures
+import gc
 import logging
 import os
 import time
@@ -205,80 +206,33 @@ class DiscoverGranules:
         return s3_granule_dict
 
     def db_test_sel(self, granule_dict):
-        for key_batch in chunked(granule_dict, 100):
-            print('hey')
-            etags = ''
-            last_mods = ''
-            names = ''
-            for key in key_batch:
-                names = f'{names}\'{key}\','
-                etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
-                last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
+        with db.atomic():
+            for key_batch in chunked(granule_dict, 333):
+                etags = ''
+                last_mods = ''
+                names = ''
+                for key in key_batch:
+                    names = f'{names}\'{key}\','
+                    etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
+                    last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
 
-            etags = f'({etags.rstrip(",")})'
-            last_mods = f'({last_mods.rstrip(",")})'
-            names = f'({names.rstrip(",")})'
+                etags = f'({etags.rstrip(",")})'
+                last_mods = f'({last_mods.rstrip(",")})'
+                names = f'({names.rstrip(",")})'
 
-            sub = Granule.raw(f'SELECT name FROM granule'
-                              f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
-            # print('db select success')
-            for name in sub.tuples().iterator():
-                # print(name[0])
-                # granule_dict.pop(name[0])
-                yield name[0]
+                sub = Granule.raw(f'SELECT name FROM granule'
+                                  f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
+                for name in sub.tuples().iterator():
+                    yield name[0]
 
     def db_skip(self, granule_dict):
-        # del_keys = []
-        # for key_batch in chunked(granule_dict, 100):
-        #     etags = ''
-        #     last_mods = ''
-        #     names = ''
-        #     for key in key_batch:
-        #         names = f'{names}\'{key}\','
-        #         etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
-        #         last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
-        #
-        #     etags = f'({etags.rstrip(",")})'
-        #     last_mods = f'({last_mods.rstrip(",")})'
-        #     names = f'({names.rstrip(",")})'
-        #
-        #     sub = Granule.raw(f'SELECT name FROM granule'
-        #                       f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
-        #     # print('db select success')
-        #     for name in sub.tuples().iterator():
-        #         # print(name[0])
-        #         # granule_dict.pop(name[0])
-        #         del_keys.append(name[0])
-        #
-        # for key in del_keys:
-        #     granule_dict.pop(key)
-
-        # for key, value in granule_dict.items():
-        #     names = f'{names}\'{key}\','
-        #     etags = f'{etags}\'{value["ETag"]}\','
-        #     last_mods = f'{last_mods}\'{value["Last-Modified"]}\','
-
-        # print('db strings success')
-        # etags = f'({etags.rstrip(",")})'
-        # last_mods = f'({last_mods.rstrip(",")})'
-        # names = f'({names.rstrip(",")})'
-        # sub = Granule.raw(f'SELECT name FROM granule'
-        #                   f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
-        # print('db select success')
-        # for name in sub.tuples().iterator():
-        #     # print(name[0])
-        #     granule_dict.pop(name[0])
         for x in self.db_test_sel(granule_dict):
             granule_dict.pop(x)
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        # print(data)
         with db.atomic():
-            for key_batch in chunked(data, 100):
+            for key_batch in chunked(data, 333):
                 Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
                     .on_conflict_replace().execute()
-
-        # print(granule_dict)
-        # return granule_dict
 
     def db_replace(self, granule_dict):
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
@@ -297,7 +251,6 @@ class DiscoverGranules:
             raise ValueError('Granule already exists in the databse.')
 
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        # print(data)
         with db.atomic():
             Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
                 .on_conflict_replace().execute()
@@ -308,22 +261,13 @@ class DiscoverGranules:
         :param granule_dict: Dictionary of granules to check
         :return Dictionary of granules that were new or updated
         """
-
-        s3_granule_dict = self.download_from_s3()
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
         # if duplicates == 'replace':
         #     duplicates = 'skip'
-        # new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
         self.__read_db_file()
-        # new_or_updated_granules = getattr(self, f'db_{duplicates}')(granule_dict)
         getattr(self, f'db_{duplicates}')(granule_dict)
-
-        # Only re-upload if there were new or updated granules
-        # if new_or_updated_granules:
-        #     self.upload_to_s3(s3_granule_dict)
-        # return new_or_updated_granules
 
     def discover_granules(self):
         """
@@ -434,10 +378,7 @@ class DiscoverGranules:
         response_iterator = self.get_s3_resp_iterator(host, prefix, s3_client)
 
         ret_dict = {}
-        i = 0
         for page in response_iterator:
-            i += 1
-            print(f'page {i}')
             for s3_object in page.get('Contents'):
                 key = s3_object['Key']
                 sections = str(key).rsplit('/', 1)
@@ -446,6 +387,8 @@ class DiscoverGranules:
                 if (file_reg_ex is None or re.search(file_reg_ex, file_name)) and \
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
                     self.populate_dict(ret_dict, key, s3_object['ETag'], s3_object['LastModified'].timestamp())
+
+        gc.collect()
 
         return ret_dict
 
@@ -634,6 +577,12 @@ def big_list(count):
     # memory_check()
     return lst
 
+def big_dict(count):
+    dict = {}
+    for x in range(count):
+        dict[x] = {'etag': f'{x}e', 'last': f'{x}l'}
+    return dict
+
 
 def memory_check():
     process = psutil.Process(os.getpid())
@@ -671,31 +620,11 @@ def process_page(page, i):
 
 
 if __name__ == '__main__':
-    client = boto3.client('s3')
-    host = 'ghrcsbxw-private'
-    prefix = 'lma/nalma/raw/2108'
-    response_iterator = get_s3_resp_iterator(host, prefix, client)
+    lst1 = big_dict(1000000)
+    print(memory_check())
+    for x in range(500000):
+        lst1.pop(x)
 
-    lst = [1, 2]
-    print(lst.__iter__().__next__())
-    print(lst.__iter__().__next__())
-
-    ret_dict = {}
-    i = 0
-    st = time.time()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        for page in response_iterator:
-            i += 1
-            # print(f'page {i}')
-            executor.submit(process_page, page, i)
-
-        for future in concurrent.futures.as_completed(futures):
-            # try:
-            print(future.result())
-            # except requests.ConnectTimeout:
-            #     print("ConnectTimeout.")
-    et = time.time() - st
-    print(f'duration {et}')
+    print(memory_check())
 
     pass

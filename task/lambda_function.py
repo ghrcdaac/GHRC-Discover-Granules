@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 from main import DiscoverGranules, memory_check
@@ -24,13 +25,14 @@ def lambda_handler(event, context=None):
     test = dg.cumulus_output_generator(granule_dict)
     print(f'Post generator call memory: {memory_check()}')
     del granule_dict
+    gc.collect()
     print(f'Post delete call memory: {memory_check()}')
 
-    test2 = {'granules': test.__next__()}
-    print(f'Post test2 call memory: {memory_check()}')
+    return {'granules': test.__next__()}
+    # print(f'Post test2 call memory: {memory_check()}')
     # print(test2)
     # return test2
-    return {'granules': []}
+    # return {'granules': []}
     # return dg.generate_cumulus_output(granule_dict)
     # return dg.generate_cumulus_output(ret_dict)
 
