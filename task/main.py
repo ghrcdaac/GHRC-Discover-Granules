@@ -453,7 +453,7 @@ class DiscoverGranules:
         filename = filename_funct(key)
         path = key[key.find(host) + len(host): key.find(filename)]
 
-        return {
+        yield {
             'granuleId': filename,
             'dataType': self.collection.get('name', ''),
             'version': self.collection.get('version', ''),
@@ -477,7 +477,7 @@ class DiscoverGranules:
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        yield [self.test(k, v, filename_funct) for k, v in ret_dict.items()]
+        yield [self.test(k, v, filename_funct).__next__() for k, v in ret_dict.items()]
 
     def __read_db_file(self):
         client = boto3.client('s3')
@@ -487,11 +487,17 @@ class DiscoverGranules:
             if error.response['Error']['Code'] == '404':
                 # Database file does not exist so create it
                 print(f'DB file did not exist, trying to connect/create.')
+                db.close()
                 db.connect()
                 db.create_tables([Granule])
             else:
                 raise error
         pass
+
+    def discover_test(self):
+        granule_dict = self.discover_granules()
+        self.check_granule_updates(granule_dict)
+        return {'granules': self.cumulus_output_generator(granule_dict).__next__()}
 
     def __write_db_file(self):
         client = boto3.client('s3')
@@ -619,11 +625,21 @@ def process_page(page, i):
     return f'processed page {i}'
 
 
+def test_yieldb():
+    for x in range(1000):
+        yield {x: x}
+
+
+def test_yielda():
+    yield [test_yieldb().__next__() for x in range(1000)]
+
+def final():
+    return {'granules': test_yielda().__next__()}
+
 if __name__ == '__main__':
-    lst1 = big_dict(1000000)
+    # lst1 = big_dict(1000000)
     print(memory_check())
-    for x in range(500000):
-        lst1.pop(x)
+    print(final())
 
     print(memory_check())
 

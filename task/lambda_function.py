@@ -9,32 +9,17 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def lambda_handler(event, context=None):
-    dg = DiscoverGranules(event)
-    print(f'Pre discover memory: {memory_check()}')
-
-    granule_dict = dg.discover_granules()
-    print(f'Post discover memory: {memory_check()}')
-
-    # ret_dict = dg.check_granule_updates(granule_dict)
-    dg.check_granule_updates(granule_dict)
-    print(f'Post update memory: {memory_check()}')
-
+    # dg = DiscoverGranules(event)
+    # print(f'Pre discover memory: {memory_check()}')
+    #
+    # granule_dict = dg.discover_granules()
+    # print(f'Post discover memory: {memory_check()}')
+    #
     # dg.check_granule_updates(granule_dict)
     # print(f'Post update memory: {memory_check()}')
-
-    test = dg.cumulus_output_generator(granule_dict)
-    print(f'Post generator call memory: {memory_check()}')
-    del granule_dict
-    gc.collect()
-    print(f'Post delete call memory: {memory_check()}')
-
-    return {'granules': test.__next__()}
-    # print(f'Post test2 call memory: {memory_check()}')
-    # print(test2)
-    # return test2
-    # return {'granules': []}
-    # return dg.generate_cumulus_output(granule_dict)
-    # return dg.generate_cumulus_output(ret_dict)
+    #
+    # return {'granules': dg.cumulus_output_generator(granule_dict).__next__()}
+    return DiscoverGranules(event).discover_test()
 
 
 def handler(event, context):
