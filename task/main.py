@@ -1,11 +1,7 @@
-import concurrent.futures
-import gc
 import logging
 import os
-import time
 
 import boto3
-import psutil
 
 from bs4 import BeautifulSoup
 import requests
@@ -193,7 +189,7 @@ class DiscoverGranules:
         return new_granules
 
     @staticmethod
-    def replace(granule_dict: {}, s3_granule_dict: {} = {}):
+    def replace(granule_dict: {}, s3_granule_dict=None):
         """
          If the replace flag is set in the collection definition this function will clear out the previously stored run
          and replace with any discovered granules for this run.
@@ -201,13 +197,16 @@ class DiscoverGranules:
          :param s3_granule_dict the downloaded last run stored in s3
          :return new_granules Only the granules that are newly discovered
          """
+        if s3_granule_dict is None:
+            s3_granule_dict = {}
         s3_granule_dict.clear()
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
-    def db_test_sel(self, granule_dict):
+    @staticmethod
+    def db_test_sel(granule_dict):
         with db.atomic():
-            for key_batch in chunked(granule_dict, 333):
+            for key_batch in chunked(granule_dict, 333):  # 333 Because SQLite has a variable limit of 999
                 etags = ''
                 last_mods = ''
                 names = ''
@@ -226,22 +225,23 @@ class DiscoverGranules:
                     yield name[0]
 
     def db_skip(self, granule_dict):
-        for x in self.db_test_sel(granule_dict):
-            granule_dict.pop(x)
+        for name in self.db_test_sel(granule_dict):
+            granule_dict.pop(name)
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
         with db.atomic():
-            for key_batch in chunked(data, 333):
+            for key_batch in chunked(data, 333):  # 333 Because SQLite has a variable limit of 999
                 Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
                     .on_conflict_replace().execute()
 
-    def db_replace(self, granule_dict):
+    @staticmethod
+    def db_replace(granule_dict):
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        # print(data)
         with db.atomic():
             Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
                 .on_conflict_replace().execute()
 
-    def db_error(self, granule_dict):
+    @staticmethod
+    def db_error(granule_dict):
         names = ''
         for key, value in granule_dict.items():
             names = f'{names}\'{key}\','
@@ -263,8 +263,8 @@ class DiscoverGranules:
         """
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
-        # if duplicates == 'replace':
-        #     duplicates = 'skip'
+        if duplicates == 'replace':
+            duplicates = 'skip'
 
         self.__read_db_file()
         getattr(self, f'db_{duplicates}')(granule_dict)
@@ -388,8 +388,6 @@ class DiscoverGranules:
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
                     self.populate_dict(ret_dict, key, s3_object['ETag'], s3_object['LastModified'].timestamp())
 
-        gc.collect()
-
         return ret_dict
 
     @staticmethod
@@ -413,41 +411,14 @@ class DiscoverGranules:
         """
         return filename.rsplit('/')[-1]
 
-    def generate_cumulus_output(self, ret_dict):
+    def generate_cumulus_record(self, key, value, filename_funct):
         """
-        Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
-        :param ret_dict: Dictionary containing only newly discovered granules.
-        :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
+        Generates a single dictionary generator that yields the expected cumulus output for a granule
+        :param key: The name of the file
+        :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
+        :param filename_funct: Helper function to extract the file name depending on the protocol used
+        :return: A generator that will yield cumulus granule dictionaries
         """
-        discovered_granules = []
-        filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        for key, value in ret_dict.items():
-            epoch = value.get('Last-Modified')
-            host = self.provider.get('host')
-            filename = filename_funct(key)
-            path = key[key.find(host) + len(host): key.find(filename)]
-            discovered_granules.append({
-                'granuleId': filename,
-                'dataType': self.collection.get('name', ''),
-                'version': self.collection.get('version', ''),
-                'files': [
-                    {
-                        'name': filename,
-                        'path': path,
-                        'size': '',
-                        'time': epoch,
-                        'bucket': self.s3_bucket_name,
-                        'url_path': self.collection.get('url_path', ''),
-                        'type': ''
-                    }
-                ]
-            })
-        print(f'Post cumulus output memory: {memory_check()}')
-        print(f'Discovered {len(discovered_granules)} granules.')
-        self.__write_db_file()
-        return {'granules': discovered_granules}
-
-    def test(self, key, value, filename_funct):
         epoch = value.get('Last-Modified')
         host = self.provider.get('host')
         filename = filename_funct(key)
@@ -477,170 +448,44 @@ class DiscoverGranules:
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        yield [self.test(k, v, filename_funct).__next__() for k, v in ret_dict.items()]
+        yield [self.generate_cumulus_record(k, v, filename_funct).__next__() for k, v in ret_dict.items()]
 
     def __read_db_file(self):
+        """
+        Reads the SQLite database file from S3
+        """
         client = boto3.client('s3')
         try:
             client.download_file(self.s3_bucket_name, self.db_key, '/tmp/discover_granules.db')
         except botocore.exceptions.ClientError as error:
             if error.response['Error']['Code'] == '404':
                 # Database file does not exist so create it
-                print(f'DB file did not exist, trying to connect/create.')
-                db.close()
+                db.close()  # Note: this line is needed as previous lambda invocation can cause issues
                 db.connect()
                 db.create_tables([Granule])
             else:
                 raise error
         pass
 
-    def discover_test(self):
-        granule_dict = self.discover_granules()
-        self.check_granule_updates(granule_dict)
-        return {'granules': self.cumulus_output_generator(granule_dict).__next__()}
-
     def __write_db_file(self):
+        """
+        Writes the SQLite database file to S3
+        """
         client = boto3.client('s3')
         db.close()
         client.upload_file('/tmp/discover_granules.db', self.s3_bucket_name, self.db_key)
         pass
 
-    def __update_db(self, granules):
-        client = boto3.client('s3')
-        client.download_file(self.s3_bucket_name, self.db_key, '/tmp/discover_granules.db')
-        try:
-            client.download_file('ghrcsbxw-internal', 'some/key', '/tmp/discover_granules.db')
-        except botocore.exceptions.ClientError:
-            # DB file does not exist in S3 so create it
-            db.create_tables([Granule])
+    def discover(self):
+        """
+        Helper function to kick off the entire discover process automatically
+        """
+        granule_dict = self.discover_granules()
+        self.check_granule_updates(granule_dict)
+        # return {'granules': []}
+        self.__write_db_file()
+        return {'granules': self.cumulus_output_generator(granule_dict).__next__()}
 
-        for key, value in granules:
-            Granule.create(name=key, etag=key['ETag'], last_modified='Last-Modified')
-
-        client.upload_file('/tmp/discover_granules.db', self.s3_bucket_name, self.db_key)
-        pass
-
-
-def populate_db(count):
-    lst = []
-    for x in range(count):
-        lst.append(Granule(name=f'name{x}', etag=f'etag{x}', last_modified=f'last{x}'))
-
-    with db.atomic():
-        Granule.bulk_create(lst, batch_size=100)
-
-
-def create_list():
-    lst = []
-    for x in range(100):
-        lst.append(Granule(name=f'name{x}', etag=f'etag{x}', last_modified=f'last{x}'))
-    return lst
-
-
-def clear_db():
-    q = Granule.delete().execute()
-
-
-def bulk_update():
-    data = [('name1', 'etag1a', 'last1a'), ('name2', 'etag2a', 'last2a'), ('name3', 'etag3a', 'last3a')]
-    ValuesList(data, columns=(Granule.name, Granule.etag, Granule.last_modified))
-
-    rowid = Granule.insert_many(data, [Granule.name, Granule.etag, Granule.last_modified]) \
-        .on_conflict(conflict_target=[Granule.name],
-                     update={Granule.etag: 'new_tag', Granule.last_modified: 'new_last'})\
-        .execute()
-    print(rowid)
-
-
-def generate_test_dict(count):
-    test_dict = {}
-    for x in range(count):
-        test_dict[f'name{x}'] = {'ETag': f'etag{x}', 'Last-Modified': f'last{x}'}
-
-    # print(test_dict)
-    return test_dict
-
-
-def read_db_file():
-    client = boto3.client('s3')
-    try:
-        client.download_file('ghrcsbxw-internal', 'discover-granules-db', '/tmp/discover_granules.db')
-    except botocore.exceptions.ClientError as error:
-        if error.response['Error']['Code'] == '404':
-            # Database file does not exist so create it
-            db.connect()
-            db.create_tables([Granule])
-        else:
-            raise error
-
-
-def big_list(count):
-    dict = {}
-    lst = []
-    for x in range(count):
-        # dict[x] = {'etag': f'{x}e', 'last': f'{x}l'}
-        lst.append(f'item {x}')
-    # memory_check()
-    return lst
-
-def big_dict(count):
-    dict = {}
-    for x in range(count):
-        dict[x] = {'etag': f'{x}e', 'last': f'{x}l'}
-    return dict
-
-
-def memory_check():
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / 1024 ** 2
-
-
-def create_generator(test_dict):
-    for entry in test_dict:
-        print(entry)
-
-
-def get_s3_resp_iterator(host, prefix, s3_client):
-    """
-    Returns an s3 paginator.
-    :param host: The bucket.
-    :param prefix: The path for the s3 granules.
-    :param s3_client: S3 client to create paginator with.
-    """
-    s3_paginator = s3_client.get_paginator('list_objects')
-    return s3_paginator.paginate(
-        Bucket=host,
-        Prefix=prefix,
-        PaginationConfig={
-            'PageSize': 1000
-        }
-    )
-
-
-def process_page(page, i):
-    for s3_object in page.get('Contents'):
-        key = s3_object['Key']
-        s3_object['ETag']
-        s3_object['LastModified'].timestamp()
-    return f'processed page {i}'
-
-
-def test_yieldb():
-    for x in range(1000):
-        yield {x: x}
-
-
-def test_yielda():
-    yield [test_yieldb().__next__() for x in range(1000)]
-
-def final():
-    return {'granules': test_yielda().__next__()}
 
 if __name__ == '__main__':
-    # lst1 = big_dict(1000000)
-    print(memory_check())
-    print(final())
-
-    print(memory_check())
-
     pass

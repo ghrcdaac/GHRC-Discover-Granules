@@ -1,7 +1,6 @@
-import gc
 import os
 import sys
-from main import DiscoverGranules, memory_check
+from main import DiscoverGranules
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
@@ -9,17 +8,7 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def lambda_handler(event, context=None):
-    # dg = DiscoverGranules(event)
-    # print(f'Pre discover memory: {memory_check()}')
-    #
-    # granule_dict = dg.discover_granules()
-    # print(f'Post discover memory: {memory_check()}')
-    #
-    # dg.check_granule_updates(granule_dict)
-    # print(f'Post update memory: {memory_check()}')
-    #
-    # return {'granules': dg.cumulus_output_generator(granule_dict).__next__()}
-    return DiscoverGranules(event).discover_test()
+    return DiscoverGranules(event).discover()
 
 
 def handler(event, context):
