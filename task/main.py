@@ -32,8 +32,7 @@ class DiscoverGranules:
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
         csv_filename = f'{self.collection["name"]}__{self.collection["version"]}.csv'
-        db_filename = f'discover_granules.db'
-        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{db_filename}'
+        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.session = requests.Session()
@@ -203,64 +202,6 @@ class DiscoverGranules:
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
-    @staticmethod
-    def db_test_sel(granule_dict):
-        ret_lst = []
-        with db.atomic():
-            # 333 Because SQLite has a variable limit of 999 and we are passing in 3 variables
-            for key_batch in chunked(granule_dict, 333):
-                etags = ''
-                last_mods = ''
-                names = ''
-                for key in key_batch:
-                    names = f'{names}\'{key}\','
-                    etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
-                    last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
-
-                etags = f'({etags.rstrip(",")})'
-                last_mods = f'({last_mods.rstrip(",")})'
-                names = f'({names.rstrip(",")})'
-
-                sub = Granule.raw(f'SELECT name FROM granule'
-                                  f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
-                for name in sub.tuples().iterator():
-                    ret_lst.append(name[0])
-
-        return ret_lst
-
-    def db_skip(self, granule_dict):
-        for name in self.db_test_sel(granule_dict):
-            granule_dict.pop(name)
-        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        with db.atomic():
-            # 333 Because SQLite has a variable limit of 999 and we are passing in 3 variables
-            for key_batch in chunked(data, 333):
-                Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                    .on_conflict_replace().execute()
-
-    @staticmethod
-    def db_replace(granule_dict):
-        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        with db.atomic():
-            for key_batch in chunked(data, 333):
-                Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                    .on_conflict_replace().execute()
-
-    @staticmethod
-    def db_error(granule_dict):
-        names = ''
-        for key, value in granule_dict.items():
-            names = f'{names}\'{key}\','
-        names = f'({names.rstrip(",")})'
-        res = Granule.raw(f'SELECT name FROM granule WHERE EXISTS name IN {names}')
-        if res:
-            raise ValueError('Granule already exists in the databse.')
-
-        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        with db.atomic():
-            Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                .on_conflict_replace().execute()
-
     def check_granule_updates(self, granule_dict: {}):
         """
         Checks stored granules and updates the datetime and ETag if updated
@@ -273,7 +214,7 @@ class DiscoverGranules:
             duplicates = 'skip'
 
         self.__read_db_file()
-        getattr(self, f'db_{duplicates}')(granule_dict)
+        getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
 
     def discover_granules(self):
         """
@@ -430,7 +371,7 @@ class DiscoverGranules:
         filename = filename_funct(key)
         path = key[key.find(host) + len(host): key.find(filename)]
 
-        yield {
+        return {
             'granuleId': filename,
             'dataType': self.collection.get('name', ''),
             'version': self.collection.get('version', ''),
@@ -454,7 +395,7 @@ class DiscoverGranules:
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        yield [self.generate_cumulus_record(k, v, filename_funct).__next__() for k, v in ret_dict.items()]
+        return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
     def __read_db_file(self):
         """
@@ -484,13 +425,13 @@ class DiscoverGranules:
 
     def discover(self):
         """
-        Helper function to kick off the entire discover process automatically
+        Helper function to kick off the entire discover process
         """
         granule_dict = self.discover_granules()
         self.check_granule_updates(granule_dict)
-        # return {'granules': []}
+        output = self.cumulus_output_generator(granule_dict)
         self.__write_db_file()
-        return {'granules': self.cumulus_output_generator(granule_dict).__next__()}
+        return {'granules': output}
 
 
 if __name__ == '__main__':
