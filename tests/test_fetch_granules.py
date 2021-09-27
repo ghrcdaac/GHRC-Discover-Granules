@@ -11,8 +11,8 @@ from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
 import unittest
 
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../task')
+# myPath = os.path.dirname(os.path.abspath(__file__))
+# sys.path.insert(0, myPath + '/../')
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 

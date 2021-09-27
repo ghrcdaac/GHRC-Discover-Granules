@@ -1,17 +1,16 @@
 import logging
 import os
+import re
 
 import boto3
-
-from bs4 import BeautifulSoup
-import requests
-import re
 import botocore.exceptions
+import requests
+import urllib3
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from dgm import *
+from task.dgm import *
 
-import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -214,8 +213,9 @@ class DiscoverGranules:
         if duplicates == 'replace':
             duplicates = 'skip'
 
-        self.__read_db_file()
-        getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
+        # self.__read_db_file()
+        # getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
+        getattr(self, f'{duplicates}')(granule_dict)
 
     def discover_granules(self):
         """
@@ -431,7 +431,7 @@ class DiscoverGranules:
         granule_dict = self.discover_granules()
         self.check_granule_updates(granule_dict)
         output = self.cumulus_output_generator(granule_dict)
-        self.__write_db_file()
+        # self.__write_db_file()
         return {'granules': output}
 
 
