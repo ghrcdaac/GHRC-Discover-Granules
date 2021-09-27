@@ -205,8 +205,10 @@ class DiscoverGranules:
 
     @staticmethod
     def db_test_sel(granule_dict):
+        ret_lst = []
         with db.atomic():
-            for key_batch in chunked(granule_dict, 333):  # 333 Because SQLite has a variable limit of 999
+            # 333 Because SQLite has a variable limit of 999 and we are passing in 3 variables
+            for key_batch in chunked(granule_dict, 333):
                 etags = ''
                 last_mods = ''
                 names = ''
@@ -222,14 +224,17 @@ class DiscoverGranules:
                 sub = Granule.raw(f'SELECT name FROM granule'
                                   f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
                 for name in sub.tuples().iterator():
-                    yield name[0]
+                    ret_lst.append(name[0])
+
+        return ret_lst
 
     def db_skip(self, granule_dict):
         for name in self.db_test_sel(granule_dict):
             granule_dict.pop(name)
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
         with db.atomic():
-            for key_batch in chunked(data, 333):  # 333 Because SQLite has a variable limit of 999
+            # 333 Because SQLite has a variable limit of 999 and we are passing in 3 variables
+            for key_batch in chunked(data, 333):
                 Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
                     .on_conflict_replace().execute()
 
@@ -237,8 +242,9 @@ class DiscoverGranules:
     def db_replace(granule_dict):
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
         with db.atomic():
-            Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                .on_conflict_replace().execute()
+            for key_batch in chunked(data, 333):
+                Granule.insert_many(data, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                    .on_conflict_replace().execute()
 
     @staticmethod
     def db_error(granule_dict):
