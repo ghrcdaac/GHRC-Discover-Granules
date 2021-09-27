@@ -204,7 +204,8 @@ class DiscoverGranules:
 
     def check_granule_updates(self, granule_dict: {}):
         """
-        Checks stored granules and updates the datetime and ETag if updated
+        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
+        error, replace, or skip
         :param granule_dict: Dictionary of granules to check
         :return Dictionary of granules that were new or updated
         """
