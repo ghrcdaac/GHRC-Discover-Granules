@@ -1,6 +1,6 @@
 import os
 import sys
-from main import DiscoverGranules
+from task.main import DiscoverGranules
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
