@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from time import sleep
 
 import boto3
 import botocore.exceptions
@@ -35,6 +36,17 @@ class DiscoverGranules:
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.session = requests.Session()
+
+    def discover(self):
+        """
+        Helper function to kick off the entire discover process
+        """
+        granule_dict = self.discover_granules()
+        self.check_granule_updates_db(granule_dict)
+        output = self.cumulus_output_generator(granule_dict)
+        self.write_db_file()
+        self.db_file_cleanup()
+        return {'granules': output}
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod):
@@ -213,9 +225,22 @@ class DiscoverGranules:
         if duplicates == 'replace':
             duplicates = 'skip'
 
-        # self.__read_db_file()
-        # getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
         getattr(self, f'{duplicates}')(granule_dict)
+
+    def check_granule_updates_db(self, granule_dict: {}):
+        """
+        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
+        error, replace, or skip
+        :param granule_dict: Dictionary of granules to check
+        :return Dictionary of granules that were new or updated
+        """
+        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
+        if duplicates == 'replace':
+            duplicates = 'skip'
+
+        self.read_db_file()
+        getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
 
     def discover_granules(self):
         """
@@ -398,41 +423,88 @@ class DiscoverGranules:
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-    def __read_db_file(self):
+    def s3_db_wait(self):
+        """
+        This function attempts to retrieve the object tag of the db file if it exists and either locks it or waits till
+        it becomes lockable. If the database file does not exist an exception is thrown and a new database file will be
+        created
+        """
+        timeout = 120
+        client = boto3.client('s3')
+        try:
+            while timeout:
+                # If no exception is thrown then the db file exists
+                resp = client.get_object_tagging(
+                    Bucket=self.s3_bucket_name,
+                    Key=self.db_key
+                )
+
+                tag_list = resp['TagSet']
+                tag = ''
+                if tag_list:
+                    tag = tag_list[0].get('Key', 'unlocked')
+
+                if tag != 'locked':
+                    self.s3_db_lock('locked')
+                    client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+                    break
+                elif timeout <= 0:
+                    raise ValueError('Lambda timed out waiting for s3 db tag lock (2 minutes).')
+                else:
+                    timeout -= 1
+                    sleep(1)
+        except client.exceptions.NoSuchKey:
+            # The db files doesn't exist in S3 yet so create, upload, and lock it
+            db.connect()
+            db.create_tables([Granule])
+            self.write_db_file()
+            self.s3_db_lock('locked')
+
+        db.connect()
+
+    def s3_db_lock(self, lock_status):
+        """
+        Used to set the tag of the S3 db file to the lock status
+        :param lock_status: The value to set the lock status to (locked/unlocked)
+        """
+        client = boto3.client('s3')
+        client.put_object_tagging(
+            Bucket=self.s3_bucket_name,
+            Key=self.db_key,
+            Tagging={
+                'TagSet': [
+                    {
+                        'Key': lock_status,
+                        'Value': lock_status
+                    },
+                ]
+            }
+        )
+
+    def read_db_file(self):
         """
         Reads the SQLite database file from S3
         """
-        client = boto3.client('s3')
-        try:
-            client.download_file(self.s3_bucket_name, self.db_key, '/tmp/discover_granules.db')
-        except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == '404':
-                # Database file does not exist so create it
-                db.close()  # Note: this line is needed as previous lambda invocation can cause issues
-                db.connect()
-                db.create_tables([Granule])
-            else:
-                raise error
+        self.s3_db_wait()
         pass
 
-    def __write_db_file(self):
+    def write_db_file(self):
         """
         Writes the SQLite database file to S3
         """
         client = boto3.client('s3')
         db.close()
-        client.upload_file('/tmp/discover_granules.db', self.s3_bucket_name, self.db_key)
+        client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
+        self.s3_db_lock('unlocked')
         pass
 
-    def discover(self):
+    @staticmethod
+    def db_file_cleanup():
         """
-        Helper function to kick off the entire discover process
+        This function deletes the database file stored in the lambda as each invocation can be using a previously used
+        file system with the old db file
         """
-        granule_dict = self.discover_granules()
-        self.check_granule_updates(granule_dict)
-        output = self.cumulus_output_generator(granule_dict)
-        # self.__write_db_file()
-        return {'granules': output}
+        os.remove(DB_FILE_PATH)
 
 
 if __name__ == '__main__':

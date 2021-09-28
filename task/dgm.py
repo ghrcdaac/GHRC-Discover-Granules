@@ -3,8 +3,9 @@ from peewee import *
 
 SQLITE_VAR_LIMIT = 999
 DB_FILENAME = 'discover_granules.db'
+DB_FILE_PATH = f'/tmp/{DB_FILENAME}'
 # Note: Lambda execution requires the db file to be in /tmp
-db = SqliteDatabase(f'/tmp/{DB_FILENAME}')
+db = SqliteDatabase(DB_FILE_PATH)
 
 
 class Granule(Model):
