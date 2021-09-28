@@ -1,14 +1,17 @@
 import logging
 import os
-import boto3
-
-from bs4 import BeautifulSoup
-import requests
 import re
+from time import sleep
+
+import boto3
 import botocore.exceptions
+import requests
+import urllib3
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-import urllib3
+from task.dgm import *
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -29,9 +32,21 @@ class DiscoverGranules:
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
         csv_filename = f'{self.collection["name"]}__{self.collection["version"]}.csv'
+        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.session = requests.Session()
+
+    def discover(self):
+        """
+        Helper function to kick off the entire discover process
+        """
+        granule_dict = self.discover_granules()
+        self.check_granule_updates_db(granule_dict)
+        output = self.cumulus_output_generator(granule_dict)
+        self.write_db_file()
+        self.db_file_cleanup()
+        return {'granules': output}
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod):
@@ -184,7 +199,7 @@ class DiscoverGranules:
         return new_granules
 
     @staticmethod
-    def replace(granule_dict: {}, s3_granule_dict: {}):
+    def replace(granule_dict: {}, s3_granule_dict=None):
         """
          If the replace flag is set in the collection definition this function will clear out the previously stored run
          and replace with any discovered granules for this run.
@@ -192,27 +207,40 @@ class DiscoverGranules:
          :param s3_granule_dict the downloaded last run stored in s3
          :return new_granules Only the granules that are newly discovered
          """
+        if s3_granule_dict is None:
+            s3_granule_dict = {}
         s3_granule_dict.clear()
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
     def check_granule_updates(self, granule_dict: {}):
         """
-        Checks stored granules and updates the datetime and ETag if updated
+        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
+        error, replace, or skip
         :param granule_dict: Dictionary of granules to check
         :return Dictionary of granules that were new or updated
         """
-        s3_granule_dict = self.download_from_s3()
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
         if duplicates == 'replace':
             duplicates = 'skip'
-        new_or_updated_granules = getattr(self, duplicates)(granule_dict, s3_granule_dict)
 
-        # Only re-upload if there were new or updated granules
-        if new_or_updated_granules:
-            self.upload_to_s3(s3_granule_dict)
-        return new_or_updated_granules
+        getattr(self, f'{duplicates}')(granule_dict)
+
+    def check_granule_updates_db(self, granule_dict: {}):
+        """
+        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
+        error, replace, or skip
+        :param granule_dict: Dictionary of granules to check
+        :return Dictionary of granules that were new or updated
+        """
+        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
+        if duplicates == 'replace':
+            duplicates = 'skip'
+
+        self.read_db_file()
+        getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
 
     def discover_granules(self):
         """
@@ -356,37 +384,127 @@ class DiscoverGranules:
         """
         return filename.rsplit('/')[-1]
 
-    def generate_cumulus_output(self, ret_dict):
+    def generate_cumulus_record(self, key, value, filename_funct):
+        """
+        Generates a single dictionary generator that yields the expected cumulus output for a granule
+        :param key: The name of the file
+        :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
+        :param filename_funct: Helper function to extract the file name depending on the protocol used
+        :return: A generator that will yield cumulus granule dictionaries
+        """
+        epoch = value.get('Last-Modified')
+        host = self.provider.get('host')
+        filename = filename_funct(key)
+        path = key[key.find(host) + len(host): key.find(filename)]
+
+        return {
+            'granuleId': filename,
+            'dataType': self.collection.get('name', ''),
+            'version': self.collection.get('version', ''),
+            'files': [
+                {
+                    'name': filename,
+                    'path': path,
+                    'size': '',
+                    'time': epoch,
+                    'bucket': self.s3_bucket_name,
+                    'url_path': self.collection.get('url_path', ''),
+                    'type': ''
+                }
+            ]
+        }
+
+    def cumulus_output_generator(self, ret_dict):
         """
         Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
         :param ret_dict: Dictionary containing only newly discovered granules.
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
-        discovered_granules = []
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        for key, value in ret_dict.items():
-            epoch = value.get('Last-Modified')
-            host = self.provider.get('host')
-            filename = filename_funct(key)
-            path = key[key.find(host) + len(host): key.find(filename)]
-            discovered_granules.append({
-                'granuleId': filename,
-                'dataType': self.collection.get('name', ''),
-                'version': self.collection.get('version', ''),
-                'files': [
-                    {
-                        'name': filename,
-                        'path': path,
-                        'size': '',
-                        'time': epoch,
-                        'bucket': self.s3_bucket_name,
-                        'url_path': self.collection.get('url_path', ''),
-                        'type': ''
-                    }
-                ]
-            })
+        return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-        return {'granules': discovered_granules}
+    def s3_db_wait(self):
+        """
+        This function attempts to retrieve the object tag of the db file if it exists and either locks it or waits till
+        it becomes lockable. If the database file does not exist an exception is thrown and a new database file will be
+        created
+        """
+        timeout = 120
+        client = boto3.client('s3')
+        try:
+            while timeout:
+                # If no exception is thrown then the db file exists
+                resp = client.get_object_tagging(
+                    Bucket=self.s3_bucket_name,
+                    Key=self.db_key
+                )
+
+                tag_list = resp['TagSet']
+                tag = ''
+                if tag_list:
+                    tag = tag_list[0].get('Key', 'unlocked')
+
+                if tag != 'locked':
+                    self.s3_db_lock('locked')
+                    client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+                    break
+                elif timeout <= 0:
+                    raise ValueError('Lambda timed out waiting for s3 db tag lock (2 minutes).')
+                else:
+                    timeout -= 1
+                    sleep(1)
+        except client.exceptions.NoSuchKey:
+            # The db files doesn't exist in S3 yet so create, upload, and lock it
+            db.connect()
+            db.create_tables([Granule])
+            self.write_db_file()
+            self.s3_db_lock('locked')
+
+        db.connect()
+
+    def s3_db_lock(self, lock_status):
+        """
+        Used to set the tag of the S3 db file to the lock status
+        :param lock_status: The value to set the lock status to (locked/unlocked)
+        """
+        client = boto3.client('s3')
+        client.put_object_tagging(
+            Bucket=self.s3_bucket_name,
+            Key=self.db_key,
+            Tagging={
+                'TagSet': [
+                    {
+                        'Key': lock_status,
+                        'Value': lock_status
+                    },
+                ]
+            }
+        )
+
+    def read_db_file(self):
+        """
+        Reads the SQLite database file from S3
+        """
+        self.s3_db_wait()
+        pass
+
+    def write_db_file(self):
+        """
+        Writes the SQLite database file to S3
+        """
+        client = boto3.client('s3')
+        db.close()
+        client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
+        self.s3_db_lock('unlocked')
+        pass
+
+    @staticmethod
+    def db_file_cleanup():
+        """
+        This function deletes the database file stored in the lambda as each invocation can be using a previously used
+        file system with the old db file
+        """
+        os.remove(DB_FILE_PATH)
 
 
 if __name__ == '__main__':
