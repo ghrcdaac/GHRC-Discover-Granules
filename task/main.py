@@ -1,9 +1,13 @@
+import concurrent.futures
+import json
 import logging
 import os
 import re
+import time
 from time import sleep
 
 import boto3
+import botocore
 import botocore.exceptions
 import requests
 import urllib3
@@ -431,6 +435,7 @@ class DiscoverGranules:
         """
         timeout = 120
         client = boto3.client('s3')
+
         try:
             while timeout:
                 # If no exception is thrown then the db file exists
@@ -468,6 +473,7 @@ class DiscoverGranules:
         :param lock_status: The value to set the lock status to (locked/unlocked)
         """
         client = boto3.client('s3')
+        print(f'{lock_status} time {time.time()}')
         client.put_object_tagging(
             Bucket=self.s3_bucket_name,
             Key=self.db_key,
@@ -481,12 +487,48 @@ class DiscoverGranules:
             }
         )
 
+    def lock_db(self):
+        print('locking')
+        client = boto3.client('s3')
+        timeout = 120
+        while timeout:
+            try:
+                response = client.create_bucket(
+                    ACL='private',
+                    Bucket='ghrcsbxw-dicover-granules-lock',
+                    CreateBucketConfiguration={
+                        'LocationConstraint': 'us-west-2'
+                    },
+                    ObjectLockEnabledForBucket=False
+                )
+                # print(json.dumps(response, indent=4, default=str))
+                break
+            except (client.exceptions.BucketAlreadyExists, client.exceptions.BucketAlreadyOwnedByYou) as err:
+                print(f'except: {err}')
+                timeout -= 1
+                sleep(1)
+
+        if not timeout:
+            raise ValueError('Unsuccessful in creating database lock.')
+
+    def unlock_db(self):
+        print('unlocking')
+        client = boto3.client('s3')
+        response = client.delete_bucket(Bucket='ghrcsbxw-dicover-granules-lock')
+        # print(json.dumps(response, indent=4, default=str))
+
     def read_db_file(self):
         """
         Reads the SQLite database file from S3
         """
-        self.s3_db_wait()
-        pass
+        self.lock_db()
+        client = boto3.client('s3')
+        try:
+            client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+        except botocore.exceptions.ClientError as err:
+            # The db files doesn't exist in S3 yet so create, upload, and lock it
+            db.connect()
+            db.create_tables([Granule])
 
     def write_db_file(self):
         """
@@ -495,8 +537,7 @@ class DiscoverGranules:
         client = boto3.client('s3')
         db.close()
         client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
-        self.s3_db_lock('unlocked')
-        pass
+        self.unlock_db()
 
     @staticmethod
     def db_file_cleanup():
@@ -505,6 +546,28 @@ class DiscoverGranules:
         file system with the old db file
         """
         os.remove(DB_FILE_PATH)
+
+
+def generate_test_dict(count):
+    test_dict = {}
+    for x in range(count):
+        test_dict[f'name{x}'] = {'ETag': f'etag{x}', 'Last-Modified': f'last{x}'}
+
+    # print(test_dict)
+    return test_dict
+
+
+def insert_many(granule_dict):
+    """
+    Helper function to separate the insert many logic that is reused between queries
+    :param granule_dict: Dictionary containing granules
+    """
+    data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
+    with db.atomic():
+        fields = [Granule.name, Granule.etag, Granule.last_modified]
+        for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
+            Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                .on_conflict_replace().execute()
 
 
 if __name__ == '__main__':

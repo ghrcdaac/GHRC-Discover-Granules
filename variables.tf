@@ -8,28 +8,28 @@ variable "cumulus_lambda_role_arn" {
 }
 
 variable "env_variables" {
-  type        = map(string)
-  default     = {}
+  type    = map(string)
+  default = {}
 }
 
 variable "lambda_security_group_ids" {
-  type = list(string)
+  type    = list(string)
   default = null
 }
 
 variable "lambda_subnet_ids" {
-  type = list(string)
+  type    = list(string)
   default = null
 }
 
 variable "layers" {
-  type = list(string)
+  type    = list(string)
   default = []
 }
 
 variable "memory_size" {
   description = "Lambda RAM limit"
-  default = 128
+  default     = 128
 }
 
 variable "prefix" {
@@ -47,7 +47,7 @@ variable "s3_bucket_name" {
 
 variable "timeout" {
   description = "Lambda function time-out"
-  default = 300
+  default     = 300
 }
 
 
