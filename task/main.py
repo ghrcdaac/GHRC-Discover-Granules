@@ -440,7 +440,6 @@ class DiscoverGranules:
                 if time_diff >= 60:
                     # If the creation time of the lock bucket is 15 minutes or
                     # more then a lambda crashed before deleting it so just delete it.
-                    print('mitigating stale lock')
                     self.unlock_db()
                 break
 
@@ -450,7 +449,6 @@ class DiscoverGranules:
         for two minutes while also calling db_lock_mitigation. Once the bucket is created it will break from the
         loop.
         """
-        print('locking')
         timeout = 120
         while timeout:
             try:
@@ -464,8 +462,7 @@ class DiscoverGranules:
                 )
                 break
             except (self.s3_client.exceptions.BucketAlreadyExists,
-                    self.s3_client.exceptions.BucketAlreadyOwnedByYou) as err:
-                print(f'except: {err}')
+                    self.s3_client.exceptions.BucketAlreadyOwnedByYou):
                 self.db_lock_mitigation()
                 timeout -= 1
                 sleep(1)
@@ -477,7 +474,6 @@ class DiscoverGranules:
         """
         Used to delete the "lock" bucket.
         """
-        print('unlocking')
         self.s3_client.delete_bucket(Bucket=self.db_lock_bucket)
 
     def read_db_file(self):

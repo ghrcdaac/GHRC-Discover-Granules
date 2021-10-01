@@ -1,6 +1,3 @@
-import sys
-
-import peewee
 from peewee import *
 
 
@@ -100,56 +97,5 @@ class Granule(Model):
         database = db
 
 
-def generate_test_dict(count):
-    test_dict = {}
-    for x in range(count):
-        test_dict[f'name{x}'] = {'ETag': f'etag{x}', 'Last-Modified': f'last{x}'}
-
-    # print(test_dict)
-    return test_dict
-#
-#
-def insert_many(granule_dict):
-    """
-    Helper function to separate the insert many logic that is reused between queries
-    :param granule_dict: Dictionary containing granules
-    """
-    data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-    with db.atomic():
-        fields = [Granule.name, Granule.etag, Granule.last_modified]
-        for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-            Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                .on_conflict_replace().execute()
-
-def insert_many_error(granule_dict):
-    """
-    Helper function to separate the insert many logic that is reused between queries
-    :param granule_dict: Dictionary containing granules
-    """
-    data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-    with db.atomic():
-        fields = [Granule.name, Granule.etag, Granule.last_modified]
-        for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-            Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]).execute()
-
-
-
 if __name__ == '__main__':
-    td = generate_test_dict(10)
-    db.connect()
-    try:
-        insert_many_error(td)
-    except peewee.IntegrityError:
-        raise ValueError('Error: Granule already exists in the database')
-
-    etags = []
-    last_mods = []
-    for k, v in td.items():
-        etags.append(v['ETag'])
-        last_mods.append(v['Last-Modified'])
-    res = Granule.select(Granule.name).where(Granule.name.in_(list(td)) & Granule.etag.in_(etags) &
-                                             Granule.last_modified.in_(last_mods))
-    for x in res.iterator():
-        print(x.name)
-
     pass
