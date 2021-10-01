@@ -39,7 +39,9 @@ class DiscoverGranules:
         self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
+        self.s3_client = boto3.client('s3')
         self.session = requests.Session()
+        self.db_lock_bucket = 'ghrcsbxw-dicover-granules-lock'
 
     def discover(self):
         """
@@ -113,8 +115,7 @@ class DiscoverGranules:
             temp_str += f'{key},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
 
-        client = boto3.client('s3')
-        client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
+        self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
 
     def download_from_s3(self):
         """
@@ -351,8 +352,7 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories.
         :return: links of files matching reg_ex (if reg_ex is defined).
         """
-        s3_client = boto3.client('s3')
-        response_iterator = self.get_s3_resp_iterator(host, prefix, s3_client)
+        response_iterator = self.get_s3_resp_iterator(host, prefix, self.s3_client)
 
         ret_dict = {}
         for page in response_iterator:
@@ -427,106 +427,68 @@ class DiscoverGranules:
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-    def s3_db_wait(self):
+    def db_lock_mitigation(self):
         """
-        This function attempts to retrieve the object tag of the db file if it exists and either locks it or waits till
-        it becomes lockable. If the database file does not exist an exception is thrown and a new database file will be
-        created
+        This function is called to check and see if the "lock" bucket is older than 15 minutes (900 seconds) and if it
+        is deletes it.
         """
-        timeout = 120
-        client = boto3.client('s3')
-
-        try:
-            while timeout:
-                # If no exception is thrown then the db file exists
-                resp = client.get_object_tagging(
-                    Bucket=self.s3_bucket_name,
-                    Key=self.db_key
-                )
-
-                tag_list = resp['TagSet']
-                tag = ''
-                if tag_list:
-                    tag = tag_list[0].get('Key', 'unlocked')
-
-                if tag != 'locked':
-                    self.s3_db_lock('locked')
-                    client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
-                    break
-                elif timeout <= 0:
-                    raise ValueError('Lambda timed out waiting for s3 db tag lock (2 minutes).')
-                else:
-                    timeout -= 1
-                    sleep(1)
-        except client.exceptions.NoSuchKey:
-            # The db files doesn't exist in S3 yet so create, upload, and lock it
-            db.connect()
-            db.create_tables([Granule])
-            self.write_db_file()
-            self.s3_db_lock('locked')
-
-        db.connect()
-
-    def s3_db_lock(self, lock_status):
-        """
-        Used to set the tag of the S3 db file to the lock status
-        :param lock_status: The value to set the lock status to (locked/unlocked)
-        """
-        client = boto3.client('s3')
-        print(f'{lock_status} time {time.time()}')
-        client.put_object_tagging(
-            Bucket=self.s3_bucket_name,
-            Key=self.db_key,
-            Tagging={
-                'TagSet': [
-                    {
-                        'Key': lock_status,
-                        'Value': lock_status
-                    },
-                ]
-            }
-        )
+        rsp = self.s3_client.list_buckets()
+        for bucket in rsp['Buckets']:
+            if bucket['Name'] == self.db_lock_bucket:
+                creation_date = bucket['CreationDate']
+                time_diff = time.time() - creation_date.timestamp()
+                if time_diff >= 60:
+                    # If the creation time of the lock bucket is 15 minutes or
+                    # more then a lambda crashed before deleting it so just delete it.
+                    print('mitigating stale lock')
+                    self.unlock_db()
+                break
 
     def lock_db(self):
+        """
+        This function attempts to create a AWS S3 bucket. If the bucket already exists it will attempt to create it
+        for two minutes while also calling db_lock_mitigation. Once the bucket is created it will break from the
+        loop.
+        """
         print('locking')
-        client = boto3.client('s3')
         timeout = 120
         while timeout:
             try:
-                response = client.create_bucket(
+                self.s3_client.create_bucket(
                     ACL='private',
-                    Bucket='ghrcsbxw-dicover-granules-lock',
+                    Bucket=self.db_lock_bucket,
                     CreateBucketConfiguration={
                         'LocationConstraint': 'us-west-2'
                     },
                     ObjectLockEnabledForBucket=False
                 )
-                # print(json.dumps(response, indent=4, default=str))
                 break
-            except (client.exceptions.BucketAlreadyExists, client.exceptions.BucketAlreadyOwnedByYou) as err:
+            except (self.s3_client.exceptions.BucketAlreadyExists,
+                    self.s3_client.exceptions.BucketAlreadyOwnedByYou) as err:
                 print(f'except: {err}')
+                self.db_lock_mitigation()
                 timeout -= 1
                 sleep(1)
 
         if not timeout:
-            raise ValueError('Unsuccessful in creating database lock.')
+            raise ValueError('Timeout: Unsuccessful in creating database lock.')
 
     def unlock_db(self):
+        """
+        Used to delete the "lock" bucket.
+        """
         print('unlocking')
-        client = boto3.client('s3')
-        response = client.delete_bucket(Bucket='ghrcsbxw-dicover-granules-lock')
-        # print(json.dumps(response, indent=4, default=str))
+        self.s3_client.delete_bucket(Bucket=self.db_lock_bucket)
 
     def read_db_file(self):
         """
         Reads the SQLite database file from S3
         """
         self.lock_db()
-        client = boto3.client('s3')
         try:
-            client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+            self.s3_client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
         except botocore.exceptions.ClientError as err:
-            # The db files doesn't exist in S3 yet so create, upload, and lock it
+            # The db files doesn't exist in S3 yet so create it
             db.connect()
             db.create_tables([Granule])
 
@@ -534,9 +496,8 @@ class DiscoverGranules:
         """
         Writes the SQLite database file to S3
         """
-        client = boto3.client('s3')
         db.close()
-        client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
+        self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
         self.unlock_db()
 
     @staticmethod
@@ -546,28 +507,6 @@ class DiscoverGranules:
         file system with the old db file
         """
         os.remove(DB_FILE_PATH)
-
-
-def generate_test_dict(count):
-    test_dict = {}
-    for x in range(count):
-        test_dict[f'name{x}'] = {'ETag': f'etag{x}', 'Last-Modified': f'last{x}'}
-
-    # print(test_dict)
-    return test_dict
-
-
-def insert_many(granule_dict):
-    """
-    Helper function to separate the insert many logic that is reused between queries
-    :param granule_dict: Dictionary containing granules
-    """
-    data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-    with db.atomic():
-        fields = [Granule.name, Granule.etag, Granule.last_modified]
-        for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-            Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
-                .on_conflict_replace().execute()
 
 
 if __name__ == '__main__':
