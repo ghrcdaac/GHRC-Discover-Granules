@@ -427,22 +427,6 @@ class DiscoverGranules:
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-    def db_lock_mitigation(self):
-        """
-        This function is called to check and see if the "lock" bucket is older than 15 minutes (900 seconds) and if it
-        is deletes it.
-        """
-        rsp = self.s3_client.list_buckets()
-        for bucket in rsp['Buckets']:
-            if bucket['Name'] == self.db_lock_bucket:
-                creation_date = bucket['CreationDate']
-                time_diff = time.time() - creation_date.timestamp()
-                if time_diff >= 900:
-                    # If the creation time of the lock bucket is 15 minutes or
-                    # more then a lambda crashed before deleting it so just delete it.
-                    self.unlock_db()
-                break
-
     def lock_db(self):
         """
         This function attempts to create a AWS S3 bucket. If the bucket already exists it will attempt to create it
@@ -450,20 +434,20 @@ class DiscoverGranules:
         loop.
         """
         timeout = 120
+        cli = boto3.resource('dynamodb', region_name='us-west-2')
+        table = cli.Table('ghrcsbxw-DiscoverGranulesLock')
         while timeout:
             try:
-                self.s3_client.create_bucket(
-                    ACL='private',
-                    Bucket=self.db_lock_bucket,
-                    CreateBucketConfiguration={
-                        'LocationConstraint': 'us-west-2'
+                table.put_item(
+                    TableName='ghrcsbxw-DiscoverGranulesLock',
+                    Item={
+                        'DatabaseLocked': 'locked',
+                        'LockDuration': str(time.time() + 900)
                     },
-                    ObjectLockEnabledForBucket=False
+                    ConditionExpression='attribute_not_exists(DatabaseLocked)'
                 )
                 break
-            except (self.s3_client.exceptions.BucketAlreadyExists,
-                    self.s3_client.exceptions.BucketAlreadyOwnedByYou):
-                self.db_lock_mitigation()
+            except cli.meta.client.exceptions.ConditionalCheckFailedException:
                 timeout -= 1
                 sleep(1)
 
@@ -474,7 +458,13 @@ class DiscoverGranules:
         """
         Used to delete the "lock" bucket.
         """
-        self.s3_client.delete_bucket(Bucket=self.db_lock_bucket)
+        res = boto3.resource('dynamodb', region_name='us-west-2')
+        table = res.Table('ghrcsbxw-DiscoverGranulesLock')
+        table.delete_item(
+            Key={
+                'DatabaseLocked': 'locked'
+            }
+        )
 
     def read_db_file(self):
         """

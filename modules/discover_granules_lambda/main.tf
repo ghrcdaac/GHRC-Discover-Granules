@@ -27,3 +27,45 @@ resource "aws_lambda_function" "discover_granules" {
   }
 }
 
+resource "aws_dynamodb_table" "discover-granules-lock" {
+  name           = "${var.prefix}-DiscoverGranulesLock"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 20
+  write_capacity = 20
+  hash_key       = "DatabaseLocked"
+
+  attribute {
+    name = "DatabaseLocked"
+    type = "S"
+  }
+
+  ttl {
+    enabled = true
+    attribute_name = "LockDuration"
+  }
+}
+
+resource "aws_iam_policy" "bucket_create_delete" {
+  name        = "bucket-create-delete"
+  description = "Allows for the creation and deletion of S3 buckets."
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.discover-granules-lock.arn
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:Delete*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attaching_s3_bucket_creation_deletion" {
+  role       = var.cumulus_lambda_role_name
+  policy_arn = aws_iam_policy.bucket_create_delete.arn
+}
+

@@ -7,6 +7,10 @@ variable "cumulus_lambda_role_arn" {
   type = string
 }
 
+variable "cumulus_lambda_role_name" {
+  type = string
+}
+
 variable "env_variables" {
   type    = map(string)
   default = {}
