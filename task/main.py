@@ -437,7 +437,7 @@ class DiscoverGranules:
             if bucket['Name'] == self.db_lock_bucket:
                 creation_date = bucket['CreationDate']
                 time_diff = time.time() - creation_date.timestamp()
-                if time_diff >= 60:
+                if time_diff >= 900:
                     # If the creation time of the lock bucket is 15 minutes or
                     # more then a lambda crashed before deleting it so just delete it.
                     self.unlock_db()
