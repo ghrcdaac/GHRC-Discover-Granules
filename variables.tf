@@ -33,7 +33,7 @@ variable "layers" {
 
 variable "memory_size" {
   description = "Lambda RAM limit"
-  default     = 128
+  default     = 2048
 }
 
 variable "prefix" {
@@ -51,7 +51,7 @@ variable "s3_bucket_name" {
 
 variable "timeout" {
   description = "Lambda function time-out"
-  default     = 300
+  default     = 900
 }
 
 
