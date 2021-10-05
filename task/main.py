@@ -42,7 +42,7 @@ class DiscoverGranules:
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
         table_resource = boto3.resource('dynamodb')
-        self.db_table = table_resource.Table(os.getenv('table_name'))
+        self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
 
     def discover(self):
         """
