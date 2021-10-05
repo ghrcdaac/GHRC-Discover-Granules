@@ -1,9 +1,13 @@
+import concurrent.futures
+import json
 import logging
 import os
 import re
+import time
 from time import sleep
 
 import boto3
+import botocore
 import botocore.exceptions
 import requests
 import urllib3
@@ -35,7 +39,10 @@ class DiscoverGranules:
         self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
+        self.s3_client = boto3.client('s3')
         self.session = requests.Session()
+        table_resource = boto3.resource('dynamodb', region_name='us-west-2')
+        self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
 
     def discover(self):
         """
@@ -109,8 +116,7 @@ class DiscoverGranules:
             temp_str += f'{key},{value.get("ETag")},{value.get("Last-Modified")}\n'
         temp_str = temp_str[:-1]
 
-        client = boto3.client('s3')
-        client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
+        self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
 
     def download_from_s3(self):
         """
@@ -347,8 +353,7 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories.
         :return: links of files matching reg_ex (if reg_ex is defined).
         """
-        s3_client = boto3.client('s3')
-        response_iterator = self.get_s3_resp_iterator(host, prefix, s3_client)
+        response_iterator = self.get_s3_resp_iterator(host, prefix, self.s3_client)
 
         ret_dict = {}
         for page in response_iterator:
@@ -423,61 +428,38 @@ class DiscoverGranules:
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-    def s3_db_wait(self):
+    def lock_db(self):
         """
-        This function attempts to retrieve the object tag of the db file if it exists and either locks it or waits till
-        it becomes lockable. If the database file does not exist an exception is thrown and a new database file will be
-        created
+        This function attempts to create a AWS S3 bucket. If the bucket already exists it will attempt to create it
+        for two minutes while also calling db_lock_mitigation. Once the bucket is created it will break from the
+        loop.
         """
         timeout = 120
-        client = boto3.client('s3')
-        try:
-            while timeout:
-                # If no exception is thrown then the db file exists
-                resp = client.get_object_tagging(
-                    Bucket=self.s3_bucket_name,
-                    Key=self.db_key
-                )
-
-                tag_list = resp['TagSet']
-                tag = ''
-                if tag_list:
-                    tag = tag_list[0].get('Key', 'unlocked')
-
-                if tag != 'locked':
-                    self.s3_db_lock('locked')
-                    client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
-                    break
-                elif timeout <= 0:
-                    raise ValueError('Lambda timed out waiting for s3 db tag lock (2 minutes).')
-                else:
-                    timeout -= 1
-                    sleep(1)
-        except client.exceptions.NoSuchKey:
-            # The db files doesn't exist in S3 yet so create, upload, and lock it
-            db.connect()
-            db.create_tables([Granule])
-            self.write_db_file()
-            self.s3_db_lock('locked')
-
-        db.connect()
-
-    def s3_db_lock(self, lock_status):
-        """
-        Used to set the tag of the S3 db file to the lock status
-        :param lock_status: The value to set the lock status to (locked/unlocked)
-        """
-        client = boto3.client('s3')
-        client.put_object_tagging(
-            Bucket=self.s3_bucket_name,
-            Key=self.db_key,
-            Tagging={
-                'TagSet': [
-                    {
-                        'Key': lock_status,
-                        'Value': lock_status
+        while timeout:
+            try:
+                self.db_table.put_item(
+                    Item={
+                        'DatabaseLocked': 'locked',
+                        'LockDuration': str(time.time() + 900)
                     },
-                ]
+                    ConditionExpression='attribute_not_exists(DatabaseLocked)'
+                )
+                break
+            except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
+                print('waiting on lock.')
+                timeout -= 1
+                sleep(1)
+
+        if not timeout:
+            raise ValueError('Timeout: Unsuccessful in creating database lock.')
+
+    def unlock_db(self):
+        """
+        Used to delete the "lock" bucket.
+        """
+        self.db_table.delete_item(
+            Key={
+                'DatabaseLocked': 'locked'
             }
         )
 
@@ -485,18 +467,21 @@ class DiscoverGranules:
         """
         Reads the SQLite database file from S3
         """
-        self.s3_db_wait()
-        pass
+        self.lock_db()
+        try:
+            self.s3_client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+        except botocore.exceptions.ClientError as err:
+            # The db files doesn't exist in S3 yet so create it
+            db.connect()
+            db.create_tables([Granule])
 
     def write_db_file(self):
         """
         Writes the SQLite database file to S3
         """
-        client = boto3.client('s3')
         db.close()
-        client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
-        self.s3_db_lock('unlocked')
-        pass
+        self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
+        self.unlock_db()
 
     @staticmethod
     def db_file_cleanup():
