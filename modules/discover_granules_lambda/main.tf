@@ -23,6 +23,7 @@ resource "aws_lambda_function" "discover_granules" {
     variables = merge({
       bucket_name   = var.s3_bucket_name
       s3_key_prefix = var.s3_key_prefix
+      table_name    = aws_dynamodb_table.discover-granules-lock.name
     }, var.env_variables)
   }
 }
@@ -45,9 +46,9 @@ resource "aws_dynamodb_table" "discover-granules-lock" {
   }
 }
 
-resource "aws_iam_policy" "bucket_create_delete" {
-  name        = "bucket-create-delete"
-  description = "Allows for the creation and deletion of S3 buckets."
+resource "aws_iam_policy" "dynamodb_put_delete_item" {
+  name        = "dynamo-record-management"
+  description = "Allows for the insertion and deletion of a record."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -64,8 +65,8 @@ resource "aws_iam_policy" "bucket_create_delete" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "attaching_s3_bucket_creation_deletion" {
+resource "aws_iam_role_policy_attachment" "attach_dynamo_put_delete" {
   role       = var.cumulus_lambda_role_name
-  policy_arn = aws_iam_policy.bucket_create_delete.arn
+  policy_arn = aws_iam_policy.dynamodb_put_delete_item.arn
 }
 

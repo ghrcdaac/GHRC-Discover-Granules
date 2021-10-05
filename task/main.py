@@ -41,7 +41,8 @@ class DiscoverGranules:
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
-        self.db_lock_bucket = 'ghrcsbxw-dicover-granules-lock'
+        table_resource = boto3.resource('dynamodb')
+        self.db_table = table_resource.Table(os.getenv('table_name'))
 
     def discover(self):
         """
@@ -434,12 +435,9 @@ class DiscoverGranules:
         loop.
         """
         timeout = 120
-        cli = boto3.resource('dynamodb', region_name='us-west-2')
-        table = cli.Table('ghrcsbxw-DiscoverGranulesLock')
         while timeout:
             try:
-                table.put_item(
-                    TableName='ghrcsbxw-DiscoverGranulesLock',
+                self.db_table.put_item(
                     Item={
                         'DatabaseLocked': 'locked',
                         'LockDuration': str(time.time() + 900)
@@ -447,7 +445,8 @@ class DiscoverGranules:
                     ConditionExpression='attribute_not_exists(DatabaseLocked)'
                 )
                 break
-            except cli.meta.client.exceptions.ConditionalCheckFailedException:
+            except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
+                print('waiting on lock.')
                 timeout -= 1
                 sleep(1)
 
@@ -458,9 +457,7 @@ class DiscoverGranules:
         """
         Used to delete the "lock" bucket.
         """
-        res = boto3.resource('dynamodb', region_name='us-west-2')
-        table = res.Table('ghrcsbxw-DiscoverGranulesLock')
-        table.delete_item(
+        self.db_table.delete_item(
             Key={
                 'DatabaseLocked': 'locked'
             }
