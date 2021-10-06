@@ -47,7 +47,7 @@ resource "aws_dynamodb_table" "discover-granules-lock" {
 }
 
 resource "aws_iam_policy" "dynamodb_put_delete_item" {
-  name        = "dynamo-record-management"
+  name        = "${var.prefix}-dynamo-record-management"
   description = "Allows for the insertion and deletion of a record."
 
   policy = jsonencode({
