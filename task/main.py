@@ -50,6 +50,7 @@ class DiscoverGranules:
         """
         granule_dict = self.discover_granules()
         self.check_granule_updates_db(granule_dict)
+        logging.info(f'Discovered {len(granule_dict)} granules.')
         output = self.cumulus_output_generator(granule_dict)
         self.write_db_file()
         self.db_file_cleanup()
