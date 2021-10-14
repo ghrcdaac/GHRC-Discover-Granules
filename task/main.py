@@ -243,7 +243,7 @@ class DiscoverGranules:
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
-        if duplicates == 'replace' and force_replace != 'true':
+        if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
         self.read_db_file()
