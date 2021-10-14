@@ -242,8 +242,9 @@ class DiscoverGranules:
         :return Dictionary of granules that were new or updated
         """
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
-        if duplicates == 'replace':
+        if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
         self.read_db_file()

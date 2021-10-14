@@ -7,7 +7,10 @@
 ```
 
 # Overview
-The discover granules terraform module uses a lambda function to recursively discover files provided via protocol X. The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a CSV in S3.  
+The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS
+and S3 protocols. 
+The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a sqlite
+database file in S3.  
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
 Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
@@ -26,17 +29,25 @@ and follow the [documetation](https://nasa.github.io/cumulus/docs/cumulus-docs-r
 The dev stack repo is also needed to deploy and test changes to discover-granules-tf-module: https://gitlab.com/ghrc-cloud/ghrc-tf-deploy
 
 # How to
-In order to use the recursive discover granules the following block must be added to the collection definition inside of the meta block:
+In order to use the recursive discover granules the following block must be added to the collection definition inside 
+of the meta block:
 ```json
 "discover_tf": {
  "depth": 0,
+ "force_replace": "false",
  "dir_reg_ex": ".*"
 }
 ```
 Collection definitions can be found in this repo: https://gitlab.com/ghrc-cloud/ghrc-tf-configuration/-/tree/master/collections  
 
-depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level and traverse directories until there are no directories or depth is reached.  
+depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level
+and traverse directories until there are no directories or depth is reached. This value is only applicable to http/https
+providers.  
 Note: The absolute value will be taken of this parameter so negative values are not intended to be used for upward traversal.
+
+force_replace: This can be used to force Discover Granules to rediscover all granules even if previously discovered.
+The duplicateHandling flag being set to replace defaults to "skip" to handle reingesting previously discovered files that 
+have been updated.
 
 dir_reg_ex: Regular expression used to only search directories it matches
 
@@ -71,6 +82,7 @@ This is an example of a collection with the added block:
 	"meta": {
         "discover_tf": { 
             "depth": 0, 
+            "force_replace": "false",
             "dir_reg_ex": ".*" 
         },
 		"hyrax_processing": "false",
@@ -86,14 +98,21 @@ This is an example of a collection with the added block:
 }
 ```
 
-The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell discover-granules-tf-module how to handle granules the exist in the CSV lookup file but also are discovered on the current run. Discover granules handles 3 possible value for this:
- - skip: Overrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for this run
- - replace: The results that are currently stored in S3 will be overwritten with the results of this run
- - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by discover-granules-tf-module and execution will cease 
+The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell 
+discover-granules-tf-module how to handle granules that exist in the sqlite database file but also are discovered on the
+current run. Discover granules handles 3 possible value for this:
+ - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
+   this run
+ - replace: The results for this collection that are currently stored in the S3 database file will be overwritten with 
+   the results of this run
+ - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown and 
+   execution will cease 
 
 # Results
-The results of a successful run will be stored in S3. The bucket is currently &lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. The name of the file will be collection_name__version.csv  
-Here is a sample excerpt from the CSV:  
+The results of a successful run will be stored in S3 as a sqlite database file. The bucket is currently 
+&lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. 
+The name of the file will be discover_granules.db.  
+Here is a sample excerpt from the database:  
 
 http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
 http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7_d3d.gz,"bf74b470603fd71:0",2021-05-02 14:35:47+00:00  
@@ -123,5 +142,15 @@ The step function returns a dictionary of granules that were discovered this run
 Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.  
 
 # Testing
-There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.  
-You can download the CSV lookup file stored in S3 and modify it for testing. If you do this, it is advised to use a basic text editor as Excel can leave extraneous newline characters.
+There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
+create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev 
+stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your 
+discover-granules-tf-module local repo.   
+Alternatively you can just directly deploy the updated lambda via the following AWS CLI command:
+```commandline
+python createPackage.py && aws lambda update-function-code --function-name 
+arn:aws:lambda:us-west-2:322322076095:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+--publish
+```
+Note: You will need to update the --function-name to the appropriate value for the stack you are working in. 
+You can download the database lookup file stored in S3, modify it for testing, and upload it as needed.
