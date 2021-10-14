@@ -103,12 +103,13 @@ discover-granules-tf-module how to handle granules that exist in the sqlite data
 current run. Discover granules handles 3 possible value for this:
  - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
    this run
- - replace: The results that are currently stored in S3 will be overwritten with the results of this run
- - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown by 
-   discover-granules-tf-module and execution will cease 
+ - replace: The results for this collection that are currently stored in the S3 database file will be overwritten with 
+   the results of this run
+ - error: If a granule is encountered that has been discovered before a ValueError exception will be thrown and 
+   execution will cease 
 
 # Results
-The results of a successful run will be stored in S3. The bucket is currently 
+The results of a successful run will be stored in S3 as a sqlite database file. The bucket is currently 
 &lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. 
 The name of the file will be discover_granules.db.  
 Here is a sample excerpt from the database:  
@@ -141,5 +142,15 @@ The step function returns a dictionary of granules that were discovered this run
 Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.  
 
 # Testing
-There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.  
-You can download the CSV lookup file stored in S3 and modify it for testing. If you do this, it is advised to use a basic text editor as Excel can leave extraneous newline characters.
+There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
+create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev 
+stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your 
+discover-granules-tf-module local repo.   
+Alternatively you can just directly deploy the updated lambda via the following AWS CLI command:
+```commandline
+python createPackage.py && aws lambda update-function-code --function-name 
+arn:aws:lambda:us-west-2:322322076095:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+--publish
+```
+Note: You will need to update the --function-name to the appropriate value for the stack you are working in. 
+You can download the database lookup file stored in S3, modify it for testing, and upload it as needed.
