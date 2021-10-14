@@ -7,7 +7,8 @@
 ```
 
 # Overview
-The discover granules terraform module uses a lambda function to recursively discover files provided via protocol X. 
+The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS
+and S3 protocols. 
 The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a sqlite
 database file in S3.  
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
