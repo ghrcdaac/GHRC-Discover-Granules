@@ -379,17 +379,18 @@ class DiscoverGranules:
         the ingest stage will fail.
         :return: The unmodified filename
         """
-        return filename
+        return filename.rsplit('/', 1)
 
-    @staticmethod
-    def get_non_s3_filename(filename: str):
+    def get_non_s3_filename(self, filename: str):
         """
         Helper function to prevent having to check the protocol for each file name assignment when generating the
         cumulus output.
         :param filename: The current non-S3 protocols supported (http/https) require the base file name only.
         :return: The last part of the filename ie some/name/with/slashes will return slashes
         """
-        return filename.rsplit('/')[-1]
+        host = self.provider["host"]
+        t = re.search(rf'{host}', filename)
+        return filename[t.end():].rsplit('/', 1)
 
     def generate_cumulus_record(self, key, value, filename_funct):
         """
@@ -400,18 +401,16 @@ class DiscoverGranules:
         :return: A generator that will yield cumulus granule dictionaries
         """
         epoch = value.get('Last-Modified')
-        host = self.provider.get('host')
-        filename = filename_funct(key)
-        path = key[key.find(host) + len(host): key.find(filename)]
+        path_and_name = filename_funct(key)
 
         return {
-            'granuleId': filename,
+            'granuleId': path_and_name[1],
             'dataType': self.collection.get('name', ''),
             'version': self.collection.get('version', ''),
             'files': [
                 {
-                    'name': filename,
-                    'path': path,
+                    'name': path_and_name[1],
+                    'path': path_and_name[0],
                     'size': '',
                     'time': epoch,
                     'bucket': self.s3_bucket_name,
