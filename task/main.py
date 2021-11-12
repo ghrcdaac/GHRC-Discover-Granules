@@ -1,5 +1,3 @@
-import concurrent.futures
-import json
 import logging
 import os
 import re
@@ -18,6 +16,9 @@ from task.dgm import *
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+if os.getenv('enable_logging', 'false').lower() == 'true':
+    logging.getLogger().setLevel(logging.INFO)
+
 
 class DiscoverGranules:
     """
@@ -35,9 +36,7 @@ class DiscoverGranules:
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
-        csv_filename = f'{self.collection["name"]}__{self.collection["version"]}.csv'
         self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
-        self.s3_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{csv_filename}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
@@ -49,9 +48,13 @@ class DiscoverGranules:
         Helper function to kick off the entire discover process
         """
         granule_dict = self.discover_granules()
-        self.check_granule_updates_db(granule_dict)
+        logging.info('##########')
         logging.info(f'Discovered {len(granule_dict)} granules.')
+        self.check_granule_updates_db(granule_dict)
+
+        logging.info(f'{len(granule_dict)} granules for ingest.')
         output = self.cumulus_output_generator(granule_dict)
+
         self.write_db_file()
         self.db_file_cleanup()
         return {'granules': output}
@@ -106,43 +109,6 @@ class DiscoverGranules:
         :return Results of the request
         """
         return self.session.head(url_path).headers
-
-    def upload_to_s3(self, granule_dict: dict):
-        """
-        Upload a file to an S3 bucket
-        :param granule_dict: List of granules to be written to S3
-        """
-        temp_str = "Name,ETag,Last-Modified (epoch)\n"
-        for key, value in granule_dict.items():
-            temp_str += f'{key},{value.get("ETag")},{value.get("Last-Modified")}\n'
-        temp_str = temp_str[:-1]
-
-        self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=self.s3_key, Body=temp_str)
-
-    def download_from_s3(self):
-        """
-        Download a file from an S3 bucket
-        :return: Dictionary of the granules
-        """
-        granule_dict = {}
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket(self.s3_bucket_name)
-
-        try:
-            obj = bucket.Object(key=self.s3_key)
-            response = obj.get()
-
-            lines = response['Body'].read().decode('utf-8').split('\n')
-            lines.pop(0)
-            for row in lines:
-                values = str(row).split(',')
-                self.populate_dict(granule_dict, values[0], values[1], values[2])
-
-        except botocore.exceptions.ClientError as nk:
-            logging.debug(nk)
-            return {}
-
-        return granule_dict
 
     def get_headers(self, granule):
         """
@@ -220,20 +186,6 @@ class DiscoverGranules:
         s3_granule_dict.update(granule_dict)
         return s3_granule_dict
 
-    def check_granule_updates(self, granule_dict: {}):
-        """
-        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
-        error, replace, or skip
-        :param granule_dict: Dictionary of granules to check
-        :return Dictionary of granules that were new or updated
-        """
-        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
-        if duplicates == 'replace':
-            duplicates = 'skip'
-
-        getattr(self, f'{duplicates}')(granule_dict)
-
     def check_granule_updates_db(self, granule_dict: {}):
         """
         Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
@@ -247,6 +199,7 @@ class DiscoverGranules:
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
+        logging.info(f'duplicate handling: {duplicates}')
         self.read_db_file()
         getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
 
@@ -304,19 +257,26 @@ class DiscoverGranules:
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
 
+            logging.info('##########')
+            logging.info(f'Exploring a_tags for path: {path}')
+            logging.info(f'ETag: {etag}')
+            logging.info(f'Last-Modified: {last_modified}')
+
             if (etag is not None or last_modified is not None) and \
                     (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
+                logging.info(f'Discovered granule: {path}')
+
                 granule_dict[path] = {}
                 granule_dict[path]['ETag'] = str(etag)
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
-                # object which will cause a crash
+                # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
                     granule_dict[path]['Last-Modified'] = str(parse(last_modified).timestamp())
             elif (etag is None and last_modified is None) and \
                     (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:
-                logging.debug(f'Notice: {path} not processed as granule or directory.')
+                logging.info(f'Notice: {path} not processed as granule or directory. The supplied regex may not match.')
         pass
 
         depth = min(abs(depth), 3)
@@ -355,8 +315,8 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories.
         :return: links of files matching reg_ex (if reg_ex is defined).
         """
+        logging.info(f'Discovering in bucket {host} with prefix {prefix}.')
         response_iterator = self.get_s3_resp_iterator(host, prefix, self.s3_client)
-
         ret_dict = {}
         for page in response_iterator:
             for s3_object in page.get('Contents'):
@@ -366,7 +326,15 @@ class DiscoverGranules:
                 file_name = sections[1]
                 if (file_reg_ex is None or re.search(file_reg_ex, file_name)) and \
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
-                    self.populate_dict(ret_dict, key, s3_object['ETag'], s3_object['LastModified'].timestamp())
+                    etag = s3_object['ETag']
+                    last_modified = s3_object['LastModified'].timestamp()
+
+                    logging.info('##########')
+                    logging.info(f'Found granule: {key}')
+                    logging.info(f'ETag: {etag}')
+                    logging.info(f'Last-Modified: {last_modified}')
+
+                    self.populate_dict(ret_dict, key, etag, last_modified)
 
         return ret_dict
 
@@ -398,7 +366,7 @@ class DiscoverGranules:
         :param key: The name of the file
         :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
         :param filename_funct: Helper function to extract the file name depending on the protocol used
-        :return: A generator that will yield cumulus granule dictionaries
+        :return: A cumulus granule dictionary
         """
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
@@ -435,7 +403,7 @@ class DiscoverGranules:
         for two minutes while also calling db_lock_mitigation. Once the bucket is created it will break from the
         loop.
         """
-        timeout = 120
+        timeout = 600
         while timeout:
             try:
                 self.db_table.put_item(
@@ -447,7 +415,7 @@ class DiscoverGranules:
                 )
                 break
             except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
-                print('waiting on lock.')
+                logging.info('waiting on lock.')
                 timeout -= 1
                 sleep(1)
 
