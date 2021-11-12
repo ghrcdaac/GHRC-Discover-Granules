@@ -366,7 +366,7 @@ class DiscoverGranules:
         :param key: The name of the file
         :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
         :param filename_funct: Helper function to extract the file name depending on the protocol used
-        :return: A generator that will yield cumulus granule dictionaries
+        :return: A cumulus granule dictionary
         """
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
