@@ -144,36 +144,6 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertNotIn("granule_b", s3_granules)
         pass
 
-    def test_check_granule_updates_error(self):
-        dg = DiscoverGranules(self.get_sample_event('error'))
-        dg.error = MagicMock()
-        dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
-        dg.upload_to_s3 = MagicMock()
-        discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules)
-        self.assertTrue(dg.error.called)
-
-    def test_check_granule_updates_skip(self):
-        dg = DiscoverGranules(self.get_sample_event('skip'))
-        dg.skip = MagicMock()
-        dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
-        dg.upload_to_s3 = MagicMock()
-        discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules)
-        self.assertTrue(dg.skip.called)
-
-    def test_check_granule_updates_replace(self):
-        # TODO: This unit test has been modified to work with the temporary workaround mentioned in main.py
-        dg = DiscoverGranules(self.get_sample_event('replace'))
-        # dg.replace = MagicMock()
-        dg.skip = MagicMock()
-        dg.download_from_s3 = MagicMock(return_value={"granule_b": {"ETag": "tag1b", "Last-Modified": "modifiedb"}})
-        dg.upload_to_s3 = MagicMock()
-        discovered_granules = {"granule_a": {"ETag": "tag1a", "Last-Modified": "modifieda"}}
-        dg.check_granule_updates(discovered_granules)
-        # self.assertTrue(dg.replace.called)
-        self.assertTrue(dg.skip.called)
-
     def test_discover_granules_s3(self):
         test_resp_iter = [
             {
