@@ -3,6 +3,7 @@ import os
 import re
 import time
 from time import sleep
+from cumulus_logger import CumulusLogger
 
 import boto3
 import botocore
@@ -15,9 +16,6 @@ from dateutil.parser import parse
 from task.dgm import *
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-if os.getenv('enable_logging', 'false').lower() == 'true':
-    logging.getLogger().setLevel(logging.INFO)
 
 
 class DiscoverGranules:
@@ -42,17 +40,20 @@ class DiscoverGranules:
         self.session = requests.Session()
         table_resource = boto3.resource('dynamodb', region_name='us-west-2')
         self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
+        # Note: logging.DEBUG and logging.INFO seem to have the same result with the cumulus debugger
+        logging_level = logging.INFO if os.getenv('enable_logging', 'false').lower() == 'true' else logging.WARNING
+        self.logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging_level)
 
     def discover(self):
         """
         Helper function to kick off the entire discover process
         """
         granule_dict = self.discover_granules()
-        logging.info('##########')
-        logging.info(f'Discovered {len(granule_dict)} granules.')
+        self.logger.info('##########')
+        self.logger.info(f'Discovered {len(granule_dict)} granules.')
         self.check_granule_updates_db(granule_dict)
 
-        logging.info(f'{len(granule_dict)} granules for ingest.')
+        self.logger.info(f'{len(granule_dict)} granules for ingest.')
         output = self.cumulus_output_generator(granule_dict)
 
         self.write_db_file()
@@ -199,7 +200,7 @@ class DiscoverGranules:
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        logging.info(f'duplicate handling: {duplicates}')
+        self.logger.info(f'duplicate handling: {duplicates}')
         self.read_db_file()
         getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
 
@@ -246,6 +247,7 @@ class DiscoverGranules:
         :return: links of files matching reg_ex (if reg_ex is defined)
         :rtype: dictionary of urls
         """
+        self.logger.info('THIS IS INFO')
         granule_dict = {}
         depth = int(depth)
         fetched_html = self.html_request(url_path)
@@ -257,14 +259,14 @@ class DiscoverGranules:
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
 
-            logging.info('##########')
-            logging.info(f'Exploring a_tags for path: {path}')
-            logging.info(f'ETag: {etag}')
-            logging.info(f'Last-Modified: {last_modified}')
+            self.logger.info('##########')
+            self.logger.info(f'Exploring a_tags for path: {path}')
+            self.logger.info(f'ETag: {etag}')
+            self.logger.info(f'Last-Modified: {last_modified}')
 
             if (etag is not None or last_modified is not None) and \
                     (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
-                logging.info(f'Discovered granule: {path}')
+                self.logger.info(f'Discovered granule: {path}')
 
                 granule_dict[path] = {}
                 granule_dict[path]['ETag'] = str(etag)
@@ -276,7 +278,8 @@ class DiscoverGranules:
                     (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:
-                logging.info(f'Notice: {path} not processed as granule or directory. The supplied regex may not match.')
+                self.logger.warning(f'Notice: {path} not processed as granule or directory. '
+                                    f'The supplied regex may not match.')
         pass
 
         depth = min(abs(depth), 3)
@@ -315,7 +318,7 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories.
         :return: links of files matching reg_ex (if reg_ex is defined).
         """
-        logging.info(f'Discovering in bucket {host} with prefix {prefix}.')
+        self.logger.info(f'Discovering in bucket {host} with prefix {prefix}.')
         response_iterator = self.get_s3_resp_iterator(host, prefix, self.s3_client)
         ret_dict = {}
         for page in response_iterator:
@@ -329,10 +332,10 @@ class DiscoverGranules:
                     etag = s3_object['ETag']
                     last_modified = s3_object['LastModified'].timestamp()
 
-                    logging.info('##########')
-                    logging.info(f'Found granule: {key}')
-                    logging.info(f'ETag: {etag}')
-                    logging.info(f'Last-Modified: {last_modified}')
+                    self.logger.info('##########')
+                    self.logger.info(f'Found granule: {key}')
+                    self.logger.info(f'ETag: {etag}')
+                    self.logger.info(f'Last-Modified: {last_modified}')
 
                     self.populate_dict(ret_dict, key, etag, last_modified)
 
@@ -415,7 +418,7 @@ class DiscoverGranules:
                 )
                 break
             except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
-                logging.info('waiting on lock.')
+                self.logger.info('waiting on lock.')
                 timeout -= 1
                 sleep(1)
 
