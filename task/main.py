@@ -48,16 +48,26 @@ class DiscoverGranules:
         """
         Helper function to kick off the entire discover process
         """
-        granule_dict = self.discover_granules()
-        self.logger.info('##########')
-        self.logger.info(f'Discovered {len(granule_dict)} granules.')
-        self.check_granule_updates_db(granule_dict)
+        granules = self.collection.get('meta', {}).get('granules', None)
+        if granules:
+            self.logger.info(f'Received {len(granules)} to reingest.')
+            granule_dict = {}
+            for granule in granules:
+                self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None)
+            output = self.cumulus_output_generator(granule_dict)
+            pass
+        else:
+            granule_dict = self.discover_granules()
+            self.logger.info('##########')
+            self.logger.info(f'Discovered {len(granule_dict)} granules.')
+            self.check_granule_updates_db(granule_dict)
 
-        self.logger.info(f'{len(granule_dict)} granules for ingest.')
-        output = self.cumulus_output_generator(granule_dict)
+            self.logger.info(f'{len(granule_dict)} granules for ingest.')
+            output = self.cumulus_output_generator(granule_dict)
 
-        self.write_db_file()
-        self.db_file_cleanup()
+            self.write_db_file()
+            self.db_file_cleanup()
+
         return {'granules': output}
 
     @staticmethod
