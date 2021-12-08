@@ -48,30 +48,26 @@ class DiscoverGranules:
         """
         Helper function to kick off the entire discover process
         """
-        granules = self.collection.get('meta', {}).get('granules', None)
-        if granules:
+        granules = self.collection.get('meta', {}).get('granules', {})
+        granule_dict = {}
+        for granule in granules:
+            granule_dict.update(self.populate_dict(key=granule, etag=None, last_mod=None))
+        if granule_dict:
             self.logger.info(f'Received {len(granules)} to reingest.')
-            granule_dict = {}
-            for granule in granules:
-                self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None)
-            output = self.cumulus_output_generator(granule_dict)
-            pass
-        else:
-            granule_dict = self.discover_granules()
-            self.logger.info('##########')
-            self.logger.info(f'Discovered {len(granule_dict)} granules.')
-            self.check_granule_updates_db(granule_dict)
-
-            self.logger.info(f'{len(granule_dict)} granules for ingest.')
-            output = self.cumulus_output_generator(granule_dict)
-
-            self.write_db_file()
-            self.db_file_cleanup()
+            return self.cumulus_output_generator(granule_dict)
+        granule_dict = self.discover_granules()
+        self.logger.info('##########')
+        self.logger.info(f'Discovered {len(granule_dict)} granules.')
+        self.check_granule_updates_db(granule_dict)
+        self.logger.info(f'{len(granule_dict)} granules for ingest.')
+        output = self.cumulus_output_generator(granule_dict)
+        self.write_db_file()
+        self.db_file_cleanup()
 
         return {'granules': output}
 
     @staticmethod
-    def populate_dict(target_dict, key, etag, last_mod):
+    def populate_dict( key, etag, last_mod):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
         Clarifying Note: This function works by exploiting the mutability of dictionaries
@@ -80,9 +76,10 @@ class DiscoverGranules:
         :param etag: The value of the ETag retrieved from the provider server
         :param last_mod: The value of the Last-Modified value retrieved from the provider server
         """
-        target_dict[key] = {
+        return {key : {
             'ETag': str(etag),
             'Last-Modified': str(last_mod)
+        }
         }
 
     @staticmethod
@@ -347,7 +344,7 @@ class DiscoverGranules:
                     self.logger.info(f'ETag: {etag}')
                     self.logger.info(f'Last-Modified: {last_modified}')
 
-                    self.populate_dict(ret_dict, key, etag, last_modified)
+                    ret_dict.update(self.populate_dict(key, etag, last_modified))
 
         return ret_dict
 
