@@ -68,11 +68,10 @@ class DiscoverGranules:
             self.check_granule_updates_db(granule_dict)
 
             output = self.cumulus_output_generator(granule_dict)
-            print(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
+            logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
             self.write_db_file()
             self.db_file_cleanup()
-
 
         return {'granules': output}
 
