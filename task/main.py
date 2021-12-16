@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import time
+from math import floor
 from time import sleep
 from cumulus_logger import CumulusLogger
 
@@ -60,9 +61,10 @@ class DiscoverGranules:
         else:
             granule_dict = self.discover_granules()
             if not granule_dict:
-                logger.warning(f'Warning: Found 0 granules at the provided location.')
+                logger.warning(f'Warning: Found 0 {self.collection.get("name")} granules at the provided location.')
             else:
-                logger.info(f'Discovered {len(granule_dict)} granules for update processing.')
+                logger.info(f'Discovered {len(granule_dict)} {self.collection.get("name")} '
+                            f'granules for update processing.')
             self.check_granule_updates_db(granule_dict)
 
             output = self.cumulus_output_generator(granule_dict)
@@ -476,4 +478,36 @@ class DiscoverGranules:
 
 
 if __name__ == '__main__':
+    """
+    cases
+     - Empty list
+     - List with items <= 1k 
+     - List with items > 1k
+    """
+    test_list = []
+    for x in range(1001):
+        test_list.append(x)
+
+    remainder = len(test_list) % 1000
+    iterations = len(test_list) // 1000
+
+    i1 = 0
+    i2 = 0
+    while iterations:
+        iterations -= 1
+        i2 += 1000
+        temp_list = test_list[i1:i2]
+        print(f'test_list[{i1}, {i2}]')
+        i1 = i2
+
+    if remainder:
+        i2 += remainder
+        temp_list = test_list[i1:i2]
+        print(f'test_list[{i1}, {i2}]')
+
+
+
+
+
+
     pass
