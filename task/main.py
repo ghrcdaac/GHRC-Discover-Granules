@@ -1,13 +1,4 @@
-import logging
-import os
 import re
-import time
-from time import sleep
-from cumulus_logger import CumulusLogger
-
-import boto3
-import botocore
-import botocore.exceptions
 import requests
 import urllib3
 from bs4 import BeautifulSoup
