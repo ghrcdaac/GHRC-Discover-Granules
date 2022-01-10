@@ -33,24 +33,40 @@ class DiscoverGranules:
         """
         Default values goes here
         """
+        self.input = event.get('input')
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
-        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
+        # self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
-        table_resource = boto3.resource('dynamodb', region_name='us-west-2')
-        self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
+        self.granule_db = Granule()
+        # table_resource = boto3.resource('dynamodb', region_name='us-west-2')
+        # self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
         # Note: logging.DEBUG and logging.INFO seem to have the same result with the cumulus debugger
 
     def discover(self):
         """
         Helper function to kick off the entire discover process
         """
+        output = {}
         granules = self.collection.get('meta', {}).get('granules', None)
-        if granules:
+        if self.input:
+            # clean db
+            names = []
+            for granule in self.input.get('granules', {}):
+                file = granule.get('files')[0]
+                name = f'{file.get("path")}/{file.get("name")}'
+                names.append(name)
+                pass
+            self.granule_db.read_db_file()
+            num = self.granule_db.remove_granules_by_name(names)
+            self.granule_db.write_db_file()
+            logger.info(f'Cleaned {num} records from the database.')
+            pass
+        elif granules:
             logger.info(f'Received {len(granules)} to reingest.')
             granule_dict = {}
             for granule in granules:
@@ -69,8 +85,8 @@ class DiscoverGranules:
             output = self.cumulus_output_generator(granule_dict)
             logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
-            self.write_db_file()
-            self.db_file_cleanup()
+            self.granule_db.write_db_file()
+            self.granule_db.db_file_cleanup()
 
         return {'granules': output}
 
@@ -214,8 +230,8 @@ class DiscoverGranules:
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        self.read_db_file()
-        getattr(Granule, f'db_{duplicates}')(Granule, granule_dict)
+        self.granule_db.read_db_file()
+        getattr(Granule, f'db_{duplicates}')(self.granule_db, granule_dict)
 
     def discover_granules(self):
         """
@@ -374,6 +390,7 @@ class DiscoverGranules:
         t = re.search(rf'{host}', filename)
         return filename[t.end():].rsplit('/', 1)
 
+    rand = True
     def generate_cumulus_record(self, key, value, filename_funct):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
@@ -384,11 +401,16 @@ class DiscoverGranules:
         """
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
+        if self.rand:
+            version = "some nonsense that shouldn't work"
+            self.rand = False
+        else:
+            version = self.collection.get('version', '')
 
         return {
             'granuleId': path_and_name[1],
             'dataType': self.collection.get('name', ''),
-            'version': self.collection.get('version', ''),
+            'version': version,
             'files': [
                 {
                     'name': path_and_name[1],
@@ -411,69 +433,11 @@ class DiscoverGranules:
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
         return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
 
-    def lock_db(self):
-        """
-        This function attempts to create a AWS S3 bucket. If the bucket already exists it will attempt to create it
-        for two minutes while also calling db_lock_mitigation. Once the bucket is created it will break from the
-        loop.
-        """
-        timeout = 600
-        while timeout:
-            try:
-                self.db_table.put_item(
-                    Item={
-                        'DatabaseLocked': 'locked',
-                        'LockDuration': str(time.time() + 900)
-                    },
-                    ConditionExpression='attribute_not_exists(DatabaseLocked)'
-                )
-                break
-            except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
-                logger.info('waiting on lock.')
-                timeout -= 1
-                sleep(1)
-
-        if not timeout:
-            raise ValueError('Timeout: Unsuccessful in creating database lock.')
-
-    def unlock_db(self):
-        """
-        Used to delete the "lock" bucket.
-        """
-        self.db_table.delete_item(
-            Key={
-                'DatabaseLocked': 'locked'
-            }
-        )
-
-    def read_db_file(self):
-        """
-        Reads the SQLite database file from S3
-        """
-        self.lock_db()
-        try:
-            self.s3_client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
-        except botocore.exceptions.ClientError as err:
-            # The db files doesn't exist in S3 yet so create it
-            db.connect()
-            db.create_tables([Granule])
-
-    def write_db_file(self):
-        """
-        Writes the SQLite database file to S3
-        """
-        db.close()
-        self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
-        self.unlock_db()
-
-    @staticmethod
-    def db_file_cleanup():
-        """
-        This function deletes the database file stored in the lambda as each invocation can be using a previously used
-        file system with the old db file
-        """
-        os.remove(DB_FILE_PATH)
-
 
 if __name__ == '__main__':
+    d = {'granuleId': 'f16_20211201v7.gz', 'dataType': 'rssmif16d', 'version': "some nonsense that shouldn't work", 'files': [{'name': 'f16_20211201v7.gz', 'path': '/ssmi/f16/bmaps_v07/y2021/m12', 'size': '', 'time': '1638475288.0', 'bucket': 'sharedsbx-internal', 'url_path': 'rss/rssmif16d__7', 'type': ''}]}
+    file = d.get('files')[0]
+    val = f'{file.get("path")}/{file.get("name")}'
+    print(f'Removed 1 database record that ends with: {val}')
+    # Granule.rea
     pass

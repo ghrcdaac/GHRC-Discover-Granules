@@ -1,5 +1,16 @@
+import logging
+import os
+import time
+from time import sleep
+
+import boto3
+from cumulus_logger import CumulusLogger
+
+import botocore.exceptions
 from peewee import *
 
+logging_level = logging.INFO if os.getenv('enable_logging', 'false').lower() == 'true' else logging.WARNING
+logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging_level)
 
 SQLITE_VAR_LIMIT = 999
 DB_FILENAME = 'discover_granules.db'
@@ -15,6 +26,17 @@ class Granule(Model):
     name = CharField(primary_key=True)
     etag = CharField()
     last_modified = CharField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.s3_client = boto3.client('s3')
+
+        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
+        self.s3_bucket_name = os.getenv('bucket_name')
+
+        table_resource = boto3.resource('dynamodb', region_name='us-west-2')
+        self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
+        pass
 
     @staticmethod
     def select_all(granule_dict):
@@ -81,6 +103,16 @@ class Granule(Model):
         self.__insert_many(granule_dict)
 
     @staticmethod
+    def remove_granules_by_name(granule_names):
+        del_count = 0
+        for name in granule_names:
+            d = Granule.delete().where(Granule.name.endswith(name)).execute()
+            del_count += d
+            logger.info(f'Deleted {d} record with suffix {name}')
+
+        return del_count
+
+    @staticmethod
     def __insert_many(granule_dict):
         """
         Helper function to separate the insert many logic that is reused between queries
@@ -90,12 +122,95 @@ class Granule(Model):
         with db.atomic():
             fields = [Granule.name, Granule.etag, Granule.last_modified]
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                s = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
                     .on_conflict_replace().execute()
+
+    def lock_db(self):
+        """
+        This function attempts to create a database lock entry in dynamodb. If the entry already exists it will attempt
+        to create it for five minutes while also calling db_lock_mitigation. Once the entry is created it will break
+        from the loop.
+        """
+        timeout = 600
+        while timeout:
+            try:
+                self.db_table.put_item(
+                    Item={
+                        'DatabaseLocked': 'locked',
+                        'LockDuration': str(time.time() + 900)
+                    },
+                    ConditionExpression='attribute_not_exists(DatabaseLocked)'
+                )
+                break
+            except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
+                logger.info('waiting on lock.')
+                timeout -= 1
+                sleep(1)
+
+        if not timeout:
+            raise ValueError('Timeout: Unsuccessful in creating database lock.')
+
+    def unlock_db(self):
+        """
+        Used to delete the "lock" entry in the dynamodb table.
+        """
+        self.db_table.delete_item(
+            Key={
+                'DatabaseLocked': 'locked'
+            }
+        )
+
+    def read_db_file(self):
+        """
+        Reads the SQLite database file from S3
+        """
+        self.lock_db()
+        try:
+            self.s3_client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
+        except botocore.exceptions.ClientError as err:
+            # The db files doesn't exist in S3 yet so create it
+            db.connect()
+            db.create_tables([Granule])
+
+    def write_db_file(self):
+        """
+        Writes the SQLite database file to S3
+        """
+        db.close()
+        self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
+        self.unlock_db()
+
+    @staticmethod
+    def db_file_cleanup():
+        """
+        This function deletes the database file stored in the lambda as each invocation can be using a previously used
+        file system with the old db file
+        """
+        os.remove(DB_FILE_PATH)
 
     class Meta:
         database = db
 
 
 if __name__ == '__main__':
+    # db.connect()
+    # db.create_tables([Granule])
+    # g = Granule()
+    # granules = ['granule1', 'granule2', 'granule3']
+    # for x in range(3):
+    #     g.create(name=f'g{x}', etag=f'e{x}', last_modified=f'lm{x}')
+    #     pass
+    g = Granule()
+    granule_dict = {}
+    duplicates = 'error'
+    getattr(Granule, f'db_{duplicates}')(g, granule_dict)
+
+    # Granule.delete().where(Granule.name.in_(['g0', 'g2'])).execute()
+    # t = Granule.delete().where(Granule.name.endswith('2')).execute()
+    # print(t)
+
+    # print(g)
+    # g.create()
+    # Granule.insert()
+
     pass
