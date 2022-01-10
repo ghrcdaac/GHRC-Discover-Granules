@@ -193,24 +193,4 @@ class Granule(Model):
 
 
 if __name__ == '__main__':
-    # db.connect()
-    # db.create_tables([Granule])
-    # g = Granule()
-    # granules = ['granule1', 'granule2', 'granule3']
-    # for x in range(3):
-    #     g.create(name=f'g{x}', etag=f'e{x}', last_modified=f'lm{x}')
-    #     pass
-    g = Granule()
-    granule_dict = {}
-    duplicates = 'error'
-    getattr(Granule, f'db_{duplicates}')(g, granule_dict)
-
-    # Granule.delete().where(Granule.name.in_(['g0', 'g2'])).execute()
-    # t = Granule.delete().where(Granule.name.endswith('2')).execute()
-    # print(t)
-
-    # print(g)
-    # g.create()
-    # Granule.insert()
-
     pass

@@ -390,7 +390,6 @@ class DiscoverGranules:
         t = re.search(rf'{host}', filename)
         return filename[t.end():].rsplit('/', 1)
 
-    rand = True
     def generate_cumulus_record(self, key, value, filename_funct):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
@@ -401,11 +400,7 @@ class DiscoverGranules:
         """
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
-        if self.rand:
-            version = "some nonsense that shouldn't work"
-            self.rand = False
-        else:
-            version = self.collection.get('version', '')
+        version = self.collection.get('version', '')
 
         return {
             'granuleId': path_and_name[1],
@@ -435,9 +430,4 @@ class DiscoverGranules:
 
 
 if __name__ == '__main__':
-    d = {'granuleId': 'f16_20211201v7.gz', 'dataType': 'rssmif16d', 'version': "some nonsense that shouldn't work", 'files': [{'name': 'f16_20211201v7.gz', 'path': '/ssmi/f16/bmaps_v07/y2021/m12', 'size': '', 'time': '1638475288.0', 'bucket': 'sharedsbx-internal', 'url_path': 'rss/rssmif16d__7', 'type': ''}]}
-    file = d.get('files')[0]
-    val = f'{file.get("path")}/{file.get("name")}'
-    print(f'Removed 1 database record that ends with: {val}')
-    # Granule.rea
     pass
