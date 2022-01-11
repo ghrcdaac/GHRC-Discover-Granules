@@ -1,7 +1,14 @@
 import concurrent.futures
 import boto3
 
-if __name__ == '__main__':
+
+"""
+This script is only intended to be used by developers as a way to quickly cleanup ingest workflow executions. The ARN
+is hardcoded but should only ever have to be updated if the SBX stack gets redeployed. 
+"""
+
+
+def main():
     client = boto3.client('stepfunctions')
 
     tasks_to_kill = []
@@ -34,3 +41,7 @@ if __name__ == '__main__':
                 print(future.result())
 
     print(f'Killed {len(tasks_to_kill)} tasks.')
+
+
+if __name__ == '__main__':
+    main()
