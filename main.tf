@@ -19,4 +19,6 @@ module "aws_lambda_function" {
   layers                    = var.layers
   timeout                   = var.timeout
   memory_size               = var.memory_size
+  efs_arn                   = var.efs_arn
+  efs_mount_path            = var.efs_mount_path
 }

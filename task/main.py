@@ -28,15 +28,13 @@ class DiscoverGranules:
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
-        self.discover_tf = self.collection.get('meta').get('discover_tf')
-        # self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
+        meta = self.collection.get('meta')
+        self.discover_tf = meta.get('discover_tf')
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
-        self.granule_db = Granule()
-        # table_resource = boto3.resource('dynamodb', region_name='us-west-2')
-        # self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
-        # Note: logging.DEBUG and logging.INFO seem to have the same result with the cumulus debugger
+        self.granule_db = make_model(meta.get('collection_type'))
+        self.granule_db.create_table(self.granule_db.name)
 
     def discover(self):
         """
@@ -52,9 +50,9 @@ class DiscoverGranules:
                 name = f'{file.get("path")}/{file.get("name")}'
                 names.append(name)
                 pass
-            self.granule_db.read_db_file()
+            # self.granule_db.read_db_file()
             num = self.granule_db.remove_granules_by_name(names)
-            self.granule_db.write_db_file()
+            # self.granule_db.write_db_file()
             logger.info(f'Cleaned {num} records from the database.')
             pass
         elif granules:
@@ -76,8 +74,8 @@ class DiscoverGranules:
             output = self.cumulus_output_generator(granule_dict)
             logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
-            self.granule_db.write_db_file()
-            self.granule_db.db_file_cleanup()
+            # self.granule_db.write_db_file()
+            # self.granule_db.db_file_cleanup()
 
         return {'granules': output}
 
@@ -221,8 +219,8 @@ class DiscoverGranules:
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        self.granule_db.read_db_file()
-        getattr(Granule, f'db_{duplicates}')(self.granule_db, granule_dict)
+        # self.granule_db.read_db_file()
+        getattr(self.granule_db, f'db_{duplicates}')(self.granule_db, granule_dict)
 
     def discover_granules(self):
         """
