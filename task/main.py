@@ -29,14 +29,10 @@ class DiscoverGranules:
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
         self.discover_tf = self.collection.get('meta').get('discover_tf')
-        # self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
         self.granule_db = Granule()
-        # table_resource = boto3.resource('dynamodb', region_name='us-west-2')
-        # self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
-        # Note: logging.DEBUG and logging.INFO seem to have the same result with the cumulus debugger
 
     def discover(self):
         """
@@ -298,7 +294,7 @@ class DiscoverGranules:
                 directory_list.append(f'{path}/')
             else:
                 logger.warning(f'Notice: {path} not processed as granule or directory. '
-                                    f'The supplied regex may not match.')
+                               f'The supplied regex may not match.')
         pass
 
         depth = min(abs(depth), 3)

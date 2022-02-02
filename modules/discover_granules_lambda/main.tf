@@ -42,7 +42,7 @@ resource "aws_dynamodb_table" "discover-granules-lock" {
 
   ttl {
     enabled = true
-    attribute_name = "LockDuration"
+    attribute_name = "LockExpirationEpoch"
   }
 }
 
@@ -58,7 +58,8 @@ resource "aws_iam_policy" "dynamodb_put_delete_item" {
         Resource = aws_dynamodb_table.discover-granules-lock.arn
         Action = [
           "dynamodb:PutItem",
-          "dynamodb:Delete*"
+          "dynamodb:Delete*",
+          "dynamodb:UpdateItem"
         ]
       }
     ]
@@ -69,4 +70,3 @@ resource "aws_iam_role_policy_attachment" "attach_dynamo_put_delete" {
   role       = var.cumulus_lambda_role_name
   policy_arn = aws_iam_policy.dynamodb_put_delete_item.arn
 }
-
