@@ -143,67 +143,6 @@ class DiscoverGranules:
 
         return temp
 
-    def error(self, granule_dict, s3_granule_dict):
-        """
-        If the "error" flag is set in the collection definition this function will throw an exception and halt
-        execution.
-        :param granule_dict granules discovered this run
-        :param s3_granule_dict the downloaded last run stored in s3
-        :return new_granules Only the granules that are newly discovered
-        """
-        new_granules = {}
-        for key, value in granule_dict.items():
-            if key in s3_granule_dict:
-                raise ValueError(f'A duplicate granule was found: {key}')
-            else:
-                # Update for S3
-                self.update_etag_lm(s3_granule_dict, granule_dict, key)
-                # Dictionary for new or updated granules
-                self.update_etag_lm(new_granules, granule_dict, key)
-
-        return new_granules
-
-    def skip(self, granule_dict, s3_granule_dict):
-        """
-        If the skip flag is set in the collection definition this function will only update granules if the ETag or
-        Last-Modified meta-data tags have changed.
-        :param granule_dict granules discovered this run
-        :param s3_granule_dict the downloaded last run stored in s3
-        :return new_granules Only the granules that are newly discovered
-        """
-        new_granules = {}
-        for key, value in granule_dict.items():
-            is_new_or_modified = False
-            # if the key exists in the s3 dict, update it and add to new_granules
-            if key in s3_granule_dict:
-                if s3_granule_dict[key] != granule_dict[key]:
-                    self.update_etag_lm(s3_granule_dict, granule_dict, key)
-                    is_new_or_modified = True
-            else:
-                # else just add it to the s3 dict and new granules
-                self.update_etag_lm(s3_granule_dict, granule_dict, key)
-                is_new_or_modified = True
-
-            if is_new_or_modified:
-                self.update_etag_lm(new_granules, granule_dict, key)
-
-        return new_granules
-
-    @staticmethod
-    def replace(granule_dict: {}, s3_granule_dict=None):
-        """
-         If the replace flag is set in the collection definition this function will clear out the previously stored run
-         and replace with any discovered granules for this run.
-         :param granule_dict granules discovered this run
-         :param s3_granule_dict the downloaded last run stored in s3
-         :return new_granules Only the granules that are newly discovered
-         """
-        if s3_granule_dict is None:
-            s3_granule_dict = {}
-        s3_granule_dict.clear()
-        s3_granule_dict.update(granule_dict)
-        return s3_granule_dict
-
     def check_granule_updates_db(self, granule_dict: {}):
         """
         Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
