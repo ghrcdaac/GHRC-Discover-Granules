@@ -36,7 +36,6 @@ class Granule(Model):
 
         table_resource = boto3.resource('dynamodb', region_name='us-west-2')
         self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
-        pass
 
     @staticmethod
     def select_all(granule_dict):
@@ -127,23 +126,28 @@ class Granule(Model):
 
     def lock_db(self):
         """
-        This function attempts to create a database lock entry in dynamodb. If the entry already exists it will attempt
-        to create it for five minutes while also calling db_lock_mitigation. Once the entry is created it will break
-        from the loop.
+        This function attempts to create or update the database lock entry in dynamodb. If the entry already exists it
+        will attempt to create it for 14 minutes and 55 seconds. Once the entry is created it will break from the loop.
+        A 5 second window is left at the end so that the ValueError can be thrown in the event that the lock doesn't
+        expire in time.
         """
-        timeout = 600
+        timeout = 895
         while timeout:
             try:
-                self.db_table.put_item(
-                    Item={
-                        'DatabaseLocked': 'locked',
-                        'LockDuration': str(time.time() + 900)
+                current_time = int(time.time())
+                lock_expiration = current_time + 900
+                self.db_table.update_item(
+                    Key={
+                        'DatabaseLocked': 'locked'
                     },
-                    ConditionExpression='attribute_not_exists(DatabaseLocked)'
+                    UpdateExpression=f'SET LockExpirationEpoch = :lock_expiration',
+                    ConditionExpression='(attribute_not_exists(DatabaseLocked)) OR'
+                                        ' (LockExpirationEpoch <= :current_time)',
+                    ExpressionAttributeValues={':current_time': current_time, ':lock_expiration': lock_expiration}
                 )
                 break
             except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
-                logger.info('waiting on lock.')
+                logger.info('Waiting on lock...')
                 timeout -= 1
                 sleep(1)
 
@@ -174,7 +178,7 @@ class Granule(Model):
 
     def write_db_file(self):
         """
-        Writes the SQLite database file to S3
+        Writes the SQLite database file to S3.
         """
         db.close()
         self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
@@ -184,7 +188,7 @@ class Granule(Model):
     def db_file_cleanup():
         """
         This function deletes the database file stored in the lambda as each invocation can be using a previously used
-        file system with the old db file
+        file system with the old db file.
         """
         os.remove(DB_FILE_PATH)
 
