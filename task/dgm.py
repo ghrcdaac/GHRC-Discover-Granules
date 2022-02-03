@@ -135,7 +135,7 @@ class Granule(Model):
         while timeout:
             try:
                 current_time = int(time.time())
-                lock_expiration = current_time + 300
+                lock_expiration = current_time + 900
                 self.db_table.update_item(
                     Key={
                         'DatabaseLocked': 'locked'
