@@ -127,8 +127,8 @@ class Granule(Model):
     def lock_db(self):
         """
         This function attempts to create or update the database lock entry in dynamodb. If the entry already exists it
-        will attempt to create it for 14 minutes and 5 seconds. Once the entry is created it will break from the loop. A
-        5 second window is left at the end so that the ValueError can be thrown in the event that the lock doesn't
+        will attempt to create it for 14 minutes and 55 seconds. Once the entry is created it will break from the loop.
+        A 5 second window is left at the end so that the ValueError can be thrown in the event that the lock doesn't
         expire in time.
         """
         timeout = 895
