@@ -42,7 +42,7 @@ resource "aws_dynamodb_table" "discover-granules-lock" {
 
   ttl {
     enabled = true
-    attribute_name = "LockExpirationEpoch"
+    attribute_name = "LockDuration"
   }
 }
 
