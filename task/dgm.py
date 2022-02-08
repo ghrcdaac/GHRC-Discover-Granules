@@ -1,22 +1,60 @@
+import fcntl
 import logging
 import os
+import random
+import string
 import time
-from time import sleep
+from pprint import pprint
 
 import boto3
 from cumulus_logger import CumulusLogger
 
 import botocore.exceptions
 from peewee import *
+from playhouse.sqlite_ext import SqliteExtDatabase
 
 logging_level = logging.INFO if os.getenv('enable_logging', 'false').lower() == 'true' else logging.WARNING
 logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging_level)
 
 SQLITE_VAR_LIMIT = 999
-DB_FILENAME = 'discover_granules.db'
-DB_FILE_PATH = f'/tmp/{DB_FILENAME}'
-# Note: Lambda execution requires the db file to be in /tmp
-db = SqliteDatabase(DB_FILE_PATH)
+dgm_db_file_name = ''
+db = SqliteExtDatabase(None)
+lock_file = f'{os.getenv("efs_path", "tmp")}/discover_granules.lock'
+RANG_STR = string.ascii_uppercase
+
+
+def lock_db_file():
+    with open(lock_file, 'w+') as lock:
+        limit = 900
+        while limit:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                print(f'db locked')
+                break
+            except Exception as e:
+                print(f'Exception: {str(e)}')
+                limit -= 1
+                time.sleep(1)
+
+    if not limit:
+        raise ValueError(f'Timed out aftr 900 seconds while waiting for database lock.')
+
+
+def unlock_db_file():
+    with open(lock_file, 'w+') as lock:
+        fcntl.flock(lock, fcntl.LOCK_UN)
+        print(f'db unlocked')
+
+
+def initialize_db(db_file_path):
+    print(f'Initializing db ')
+    global db
+    db.init(db_file_path, pragmas={
+        'journal_mode': 'wal',
+        'cache_size': -1 * 64000,  # 64MB
+        'foreign_keys': 1})
+    print(f'db initialized')
+
 
 class Granule(Model):
     """
@@ -26,15 +64,13 @@ class Granule(Model):
     etag = CharField()
     last_modified = CharField()
 
+    class Meta:
+        database = db
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.s3_client = boto3.client('s3')
-
-        self.db_key = f'{os.getenv("s3_key_prefix", default="temp").rstrip("/")}/{DB_FILENAME}'
-        self.s3_bucket_name = os.getenv('bucket_name')
-
-        table_resource = boto3.resource('dynamodb', region_name='us-west-2')
-        self.db_table = table_resource.Table(os.getenv('table_name', default='DiscoverGranulesLock'))
+        self.id = random.choice(RANG_STR)
 
     @staticmethod
     def select_all(granule_dict):
@@ -44,25 +80,24 @@ class Granule(Model):
         :return ret_lst: List of granule names that existed in the database
         """
         ret_lst = []
-        with db.atomic():
-            fields = [Granule.name, Granule.etag, Granule.last_modified]
-            for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
-                etags = ''
-                last_mods = ''
-                names = ''
-                for key in key_batch:
-                    names = f'{names}\'{key}\','
-                    etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
-                    last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
+        fields = [Granule.name, Granule.etag, Granule.last_modified]
+        for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
+            etags = ''
+            last_mods = ''
+            names = ''
+            for key in key_batch:
+                names = f'{names}\'{key}\','
+                etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
+                last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
 
-                etags = f'({etags.rstrip(",")})'
-                last_mods = f'({last_mods.rstrip(",")})'
-                names = f'({names.rstrip(",")})'
+            etags = f'({etags.rstrip(",")})'
+            last_mods = f'({last_mods.rstrip(",")})'
+            names = f'({names.rstrip(",")})'
 
-                sub = Granule.raw(f'SELECT name FROM granule'
-                                  f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
-                for name in sub.tuples().iterator():
-                    ret_lst.append(name[0])
+            sub = Granule.raw(f'SELECT name FROM granule'
+                              f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
+            for name in sub.tuples().iterator():
+                ret_lst.append(name[0])
 
         return ret_lst
 
@@ -87,16 +122,15 @@ class Granule(Model):
         Tries to insert all the granules in the granule_dict erroring if there are duplicates
         :param granule_dict: Dictionary containing granules
         """
-        with db.atomic():
-            fields = [Granule.name]
-            for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
-                names = ''
-                for key in key_batch:
-                    names = f'{names}\'{key}\','
-                names = f'({names.rstrip(",")})'
-                res = Granule.raw(f'SELECT name FROM granule WHERE name IN {names}')
-                if res:
-                    raise ValueError('Granule already exists in the database.')
+        fields = [Granule.name]
+        for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
+            names = ''
+            for key in key_batch:
+                names = f'{names}\'{key}\','
+            names = f'({names.rstrip(",")})'
+            res = Granule.raw(f'SELECT name FROM granule WHERE name IN {names}')
+            if res:
+                raise ValueError('Granule already exists in the database.')
 
         self.__insert_many(granule_dict)
 
@@ -110,6 +144,13 @@ class Granule(Model):
 
         return del_count
 
+    def delete_granules_by_names(self, granule_names):
+        del_count = 0
+        for key_batch in chunked(granule_names, SQLITE_VAR_LIMIT):
+            d = Granule.delete().where(Granule.name.in_(key_batch)).execute()
+            del_count += d
+        return del_count
+
     @staticmethod
     def __insert_many(granule_dict):
         """
@@ -117,82 +158,23 @@ class Granule(Model):
         :param granule_dict: Dictionary containing granules
         """
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        with db.atomic():
-            fields = [Granule.name, Granule.etag, Granule.last_modified]
-            for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                s = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
-                    .on_conflict_replace().execute()
-
-    def lock_db(self):
-        """
-        This function attempts to create or update the database lock entry in dynamodb. If the entry already exists it
-        will attempt to create it for 14 minutes and 55 seconds. Once the entry is created it will break from the loop.
-        A 5 second window is left at the end so that the ValueError can be thrown in the event that the lock doesn't
-        expire in time.
-        """
-        timeout = 895
-        while timeout:
+        fields = [Granule.name, Granule.etag, Granule.last_modified]
+        limit = 900
+        while True:
             try:
-                current_time = int(time.time())
-                lock_expiration = current_time + 900
-                self.db_table.update_item(
-                    Key={
-                        'DatabaseLocked': 'locked'
-                    },
-                    UpdateExpression=f'SET LockExpirationEpoch = :lock_expiration',
-                    ConditionExpression='(attribute_not_exists(DatabaseLocked)) OR'
-                                        ' (LockExpirationEpoch <= :current_time)',
-                    ExpressionAttributeValues={':current_time': current_time, ':lock_expiration': lock_expiration}
-                )
+                with db.atomic():
+                    for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
+                        s = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                            .on_conflict_replace().execute()
                 break
-            except self.db_table.meta.client.exceptions.ConditionalCheckFailedException:
-                logger.info('Waiting on lock...')
-                timeout -= 1
-                sleep(1)
+            except Exception as e:
+                print(f'Exception: {str(e)}')
+                print(f'Will try for {limit} more seconds.')
+                limit -= 1
+                time.sleep(1)
 
-        if not timeout:
-            raise ValueError('Timeout: Unsuccessful in creating database lock.')
-
-    def unlock_db(self):
-        """
-        Used to delete the "lock" entry in the dynamodb table.
-        """
-        self.db_table.delete_item(
-            Key={
-                'DatabaseLocked': 'locked'
-            }
-        )
-
-    def read_db_file(self):
-        """
-        Reads the SQLite database file from S3
-        """
-        self.lock_db()
-        try:
-            self.s3_client.download_file(self.s3_bucket_name, self.db_key, DB_FILE_PATH)
-        except botocore.exceptions.ClientError as err:
-            # The db files doesn't exist in S3 yet so create it
-            db.connect()
-            db.create_tables([Granule])
-
-    def write_db_file(self):
-        """
-        Writes the SQLite database file to S3.
-        """
-        db.close()
-        self.s3_client.upload_file(DB_FILE_PATH, self.s3_bucket_name, self.db_key)
-        self.unlock_db()
-
-    @staticmethod
-    def db_file_cleanup():
-        """
-        This function deletes the database file stored in the lambda as each invocation can be using a previously used
-        file system with the old db file.
-        """
-        os.remove(DB_FILE_PATH)
-
-    class Meta:
-        database = db
+        if not limit:
+            raise ValueError('Failed to exectue query after 300 seconds.')
 
 
 if __name__ == '__main__':

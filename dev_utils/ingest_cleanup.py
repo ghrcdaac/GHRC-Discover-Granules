@@ -18,29 +18,54 @@ def main():
     }
 
     while True:
-        resp = client.list_executions(**args)
-        tasks_to_kill += resp.get("executions")
-        nextToken = resp.get('nextToken')
-        if nextToken:
-            args.setdefault('nextToken', nextToken)
-        else:
-            break
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        for e in resp.get('executions'):
-            futures.append(
-                executor.submit(client.stop_execution, executionArn=e.get('executionArn'))
-            )
-
-        for future in concurrent.futures.as_completed(futures):
-            error = future.exception()
-            if error:
-                print(f'Error: {error}')
+        while True:
+            resp = client.list_executions(**args)
+            tasks_to_kill += resp.get("executions")
+            nextToken = resp.get('nextToken')
+            if nextToken:
+                args.setdefault('nextToken', nextToken)
             else:
-                print(future.result())
+                break
 
-    print(f'Killed {len(tasks_to_kill)} tasks.')
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for e in resp.get('executions'):
+                futures.append(
+                    executor.submit(client.stop_execution, executionArn=e.get('executionArn'))
+                )
+
+            for future in concurrent.futures.as_completed(futures):
+                error = future.exception()
+                if error:
+                    print(f'Error: {error}')
+                else:
+                    print(future.result())
+
+        print(f'Killed {len(tasks_to_kill)} tasks.')
+
+
+def fast_copy():
+    # Create file test_0.txt
+    client = boto3.client('s3')
+    x = 0
+    base_name = 'test_'
+    ftype = '.txt'
+    # Loop for 10000
+    with open(f'{base_name}{x}{ftype}'):
+        pass
+
+    for x in range(30000):
+
+        # Upload file
+        client.put_object(
+            Bucket='sharedsbx-private',
+            Body=open(f'{base_name}{x}{ftype}'),
+            Key='fake_collection_mlh/dir1/'
+
+        )
+
+        # Rename file
+
 
 
 if __name__ == '__main__':

@@ -1,4 +1,10 @@
+import random
 import re
+import string
+from pathlib import Path
+from random import randint
+from time import sleep
+
 import requests
 import urllib3
 from bs4 import BeautifulSoup
@@ -28,32 +34,61 @@ class DiscoverGranules:
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
-        self.discover_tf = self.collection.get('meta').get('discover_tf')
+        meta = self.collection.get('meta')
+        self.discover_tf = meta.get('discover_tf')
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
-        self.granule_db = Granule()
+
+        db_suffix = meta.get('collection_type')
+        db_filename = f'discover_granules_{db_suffix}.db'
+        self.db_file_path = f'{os.getenv("efs_path", "tmp")}/{db_filename}'
+        print(f'db_filepath = {self.db_file_path}')
+        # db.init(db_file_path, pragmas={
+        #     'journal_mode': 'wal'
+        # })
+        # initialize_db(db_file_path)
+        # global dgm_db_file_name
+        # dgm_db_file_name = db_file_path
+        # db.init(db_file_path)
+        self.granule_db = None
+        # self.granule_db.initialize_db(db_file_path)
+        # db.create_tables([Granule])
+
+    def db_torture_test(self, random_char):
+        test_dict = {}
+        rand_prefix = randint(0, 50000)
+        for x in range(50000):
+            self.populate_dict(test_dict, f'key_{rand_prefix}_{x}', f'etag_{rand_prefix}_{x}', f'last_{rand_prefix}_{x}')
+
+        print(f'Test dictionary populated for execution {random_char}')
+        for x in range(5):
+            self.granule_db.db_replace(test_dict, random_char)
+            sleep(5)
+            print(f'{x} iteration complete for execution {random_char}.')
 
     def discover(self):
         """
         Helper function to kick off the entire discover process
         """
+        # self.db_torture_test(random_char)
+        # return {'granules': []}
         output = {}
         granules = self.collection.get('meta', {}).get('granules', None)
         if self.input:
             # clean db
             names = []
+            logger.warning(self.input.get('granules', {}))
             for granule in self.input.get('granules', {}):
                 file = granule.get('files')[0]
                 name = f'{file.get("path")}/{file.get("name")}'
                 names.append(name)
                 pass
-            # self.granule_db.read_db_file()
-            num = self.granule_db.remove_granules_by_name(names)
-            # self.granule_db.write_db_file()
+            num = self.granule_db.delete_granules_by_names(names)
             logger.info(f'Cleaned {num} records from the database.')
             pass
         elif granules:
+            # Reingest
             logger.info(f'Received {len(granules)} to reingest.')
             granule_dict = {}
             for granule in granules:
@@ -61,6 +96,7 @@ class DiscoverGranules:
             output = self.cumulus_output_generator(granule_dict)
             pass
         else:
+            # Discover
             granule_dict = self.discover_granules()
             if not granule_dict:
                 logger.warning(f'Warning: Found 0 {self.collection.get("name")} granules at the provided location.')
@@ -72,10 +108,9 @@ class DiscoverGranules:
             output = self.cumulus_output_generator(granule_dict)
             logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
-            # self.granule_db.write_db_file()
-            # self.granule_db.db_file_cleanup()
-
-        return {'granules': output}
+        print(f'Discovered {len(output)} granules.')
+        # return {'granules': output}
+        return {'granules': []}
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod):
@@ -157,7 +192,23 @@ class DiscoverGranules:
             duplicates = 'skip'
 
         # self.granule_db.read_db_file()
-        getattr(self.granule_db, f'db_{duplicates}')(self.granule_db, granule_dict)
+        print(f'len before update: {len(granule_dict)}')
+        print(f'duplicates: {duplicates}')
+        print(f'Critical section start')
+        # lock_db_file()
+        self.granule_db = Granule()
+        if not Path(self.db_file_path).exists():
+            initialize_db(self.db_file_path)
+            print('creating tables')
+            db.create_tables([Granule], safe=True)
+        else:
+            initialize_db(self.db_file_path)
+
+        getattr(Granule, f'db_{duplicates}')(self.granule_db, granule_dict)
+        # db.close()
+        # unlock_db_file()
+        print(f'Critical section end')
+        print(f'len after update: {len(granule_dict)}')
 
     def discover_granules(self):
         """
@@ -286,9 +337,9 @@ class DiscoverGranules:
                     etag = s3_object['ETag']
                     last_modified = s3_object['LastModified'].timestamp()
 
-                    logger.info(f'Found granule: {key}')
-                    logger.info(f'ETag: {etag}')
-                    logger.info(f'Last-Modified: {last_modified}')
+                    # logger.info(f'Found granule: {key}')
+                    # logger.info(f'ETag: {etag}')
+                    # logger.info(f'Last-Modified: {last_modified}')
 
                     self.populate_dict(ret_dict, key, etag, last_modified)
 
@@ -327,6 +378,7 @@ class DiscoverGranules:
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
         version = self.collection.get('version', '')
+        # version = 'This should make them all fail.'
 
         return {
             'granuleId': path_and_name[1],
