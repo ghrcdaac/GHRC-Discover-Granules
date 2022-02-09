@@ -92,6 +92,10 @@ class Granule(Model):
 
     @staticmethod
     def delete_granules_by_names(granule_names):
+        """
+        Removes all granule records from the database if the name is found in granule_names.
+        :return del_count: The number of deleted granules
+        """
         del_count = 0
         for key_batch in chunked(granule_names, SQLITE_VAR_LIMIT):
             d = Granule.delete().where(Granule.name.in_(key_batch)).execute()

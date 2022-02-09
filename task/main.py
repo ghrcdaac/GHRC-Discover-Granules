@@ -83,8 +83,7 @@ class DiscoverGranules:
             rdg_logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
         rdg_logger.info(f'Discovered {len(output)} granules.')
-        # return {'granules': output}
-        return {'granules': []}
+        return {'granules': output}
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod):
