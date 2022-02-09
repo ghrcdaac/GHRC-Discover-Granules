@@ -5,16 +5,17 @@ locals {
 }
 
 resource "aws_lambda_function" "discover_granules" {
-  function_name    = "${var.prefix}-discover-granules-tf-module"
-  source_code_hash = filebase64sha256("${path.module}/../../package.zip")
-  handler          = "task.lambda_function.handler"
-  runtime          = "python3.8"
-  filename         = "${path.module}/../../package.zip"
-  role             = var.cumulus_lambda_role_arn
-  timeout          = var.timeout
-  memory_size      = var.memory_size
-  tags             = local.default_tags
-  layers           = var.layers
+  function_name                  = "${var.prefix}-discover-granules-tf-module"
+  source_code_hash               = filebase64sha256("${path.module}/../../package.zip")
+  handler                        = "task.lambda_function.handler"
+  runtime                        = "python3.8"
+  filename                       = "${path.module}/../../package.zip"
+  role                           = var.cumulus_lambda_role_arn
+  timeout                        = var.timeout
+  memory_size                    = var.memory_size
+  tags                           = local.default_tags
+  layers                         = var.layers
+  reserved_concurrent_executions = 1
 
   vpc_config {
     security_group_ids = var.lambda_security_group_ids
@@ -49,7 +50,7 @@ resource "aws_dynamodb_table" "discover-granules-lock" {
   }
 
   ttl {
-    enabled = true
+    enabled        = true
     attribute_name = "LockDuration"
   }
 }
