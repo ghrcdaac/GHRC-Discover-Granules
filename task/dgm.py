@@ -1,18 +1,12 @@
-import os
-import string
-
 from peewee import *
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 
 SQLITE_VAR_LIMIT = 999
-dgm_db_file_name = ''
 db = SqliteExtDatabase(None)
-lock_file = f'{os.getenv("efs_path", "tmp")}/discover_granules.lock'
-RANG_STR = string.ascii_uppercase
 
 
-def initialize_db(db_file_path=dgm_db_file_name):
+def initialize_db(db_file_path):
     global db
     db.init(db_file_path, pragmas={
         'journal_mode': 'wal',
@@ -47,20 +41,15 @@ class Granule(Model):
         ret_lst = []
         fields = [Granule.name, Granule.etag, Granule.last_modified]
         for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
-            etags = ''
-            last_mods = ''
-            names = ''
+            names = set()
+            etags = set()
+            last_mods = set()
+
             for key in key_batch:
-                names = f'{names}\'{key}\','
-                etags = f'{etags}\'{granule_dict[key]["ETag"]}\','
-                last_mods = f'{last_mods}\'{granule_dict[key]["Last-Modified"]}\','
+                names.add(key)
+                etags.add(granule_dict[key]["ETag"])
+                last_mods.add(granule_dict[key]["Last-Modified"])
 
-            etags = f'({etags.rstrip(",")})'
-            last_mods = f'({last_mods.rstrip(",")})'
-            names = f'({names.rstrip(",")})'
-
-            # sub = Granule.raw(f'SELECT name FROM granule'
-            #                   f' WHERE name IN {names} AND etag IN {etags} AND last_modified IN {last_mods}')
             sub = Granule\
                 .select(Granule.name)\
                 .where(Granule.name.in_(names) & Granule.etag.in_(etags) & Granule.last_modified.in_(last_mods))
@@ -92,11 +81,9 @@ class Granule(Model):
         """
         fields = [Granule.name]
         for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
-            names = ''
+            names = set()
             for key in key_batch:
-                names = f'{names}\'{key}\','
-            names = f'({names.rstrip(",")})'
-            # res = Granule.raw(f'SELECT name FROM granule WHERE name IN {names}')
+                names.add(key)
             res = Granule.select(Granule.name).where(Granule.name.in_(names))
             if res:
                 raise ValueError('Granule already exists in the database.')
@@ -121,7 +108,7 @@ class Granule(Model):
         fields = [Granule.name, Granule.etag, Granule.last_modified]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                s = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified]) \
+                Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
                     .on_conflict_replace().execute()
 
 

@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import boto3
 import requests
@@ -334,8 +335,7 @@ class DiscoverGranules:
         """
         epoch = value.get('Last-Modified')
         path_and_name = filename_funct(key)
-        # version = self.collection.get('version', '')
-        version = 'This should make them all fail.'
+        version = self.collection.get('version', '')
 
         return {
             'granuleId': path_and_name[1],

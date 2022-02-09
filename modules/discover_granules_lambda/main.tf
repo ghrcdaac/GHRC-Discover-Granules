@@ -27,7 +27,6 @@ resource "aws_lambda_function" "discover_granules" {
       bucket_name   = var.s3_bucket_name
       s3_key_prefix = var.s3_key_prefix
       efs_path      = var.efs_mount_path
-      table_name    = aws_dynamodb_table.discover-granules-lock.name
     }, var.env_variables)
   }
 
@@ -35,47 +34,4 @@ resource "aws_lambda_function" "discover_granules" {
     local_mount_path = var.efs_mount_path
     arn              = var.efs_arn
   }
-}
-
-resource "aws_dynamodb_table" "discover-granules-lock" {
-  name           = "${var.prefix}-DiscoverGranulesLock"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = 20
-  write_capacity = 20
-  hash_key       = "DatabaseLocked"
-
-  attribute {
-    name = "DatabaseLocked"
-    type = "S"
-  }
-
-  ttl {
-    enabled        = true
-    attribute_name = "LockDuration"
-  }
-}
-
-resource "aws_iam_policy" "dynamodb_put_delete_item" {
-  name        = "${var.prefix}-dynamo-record-management"
-  description = "Allows for the insertion and deletion of a record."
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Resource = aws_dynamodb_table.discover-granules-lock.arn
-        Action = [
-          "dynamodb:PutItem",
-          "dynamodb:Delete*",
-          "dynamodb:UpdateItem"
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "attach_dynamo_put_delete" {
-  role       = var.cumulus_lambda_role_name
-  policy_arn = aws_iam_policy.dynamodb_put_delete_item.arn
 }
