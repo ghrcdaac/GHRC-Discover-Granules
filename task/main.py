@@ -38,7 +38,7 @@ class DiscoverGranules:
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
 
-        db_suffix = meta.get('collection_type')
+        db_suffix = meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
         self.granule_db = initialize_db(self.db_file_path)
