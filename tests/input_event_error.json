@@ -24,7 +24,7 @@
         "hyrax_processing": "true",
         "provider_path": "/ssmi/f16/bmaps_v07/y2021/",
         "collectionVersion": "7",
-        "collection_type": "ongoing",
+        "collection_type": "test_collection",
         "collectionName": "rssmif16d",
         "metadata_extractor": [
           {

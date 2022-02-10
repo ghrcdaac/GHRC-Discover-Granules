@@ -65,14 +65,14 @@ class Granule(Model):
         """
         for name in self.select_all(granule_dict):
             granule_dict.pop(name)
-        self.__insert_many(granule_dict)
+        return self.__insert_many(granule_dict)
 
     def db_replace(self, granule_dict):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         :param granule_dict: Dictionary containing granules.
         """
-        self.__insert_many(granule_dict)
+        return self.__insert_many(granule_dict)
 
     def db_error(self, granule_dict):
         """
@@ -88,7 +88,7 @@ class Granule(Model):
             if res:
                 raise ValueError('Granule already exists in the database.')
 
-        self.__insert_many(granule_dict)
+        return self.__insert_many(granule_dict)
 
     @staticmethod
     def delete_granules_by_names(granule_names):
@@ -108,12 +108,16 @@ class Granule(Model):
         Helper function to separate the insert many logic that is reused between queries
         :param granule_dict: Dictionary containing granules
         """
+        records_inserted = 0
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
         fields = [Granule.name, Granule.etag, Granule.last_modified]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
+                num = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
                     .on_conflict_replace().execute()
+                records_inserted += num
+
+        return records_inserted
 
 
 if __name__ == '__main__':
