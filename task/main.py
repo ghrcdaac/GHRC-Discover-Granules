@@ -40,7 +40,7 @@ class DiscoverGranules:
 
         db_suffix = meta.get('collection_type')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", "tmp")}/{db_filename}'
+        self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
         self.granule_db = initialize_db(self.db_file_path)
 
     def discover(self):
