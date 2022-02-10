@@ -1,7 +1,11 @@
+import logging
+import os
 import re
+import boto3
 import requests
 import urllib3
 from bs4 import BeautifulSoup
+from cumulus_logger import CumulusLogger
 from dateutil.parser import parse
 
 from task.dgm import *
@@ -9,7 +13,7 @@ from task.dgm import *
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging_level = logging.INFO if os.getenv('enable_logging', 'false').lower() == 'true' else logging.WARNING
-logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging_level)
+rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging_level)
 
 
 class DiscoverGranules:
@@ -28,11 +32,16 @@ class DiscoverGranules:
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
-        self.discover_tf = self.collection.get('meta').get('discover_tf')
+        meta = self.collection.get('meta')
+        self.discover_tf = meta.get('discover_tf')
         self.s3_bucket_name = os.getenv('bucket_name')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
-        self.granule_db = Granule()
+
+        db_suffix = meta.get('collection_type')
+        db_filename = f'discover_granules_{db_suffix}.db'
+        self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
+        self.granule_db = initialize_db(self.db_file_path)
 
     def discover(self):
         """
@@ -41,40 +50,39 @@ class DiscoverGranules:
         output = {}
         granules = self.collection.get('meta', {}).get('granules', None)
         if self.input:
-            # clean db
+            # Cleanup DB
             names = []
+            rdg_logger.warning(self.input.get('granules', {}))
             for granule in self.input.get('granules', {}):
                 file = granule.get('files')[0]
                 name = f'{file.get("path")}/{file.get("name")}'
                 names.append(name)
-                pass
-            self.granule_db.read_db_file()
-            num = self.granule_db.remove_granules_by_name(names)
-            self.granule_db.write_db_file()
-            logger.info(f'Cleaned {num} records from the database.')
+
+            num = self.granule_db.delete_granules_by_names(names)
+            rdg_logger.info(f'Cleaned {num} records from the database.')
             pass
         elif granules:
-            logger.info(f'Received {len(granules)} to reingest.')
+            # Re-ingest
+            rdg_logger.info(f'Received {len(granules)} to re-ingest.')
             granule_dict = {}
             for granule in granules:
                 self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None)
             output = self.cumulus_output_generator(granule_dict)
             pass
         else:
+            # Discover granules
             granule_dict = self.discover_granules()
             if not granule_dict:
-                logger.warning(f'Warning: Found 0 {self.collection.get("name")} granules at the provided location.')
+                rdg_logger.warning(f'Warning: Found 0 {self.collection.get("name")} granules at the provided location.')
             else:
-                logger.info(f'Discovered {len(granule_dict)} {self.collection.get("name")} '
-                            f'granules for update processing.')
+                rdg_logger.info(f'Discovered {len(granule_dict)} {self.collection.get("name")} '
+                                f'granules for update processing.')
             self.check_granule_updates_db(granule_dict)
 
             output = self.cumulus_output_generator(granule_dict)
-            logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
+            rdg_logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
-            self.granule_db.write_db_file()
-            self.granule_db.db_file_cleanup()
-
+        rdg_logger.info(f'Discovered {len(output)} granules.')
         return {'granules': output}
 
     @staticmethod
@@ -152,12 +160,12 @@ class DiscoverGranules:
         """
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
-        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being reingested.
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        self.granule_db.read_db_file()
         getattr(Granule, f'db_{duplicates}')(self.granule_db, granule_dict)
+        rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def discover_granules(self):
         """
@@ -213,14 +221,14 @@ class DiscoverGranules:
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
 
-            logger.info('##########')
-            logger.info(f'Exploring a_tags for path: {path}')
-            logger.info(f'ETag: {etag}')
-            logger.info(f'Last-Modified: {last_modified}')
+            rdg_logger.info('##########')
+            rdg_logger.info(f'Exploring a_tags for path: {path}')
+            rdg_logger.info(f'ETag: {etag}')
+            rdg_logger.info(f'Last-Modified: {last_modified}')
 
             if (etag is not None or last_modified is not None) and \
                     (file_reg_ex is None or re.search(file_reg_ex, url_segment)):
-                logger.info(f'Discovered granule: {path}')
+                rdg_logger.info(f'Discovered granule: {path}')
 
                 granule_dict[path] = {}
                 granule_dict[path]['ETag'] = str(etag)
@@ -232,8 +240,8 @@ class DiscoverGranules:
                     (dir_reg_ex is None or re.search(dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:
-                logger.warning(f'Notice: {path} not processed as granule or directory. '
-                               f'The supplied regex may not match.')
+                rdg_logger.warning(f'Notice: {path} not processed as granule or directory. '
+                                   f'The supplied regex may not match.')
         pass
 
         depth = min(abs(depth), 3)
@@ -272,7 +280,7 @@ class DiscoverGranules:
         :param dir_reg_ex: Regular expression used to filter directories.
         :return: links of files matching reg_ex (if reg_ex is defined).
         """
-        logger.info(f'Discovering in s3://{host}/{prefix}.')
+        rdg_logger.info(f'Discovering in s3://{host}/{prefix}.')
         response_iterator = self.get_s3_resp_iterator(host, prefix, self.s3_client)
         ret_dict = {}
         for page in response_iterator:
@@ -286,9 +294,9 @@ class DiscoverGranules:
                     etag = s3_object['ETag']
                     last_modified = s3_object['LastModified'].timestamp()
 
-                    logger.info(f'Found granule: {key}')
-                    logger.info(f'ETag: {etag}')
-                    logger.info(f'Last-Modified: {last_modified}')
+                    rdg_logger.info(f'Found granule: {key}')
+                    rdg_logger.info(f'ETag: {etag}')
+                    rdg_logger.info(f'Last-Modified: {last_modified}')
 
                     self.populate_dict(ret_dict, key, etag, last_modified)
 

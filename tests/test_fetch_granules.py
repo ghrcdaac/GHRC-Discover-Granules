@@ -5,6 +5,7 @@ import os
 
 from dateutil.tz import tzutc
 
+from task.dgm import initialize_db
 from task.main import DiscoverGranules
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
@@ -14,6 +15,14 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.dg = DiscoverGranules(self.get_sample_event())
+
+    def tearDown(self) -> None:
+        os.remove(self.dg.db_file_path)
+        os.remove(f'{self.dg.db_file_path}-shm')
+        os.remove(f'{self.dg.db_file_path}-wal')
 
     @staticmethod
     def get_html(provider):
@@ -31,51 +40,45 @@ class TestDiscoverGranules(unittest.TestCase):
             return json.load(test_event_file)
 
     def test_get_file_link_remss(self):
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.getSession = MagicMock()
+        self.dg.getSession = MagicMock()
         msut_html = self.get_html('remss')
         msut_header_responses = self.get_header_responses('remss')
-        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.discover_granules_http(url_path='fake_url')
+        self.dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        self.dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = self.dg.discover_granules_http(url_path='fake_url')
         self.assertEqual(len(retrieved_dict), 5)
 
     def test_get_file_link_wregex(self):
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.getSession = MagicMock()
+        self.dg.getSession = MagicMock()
         msut_html = self.get_html('remss')
         msut_header_responses = self.get_header_responses('remss')
-        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effects=msut_header_responses)
-        retrieved_dict = dg.discover_granules_http(url_path='fake_url', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        self.dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        self.dg.headers_request = MagicMock(side_effects=msut_header_responses)
+        retrieved_dict = self.dg.discover_granules_http(url_path='fake_url', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(retrieved_dict), 1)
 
-
     def test_get_file_link_msut(self):
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.getSession = MagicMock()
+        self.dg.getSession = MagicMock()
         msut_html = self.get_html('msut')
         msut_header_responses = self.get_header_responses('msut')
-        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.discover_granules_http(url_path="fake_url")
+        self.dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        self.dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = self.dg.discover_granules_http(url_path="fake_url")
         self.assertEqual(len(retrieved_dict), 4)
 
     def test_get_file_link_msut_wregex(self):
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.getSession = MagicMock()
+        self.dg.getSession = MagicMock()
         msut_html = self.get_html('msut')
         msut_header_responses = self.get_header_responses('msut')
-        dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
-        dg.headers_request = MagicMock(side_effect=msut_header_responses)
-        retrieved_dict = dg.discover_granules_http(url_path="fake_url", file_reg_ex="^tlt.*\\d{4}_6.\\d+")
+        self.dg.html_request = MagicMock(return_value=BeautifulSoup(msut_html, features="html.parser"))
+        self.dg.headers_request = MagicMock(side_effect=msut_header_responses)
+        retrieved_dict = self.dg.discover_granules_http(url_path="fake_url", file_reg_ex="^tlt.*\\d{4}_6.\\d+")
         self.assertEqual(len(retrieved_dict), 1)
 
     def test_bad_url(self):
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.html_request = MagicMock(return_value=BeautifulSoup("", features="html.parser"))
-        dg.headers_request = MagicMock(return_value={})
-        retrieved_dict = dg.discover_granules_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
+        self.dg.html_request = MagicMock(return_value=BeautifulSoup("", features="html.parser"))
+        self.dg.headers_request = MagicMock(return_value={})
+        retrieved_dict = self.dg.discover_granules_http(url_path='Bad URL', file_reg_ex="^f16_\\d{6}01v7\\.gz$")
         self.assertEqual(len(retrieved_dict), 0)
 
     def test_discover_granules_s3(self):
@@ -95,9 +98,8 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=None)
+        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=None)
         self.assertEqual(len(ret_dict), 2)
 
     def test_discover_granules_s3_file_regex(self):
@@ -117,9 +119,8 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=".*(1.txt)", dir_reg_ex=None)
+        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=".*(1.txt)", dir_reg_ex=None)
         self.assertEqual(len(ret_dict), 1)
 
     def test_discover_granules_s3_dir_regex(self):
@@ -139,9 +140,9 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        dg = DiscoverGranules(self.get_sample_event())
-        dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
+        self.dg = DiscoverGranules(self.get_sample_event())
+        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
+        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
         self.assertEqual(len(ret_dict), 1)
 
 
