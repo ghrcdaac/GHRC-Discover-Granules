@@ -5,6 +5,7 @@ import os
 
 from dateutil.tz import tzutc
 
+from task.dgm import initialize_db
 from task.main import DiscoverGranules
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
@@ -20,6 +21,8 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def tearDown(self) -> None:
         os.remove(self.dg.db_file_path)
+        os.remove(f'{self.dg.db_file_path}-shm')
+        os.remove(f'{self.dg.db_file_path}-wal')
 
     @staticmethod
     def get_html(provider):
@@ -141,30 +144,6 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
         self.assertEqual(len(ret_dict), 1)
-
-    def test_db_skip(self):
-        test_resp_iter = [
-            {
-                'Contents': [
-                    {
-                        'Key': 'key/key1',
-                        'ETag': 'etag1',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
-                    },
-                    {
-                        'Key': 'key/key2',
-                        'ETag': 'etag2',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
-                    }
-                ]
-            }
-        ]
-        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=None)
-        t = self.dg.granule_db.db_skip(ret_dict)
-        self.assertEqual(t, 2)
-        t = self.dg.granule_db.db_skip(ret_dict)
-        self.assertEqual(t, 0)
 
 
 if __name__ == "__main__":

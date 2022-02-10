@@ -28,9 +28,6 @@ class Granule(Model):
     class Meta:
         database = db
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     @staticmethod
     def select_all(granule_dict):
         """
