@@ -41,7 +41,6 @@ class DiscoverGranules:
         db_suffix = meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
-        self.granule_db = initialize_db(self.db_file_path)
 
     def discover(self):
         """
@@ -50,7 +49,7 @@ class DiscoverGranules:
         output = {}
         granules = self.collection.get('meta', {}).get('granules', None)
         if self.input:
-            # Cleanup DB
+            # If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
             names = []
             rdg_logger.warning(self.input.get('granules', {}))
             for granule in self.input.get('granules', {}):
@@ -58,11 +57,14 @@ class DiscoverGranules:
                 name = f'{file.get("path")}/{file.get("name")}'
                 names.append(name)
 
-            num = self.granule_db.delete_granules_by_names(names)
+            with initialize_db(self.db_file_path):
+                num = Granule().delete_granules_by_names(names)
+
             rdg_logger.info(f'Cleaned {num} records from the database.')
             pass
         elif granules:
-            # Re-ingest
+            # Re-ingest: Takes provided input and generates cumulus output.
+            # TODO: This should be removed as it is wasteful to load the entire lambda just to generate output.
             rdg_logger.info(f'Received {len(granules)} to re-ingest.')
             granule_dict = {}
             for granule in granules:
@@ -83,6 +85,11 @@ class DiscoverGranules:
             rdg_logger.info(f'Returning cumulus output for {len(output)} {self.collection.get("name")} granules.')
 
         rdg_logger.info(f'Discovered {len(output)} granules.')
+
+        if os.getenv('no_return', 'false').lower() == 'true':
+            rdg_logger.warning(f'no_return is set to true. No output will be returned.')
+            output = []
+
         return {'granules': output}
 
     @staticmethod
@@ -164,7 +171,9 @@ class DiscoverGranules:
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        getattr(Granule, f'db_{duplicates}')(self.granule_db, granule_dict)
+        with initialize_db(self.db_file_path):
+            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
+
         rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def discover_granules(self):
@@ -294,9 +303,9 @@ class DiscoverGranules:
                     etag = s3_object['ETag']
                     last_modified = s3_object['LastModified'].timestamp()
 
-                    rdg_logger.info(f'Found granule: {key}')
-                    rdg_logger.info(f'ETag: {etag}')
-                    rdg_logger.info(f'Last-Modified: {last_modified}')
+                    # rdg_logger.info(f'Found granule: {key}')
+                    # rdg_logger.info(f'ETag: {etag}')
+                    # rdg_logger.info(f'Last-Modified: {last_modified}')
 
                     self.populate_dict(ret_dict, key, etag, last_modified)
 

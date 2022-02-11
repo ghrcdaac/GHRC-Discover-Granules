@@ -15,7 +15,6 @@ resource "aws_lambda_function" "discover_granules" {
   memory_size                    = var.memory_size
   tags                           = local.default_tags
   layers                         = var.layers
-  reserved_concurrent_executions = 1
 
   vpc_config {
     security_group_ids = var.lambda_security_group_ids
@@ -27,6 +26,7 @@ resource "aws_lambda_function" "discover_granules" {
       bucket_name   = var.s3_bucket_name
       s3_key_prefix = var.s3_key_prefix
       efs_path      = var.efs_mount_path
+      no_return     = var.no_return
     }, var.env_variables)
   }
 

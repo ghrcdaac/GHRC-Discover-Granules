@@ -44,6 +44,11 @@ variable "memory_size" {
   default     = 2048
 }
 
+variable "no_return" {
+  description = "Can be used in testing so no output is sent to QueueGranules"
+  default     = false
+}
+
 variable "prefix" {
   type = string
 }
