@@ -1,20 +1,16 @@
 from peewee import *
-from playhouse.sqlite_ext import SqliteExtDatabase
-
+from playhouse.apsw_ext import APSWDatabase
 
 SQLITE_VAR_LIMIT = 999
-db = SqliteExtDatabase(None)
+db = APSWDatabase(None, vfs='unix-excl')
 
 
 def initialize_db(db_file_path):
-    global db
-    db.init(db_file_path, pragmas={
+    db.init(db_file_path, timeout=60, pragmas={
         'journal_mode': 'wal',
-        'cache_size': -1 * 64000,  # 64MB
-        'foreign_keys': 1})
+        'cache_size': -1 * 64000})
     db.create_tables([Granule], safe=True)
-
-    return Granule()
+    return db
 
 
 class Granule(Model):
