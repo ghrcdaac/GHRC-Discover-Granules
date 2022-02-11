@@ -1,11 +1,8 @@
-# Test here
+import contextlib
 import datetime
 import json
 import os
-
 from dateutil.tz import tzutc
-
-from task.dgm import initialize_db
 from task.main import DiscoverGranules
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
@@ -20,9 +17,10 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg = DiscoverGranules(self.get_sample_event())
 
     def tearDown(self) -> None:
-        os.remove(self.dg.db_file_path)
-        os.remove(f'{self.dg.db_file_path}-shm')
-        os.remove(f'{self.dg.db_file_path}-wal')
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(self.dg.db_file_path)
+            os.remove(self.dg.db_file_path)
+            os.remove(self.dg.db_file_path)
 
     @staticmethod
     def get_html(provider):
