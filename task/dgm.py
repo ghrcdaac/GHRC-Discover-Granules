@@ -3,7 +3,7 @@ from playhouse.apsw_ext import APSWDatabase
 
 SQLITE_VAR_LIMIT = 999
 db = APSWDatabase(None, vfs='unix-excl')
-# db = APSWDatabase(None)
+
 
 def initialize_db(db_file_path):
     db.init(db_file_path, timeout=60, pragmas={
