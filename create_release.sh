@@ -22,6 +22,8 @@ function create_zip_file() {
   mkdir -p ${BUILD_DIR} ${DESTINATION_DIR}
   cp -r modules ${BUILD_DIR}
   cp package.zip ${BUILD_DIR}
+  cp dependencies_full.zip ${BUILD_DIR}
+  cp dependencies_lambda.zip ${BUILD_DIR}
   cp *tf ${BUILD_DIR}
   cd ${BUILD_DIR}
   zip -r9 ${RELEASE_NAME}.zip .
@@ -36,4 +38,7 @@ function create_zip_file() {
 create_zip_file
 
 ### Post the release
-curl -X POST -H "Authorization: token $SECRET_TOKEN" --data-binary "@${RELEASE_NAME}.zip" -H "Content-type: application/octet-stream" $RELEASE_URL/assets?name=${RELEASE_NAME}.zip
+curl -X POST -H "Authorization: token $SECRET_TOKEN" \
+--data-binary "@${RELEASE_NAME}.zip" "@dependencies_full.zip" "@dependencies_lambda.zip" \
+-H "Content-type: application/octet-stream" \
+$RELEASE_URL/assets?name=${RELEASE_NAME}.zip&name=dependencies_full.zip&name=dependencies_lambda.zip
