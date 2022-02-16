@@ -42,3 +42,12 @@ curl -X POST -H "Authorization: token $SECRET_TOKEN" \
 --data-binary "@${RELEASE_NAME}.zip" "@dependencies_full.zip" "@dependencies_lambda.zip" \
 -H "Content-type: application/octet-stream" \
 $RELEASE_URL/assets?name=${RELEASE_NAME}.zip&name=dependencies_full.zip&name=dependencies_lambda.zip
+
+curl -X POST -H "Authorization: token $SECRET_TOKEN" \
+--data-binary "@dependencies_full.zip" -H "Content-type: application/octet-stream" \
+$RELEASE_URL/assets?&name=dependencies_full.zip
+
+curl -X POST -H "Authorization: token $SECRET_TOKEN" \
+--data-binary "@dependencies_lambda.zip" \
+-H "Content-type: application/octet-stream" \
+$RELEASE_URL/assets?name=dependencies_lambda.zip
