@@ -39,9 +39,9 @@ create_zip_file
 
 ### Post the release
 curl -X POST -H "Authorization: token $SECRET_TOKEN" \
---data-binary "@${RELEASE_NAME}.zip" "@dependencies_full.zip" "@dependencies_lambda.zip" \
+--data-binary "@${RELEASE_NAME}.zip"  \
 -H "Content-type: application/octet-stream" \
-$RELEASE_URL/assets?name=${RELEASE_NAME}.zip&name=dependencies_full.zip&name=dependencies_lambda.zip
+$RELEASE_URL/assets?name=${RELEASE_NAME}.zip
 
 curl -X POST -H "Authorization: token $SECRET_TOKEN" \
 --data-binary "@dependencies_full.zip" -H "Content-type: application/octet-stream" \
