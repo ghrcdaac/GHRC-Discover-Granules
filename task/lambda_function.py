@@ -1,7 +1,7 @@
 import os
 import sys
 
-
+sys.path.insert(0, f'{os.environ.get("efs_mount")}/dependencies/')
 from task.main import DiscoverGranules
 
 
@@ -19,3 +19,7 @@ def handler(event, context):
         return run_cumulus_task(lambda_handler, event, context)
     else:
         return []
+
+
+if __name__ == '__main__':
+    pass

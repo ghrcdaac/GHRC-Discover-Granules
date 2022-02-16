@@ -11,8 +11,6 @@ export RELEASE_NAME=`basename $GITHUB_REPO`
    -X POST\
    https://api.github.com/repos/$GITHUB_REPO/releases |grep \"url\" |grep releases |sed -e 's/.*\(https.*\)\"\,/\1/'| sed -e 's/api/uploads/')
 
-
-
 ## Build TF modules that require source building
 function create_zip_file() {
 
@@ -21,9 +19,10 @@ function create_zip_file() {
   rm -rf ${DESTINATION_DIR}
   mkdir -p ${BUILD_DIR} ${DESTINATION_DIR}
   cp -r modules ${BUILD_DIR}
-  cp package.zip ${BUILD_DIR}
-  cp dependencies_full.zip ${BUILD_DIR}
-  cp dependencies_lambda.zip ${BUILD_DIR}
+  mv package.zip ${BUILD_DIR}
+  mv dependencies.zip "${DESTINATION_DIR}"
+  mv dependencies_lambda.zip "${DESTINATION_DIR}"
+  mv source.zip "${DESTINATION_DIR}"
   cp *tf ${BUILD_DIR}
   cd ${BUILD_DIR}
   zip -r9 ${RELEASE_NAME}.zip .
@@ -32,8 +31,6 @@ function create_zip_file() {
   rm -rf ${BUILD_DIR}
 }
 
-
-
 #### Release package
 create_zip_file
 
@@ -41,13 +38,19 @@ create_zip_file
 curl -X POST -H "Authorization: token $SECRET_TOKEN" \
 --data-binary "@${RELEASE_NAME}.zip"  \
 -H "Content-type: application/octet-stream" \
-$RELEASE_URL/assets?name=${RELEASE_NAME}.zip
-
-curl -X POST -H "Authorization: token $SECRET_TOKEN" \
---data-binary "@dependencies_full.zip" -H "Content-type: application/octet-stream" \
-$RELEASE_URL/assets?&name=dependencies_full.zip
+"$RELEASE_URL"/assets?name=${RELEASE_NAME}.zip
 
 curl -X POST -H "Authorization: token $SECRET_TOKEN" \
 --data-binary "@dependencies_lambda.zip" \
 -H "Content-type: application/octet-stream" \
-$RELEASE_URL/assets?name=dependencies_lambda.zip
+"$RELEASE_URL"/assets?name=dependencies_lambda.zip
+
+curl -X POST -H "Authorization: token $SECRET_TOKEN" \
+--data-binary "@dependencies.zip" \
+-H "Content-type: application/octet-stream" \
+"$RELEASE_URL"/assets?name=dependencies.zip
+
+curl -X POST -H "Authorization: token $SECRET_TOKEN" \
+--data-binary "@source.zip" \
+-H "Content-type: application/octet-stream" \
+"$RELEASE_URL"/assets?name=source.zip
