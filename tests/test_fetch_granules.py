@@ -86,12 +86,14 @@ class TestDiscoverGranules(unittest.TestCase):
                     {
                         'Key': 'key/key1',
                         'ETag': 'etag1',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 1
                     },
                     {
                         'Key': 'key/key2',
                         'ETag': 'etag2',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 2
                     }
                 ]
             }
@@ -107,12 +109,14 @@ class TestDiscoverGranules(unittest.TestCase):
                     {
                         'Key': 'key/key1.txt',
                         'ETag': 'etag1',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 1
                     },
                     {
                         'Key': 'key/key2.txt',
                         'ETag': 'etag2',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 2
                     }
                 ]
             }
@@ -128,12 +132,14 @@ class TestDiscoverGranules(unittest.TestCase):
                     {
                         'Key': 'key1/key1.txt',
                         'ETag': 'etag1',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 1
                     },
                     {
                         'Key': 'key2/key2.txt',
                         'ETag': 'etag2',
-                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc())
+                        'LastModified': datetime.datetime(2020, 8, 14, 17, 19, 34, tzinfo=tzutc()),
+                        'Size': 1
                     }
                 ]
             }

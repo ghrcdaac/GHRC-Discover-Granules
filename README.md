@@ -149,8 +149,12 @@ discover-granules-tf-module local repo.
 Alternatively you can just directly deploy the updated lambda via the following AWS CLI command:
 ```commandline
 python createPackage.py && aws lambda update-function-code --function-name 
-arn:aws:lambda:us-west-2:322322076095:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+arn:aws:lambda:us-west-2:123456789101:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
 --publish
 ```
-Note: You will need to update the --function-name to the appropriate value for the stack you are working in. 
+Notes:
+ - You will need to update the --function-name to the appropriate value for the stack you are working in. 
 You can download the database lookup file stored in S3, modify it for testing, and upload it as needed.
+ - The ETag as given by AWS is used as the md5sum. AWS calculates the ETag for multipart downloads slightly different
+than normal uploads. This probably won't matter in most cases as RDG just uses the Etag as a unique identifier. 
+If a verification of the Etag needs to be done then look into how AWS S3 calculates a multipart file upload checksum.  

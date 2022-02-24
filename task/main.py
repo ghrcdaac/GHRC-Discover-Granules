@@ -93,7 +93,7 @@ class DiscoverGranules:
         return {'granules': output}
 
     @staticmethod
-    def populate_dict(target_dict, key, etag, last_mod):
+    def populate_dict(target_dict, key, etag, last_mod, size):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
         Clarifying Note: This function works by exploiting the mutability of dictionaries
@@ -103,8 +103,9 @@ class DiscoverGranules:
         :param last_mod: The value of the Last-Modified value retrieved from the provider server
         """
         target_dict[key] = {
-            'ETag': str(etag),
-            'Last-Modified': str(last_mod)
+            'ETag': etag,
+            'Last-Modified': str(last_mod),
+            'Size': size
         }
 
     @staticmethod
@@ -118,7 +119,8 @@ class DiscoverGranules:
         """
         dict1[key] = {
             'ETag': dict2.get(key).get('ETag'),
-            'Last-Modified': dict2.get(key).get('Last-Modified')
+            'Last-Modified': dict2.get(key).get('Last-Modified'),
+            'Size': dict2.get(key).get('Size'),
         }
 
     def fetch_session(self, url):
@@ -300,14 +302,15 @@ class DiscoverGranules:
                 file_name = sections[1]
                 if (file_reg_ex is None or re.search(file_reg_ex, file_name)) and \
                         (dir_reg_ex is None or re.search(dir_reg_ex, key_dir)):
-                    etag = s3_object['ETag']
+                    etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
+                    size = s3_object['Size']
 
                     # rdg_logger.info(f'Found granule: {key}')
                     # rdg_logger.info(f'ETag: {etag}')
                     # rdg_logger.info(f'Last-Modified: {last_modified}')
 
-                    self.populate_dict(ret_dict, key, etag, last_modified)
+                    self.populate_dict(ret_dict, key, etag, last_modified, size)
 
         return ret_dict
 
@@ -351,13 +354,16 @@ class DiscoverGranules:
             'version': version,
             'files': [
                 {
+                    'bucket': self.s3_bucket_name,
+                    'checksum': value.get('ETag'),
+                    'checksumType': 'md5',
+                    'filename': f'{self.provider.get("protocol")}://{self.s3_bucket_name}/{key}',
                     'name': path_and_name[1],
                     'path': path_and_name[0],
-                    'size': '',
+                    'size': value.get('Size'),
                     'time': epoch,
-                    'bucket': self.s3_bucket_name,
-                    'url_path': self.collection.get('url_path', ''),
-                    'type': ''
+                    'type': '',
+                    'url_path': self.collection.get('url_path', '')
                 }
             ]
         }
