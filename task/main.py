@@ -42,6 +42,8 @@ class DiscoverGranules:
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
 
+        self.lzards_backup = self.collection.get('files')
+
     def discover(self):
         """
         Helper function to kick off the entire discover process
@@ -68,7 +70,7 @@ class DiscoverGranules:
             rdg_logger.info(f'Received {len(granules)} to re-ingest.')
             granule_dict = {}
             for granule in granules:
-                self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None)
+                self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None, size=None)
             output = self.cumulus_output_generator(granule_dict)
             pass
         else:
@@ -336,7 +338,7 @@ class DiscoverGranules:
         t = re.search(rf'{host}', filename)
         return filename[t.end():].rsplit('/', 1)
 
-    def generate_cumulus_record(self, key, value, filename_funct):
+    def generate_cumulus_record(self, key, value, filename_funct, backup_extentions):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
         :param key: The name of the file
@@ -348,6 +350,16 @@ class DiscoverGranules:
         path_and_name = filename_funct(key)
         version = self.collection.get('version', '')
 
+        checksum = ''
+        checksum_type = ''
+        file_type = key.rsplit('.', 1)[-1]
+        if backup_extentions.get(file_type):
+            checksum = value.get('ETag')
+            checksum_type = 'md5'
+            rdg_logger.info(f'LZARDS backing up: {key}')
+        else:
+            rdg_logger.warning(f'LZARDS not backing up: {key}')
+
         return {
             'granuleId': path_and_name[1],
             'dataType': self.collection.get('name', ''),
@@ -355,8 +367,8 @@ class DiscoverGranules:
             'files': [
                 {
                     'bucket': self.s3_bucket_name,
-                    'checksum': value.get('ETag'),
-                    'checksumType': 'md5',
+                    'checksum': checksum,
+                    'checksumType': checksum_type,
                     'filename': f'{self.provider.get("protocol")}://{self.s3_bucket_name}/{key}',
                     'name': path_and_name[1],
                     'path': path_and_name[0],
@@ -375,7 +387,13 @@ class DiscoverGranules:
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-        return [self.generate_cumulus_record(k, v, filename_funct) for k, v in ret_dict.items()]
+
+        backup_extentions = {}
+        for file in self.config.get('collection').get('files'):
+            lzards = file.get('lzards', {}).get('backup', False)
+            backup_extentions[file.get('sampleFileName').rsplit('.', 1)[-1]] = lzards
+
+        return [self.generate_cumulus_record(k, v, filename_funct, backup_extentions) for k, v in ret_dict.items()]
 
 
 if __name__ == '__main__':
