@@ -377,7 +377,6 @@ class DiscoverGranules:
                     'bucket': f'{self.config_stack}-{temp_dict.get("bucket")}',
                     'checksum': checksum,
                     'checksumType': checksum_type,
-                    'filename': f'{self.provider.get("protocol")}://{self.host}/{key}',
                     'name': path_and_name[1],
                     'path': path_and_name[0],
                     'size': value.get('Size'),
