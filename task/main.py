@@ -34,7 +34,7 @@ class DiscoverGranules:
         self.collection = self.config.get('collection')
         meta = self.collection.get('meta')
         self.discover_tf = meta.get('discover_tf')
-        self.s3_bucket_name = os.getenv('bucket_name')
+        self.host = self.provider.get('host')
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
 
@@ -191,7 +191,7 @@ class DiscoverGranules:
         """
         Extracts the appropriate information for discovering granules using the S3 protocol
         """
-        return self.discover_granules_s3(host=self.provider['host'], prefix=self.collection['meta']['provider_path'],
+        return self.discover_granules_s3(host=self.host, prefix=self.collection['meta']['provider_path'],
                                          file_reg_ex=self.collection.get('granuleIdExtraction'),
                                          dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
 
@@ -205,7 +205,7 @@ class DiscoverGranules:
         """
         Constructs an http url from the event provided at initialization and calls the http discovery function
         """
-        path = f'{self.provider["protocol"]}://{self.provider["host"].rstrip("/")}/' \
+        path = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
                f'{self.config["provider_path"].lstrip("/")}'
         return self.discover_granules_http(path, file_reg_ex=self.collection.get('granuleIdExtraction'),
                                            dir_reg_ex=self.discover_tf.get('dir_reg_ex'),
@@ -366,10 +366,10 @@ class DiscoverGranules:
             'version': version,
             'files': [
                 {
-                    'bucket': self.s3_bucket_name,
+                    'bucket': self.host,
                     'checksum': checksum,
                     'checksumType': checksum_type,
-                    'filename': f'{self.provider.get("protocol")}://{self.s3_bucket_name}/{key}',
+                    'filename': f'{self.provider.get("protocol")}://{self.host}/{key}',
                     'name': path_and_name[1],
                     'path': path_and_name[0],
                     'size': value.get('Size'),
