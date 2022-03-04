@@ -354,16 +354,16 @@ class DiscoverGranules:
         path_and_name = filename_funct(key)
         version = self.collection.get('version', '')
 
-        test_dict = {}
+        temp_dict = {}
         for reg_key, v in mapping.items():
             res = re.search(reg_key, path_and_name[1])
             if res:
-                test_dict.update(v)
+                temp_dict.update(v)
                 break
 
         checksum = ''
         checksum_type = ''
-        if test_dict.get('lzards'):
+        if temp_dict.get('lzards'):
             checksum = value.get('ETag')
             checksum_type = 'md5'
             rdg_logger.info(f'LZARDS backing up: {key}')
@@ -374,7 +374,7 @@ class DiscoverGranules:
             'version': version,
             'files': [
                 {
-                    'bucket': f'{self.config_stack}-{test_dict.get("bucket")}',
+                    'bucket': f'{self.config_stack}-{temp_dict.get("bucket")}',
                     'checksum': checksum,
                     'checksumType': checksum_type,
                     'filename': f'{self.provider.get("protocol")}://{self.host}/{key}',
