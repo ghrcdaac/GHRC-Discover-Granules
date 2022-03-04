@@ -354,15 +354,19 @@ class DiscoverGranules:
         path_and_name = filename_funct(key)
         version = self.collection.get('version', '')
 
+        test_dict = {}
+        for reg_key, v in mapping.items():
+            res = re.search(reg_key, path_and_name[1])
+            if res:
+                test_dict.update(v)
+                break
+
         checksum = ''
         checksum_type = ''
-        file_type = key.rsplit('.', 1)[-1]
-        if mapping.get(file_type).get('lzards'):
+        if test_dict.get('lzards'):
             checksum = value.get('ETag')
             checksum_type = 'md5'
             rdg_logger.info(f'LZARDS backing up: {key}')
-        else:
-            rdg_logger.warning(f'LZARDS not backing up: {key}')
 
         return {
             'granuleId': path_and_name[1],
@@ -370,7 +374,7 @@ class DiscoverGranules:
             'version': version,
             'files': [
                 {
-                    'bucket': f'{self.config_stack}-{mapping.get(file_type).get("bucket")}',
+                    'bucket': f'{self.config_stack}-{test_dict.get("bucket")}',
                     'checksum': checksum,
                     'checksumType': checksum_type,
                     'filename': f'{self.provider.get("protocol")}://{self.host}/{key}',
@@ -395,11 +399,10 @@ class DiscoverGranules:
         # Extract the data from the files array in the event
         mapping = {}
         for file_dict in self.files_list:
-            ext = file_dict.get('sampleFileName').rsplit('.', 1)[-1]
             bucket = file_dict.get('bucket')
             reg = file_dict.get('regex')
             lzards = file_dict.get('lzards', {}).get('backup')
-            mapping[ext] = {'bucket': bucket, 'regex': reg, 'lzards': lzards}
+            mapping[reg] = {'bucket': bucket, 'lzards': lzards}
 
         return [self.generate_cumulus_record(k, v, filename_funct, mapping) for k, v in ret_dict.items()]
 
