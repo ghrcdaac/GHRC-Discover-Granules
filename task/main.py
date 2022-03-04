@@ -38,6 +38,9 @@ class DiscoverGranules:
         self.s3_client = boto3.client('s3')
         self.session = requests.Session()
 
+        self.config_stack = self.config.get('stack')
+        self.files_list = self.config.get('collection').get('files')
+
         db_suffix = meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
@@ -338,12 +341,13 @@ class DiscoverGranules:
         t = re.search(rf'{host}', filename)
         return filename[t.end():].rsplit('/', 1)
 
-    def generate_cumulus_record(self, key, value, filename_funct, backup_extentions):
+    def generate_cumulus_record(self, key, value, filename_funct, mapping):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
         :param key: The name of the file
         :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
         :param filename_funct: Helper function to extract the file name depending on the protocol used
+        :param mapping: Dictionary of each file extension and needed output fields from the event
         :return: A cumulus granule dictionary
         """
         epoch = value.get('Last-Modified')
@@ -353,7 +357,7 @@ class DiscoverGranules:
         checksum = ''
         checksum_type = ''
         file_type = key.rsplit('.', 1)[-1]
-        if backup_extentions.get(file_type):
+        if mapping.get(file_type).get('lzards'):
             checksum = value.get('ETag')
             checksum_type = 'md5'
             rdg_logger.info(f'LZARDS backing up: {key}')
@@ -366,7 +370,7 @@ class DiscoverGranules:
             'version': version,
             'files': [
                 {
-                    'bucket': self.host,
+                    'bucket': f'{self.config_stack}-{mapping.get(file_type).get("bucket")}',
                     'checksum': checksum,
                     'checksumType': checksum_type,
                     'filename': f'{self.provider.get("protocol")}://{self.host}/{key}',
@@ -388,12 +392,16 @@ class DiscoverGranules:
         """
         filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
 
-        backup_extentions = {}
-        for file in self.config.get('collection').get('files'):
-            lzards = file.get('lzards', {}).get('backup', False)
-            backup_extentions[file.get('sampleFileName').rsplit('.', 1)[-1]] = lzards
+        # Extract the data from the files array in the event
+        mapping = {}
+        for file_dict in self.files_list:
+            ext = file_dict.get('sampleFileName').rsplit('.', 1)[-1]
+            bucket = file_dict.get('bucket')
+            reg = file_dict.get('regex')
+            lzards = file_dict.get('lzards', {}).get('backup')
+            mapping[ext] = {'bucket': bucket, 'regex': reg, 'lzards': lzards}
 
-        return [self.generate_cumulus_record(k, v, filename_funct, backup_extentions) for k, v in ret_dict.items()]
+        return [self.generate_cumulus_record(k, v, filename_funct, mapping) for k, v in ret_dict.items()]
 
 
 if __name__ == '__main__':
