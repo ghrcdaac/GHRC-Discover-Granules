@@ -32,7 +32,6 @@ class DiscoverGranules:
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
-        print(f'url_path: {self.collection.get("url_path")}')
         meta = self.collection.get('meta')
         self.discover_tf = meta.get('discover_tf')
         self.host = self.provider.get('host')
@@ -302,9 +301,7 @@ class DiscoverGranules:
         ret_dict = {}
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
-                print(s3_object)
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
-                print(f's3_key: {key}')
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
                 file_name = sections[1]
