@@ -100,7 +100,7 @@
     "duplicateGranuleHandling": "replace"
   },
   "cumulus_config": {
-    "state_machine": "arn:aws:states:us-west-2:322322076095:stateMachine:ghrcsbxw-DiscoverGranules",
+    "state_machine": "arn:aws:states:us-west-2:123456789101:stateMachine:ghrcsbxw-DiscoverGranules",
     "execution_name": "rssmif16d-791e4ebb-ad97-44f5-af56-e6047c2a2739"
   }
 }

@@ -1,0 +1,95 @@
+{
+  "input": {},
+  "config": {
+    "provider": {
+      "createdAt": 1634748290011,
+      "id": "private_bucket",
+      "host": "sharedsbx-private",
+      "updatedAt": 1634748290011,
+      "protocol": "s3"
+    },
+    "provider_path": "isslis_v2_nrt__2/2022/0307/",
+    "collection": {
+      "process": "metadataextractor",
+      "granuleIdExtraction": "^(ISS_LIS_SC_V2\\.\\d_(202203|202107)\\d{2}_(16|23)\\d{4}_NRT.*)",
+      "version": "2",
+      "meta": {
+        "discover_tf": {
+          "depth": 0,
+          "dir_reg_ex": ".*"
+        },
+        "age-off": "14 days",
+        "hyrax_processing": "true",
+        "provider_path": "isslis_v2_nrt__2/2022/0307/",
+        "excludeFileTypes": [
+          ".*"
+        ],
+        "collection_type": "nrt",
+        "metadata_extractor": [
+          {
+            "regex": "^(.*)\\.(hdf|nc)$",
+            "module": "netcdf"
+          }
+        ]
+      },
+      "createdAt": 1646671874807,
+      "name": "isslis_v2_nrt",
+      "duplicateHandling": "skip",
+      "files": [
+        {
+          "bucket": "protected",
+          "regex": "^ISS_LIS_SC_V2\\.\\d_\\d{8}_\\d{6}_NRT\\.(hdf|nc)(\\.dmrpp)?$",
+          "reportToEms": "True",
+          "sampleFileName": "ISS_LIS_SC_V2.1_20210701_235754_NRT.hdf"
+        },
+        {
+          "bucket": "public",
+          "regex": "^ISS_LIS_SC_V2\\.\\d_\\d{8}_\\d{6}_NRT\\.(hdf|nc)\\.cmr\\.(json|xml)$",
+          "reportToEms": "True",
+          "sampleFileName": "ISS_LIS_SC_V2.1_20210701_235754_NRT.hdf.cmr.xml"
+        }
+      ],
+      "updatedAt": 1646671874807,
+      "url_path": "isslis_v2_nrt__2/pub/{extractYear(cmrMetadata.TemporalExtent.RangeDateTime.BeginningDateTime)}{extractMonth(cmrMetadata.TemporalExtent.RangeDateTime.BeginningDateTime)}/",
+      "reportToEms": "True",
+      "granuleId": "^ISS_LIS_SC_V2\\.\\d_\\d{8}_\\d{6}_NRT\\.(hdf|nc)$",
+      "sampleFileName": "ISS_LIS_SC_V2.1_20210701_235754_NRT.hdf"
+    },
+    "buckets": {
+      "dashboard": {
+        "name": "sharedsbx-dashboard",
+        "type": "public"
+      },
+      "internal": {
+        "name": "sharedsbx-internal",
+        "type": "internal"
+      },
+      "orca_default": {
+        "name": "",
+        "type": "orca"
+      },
+      "private": {
+        "name": "sharedsbx-private",
+        "type": "private"
+      },
+      "protected": {
+        "name": "sharedsbx-protected",
+        "type": "protected"
+      },
+      "public": {
+        "name": "sharedsbx-public",
+        "type": "public"
+      },
+      "sharedprivate": {
+        "name": "ghrcw-private",
+        "type": "sharedprivate"
+      }
+    },
+    "stack": "sharedsbx",
+    "duplicateGranuleHandling": "replace"
+  },
+  "cumulus_config": {
+    "state_machine": "arn:aws:states:us-west-2:123456789101:stateMachine:sharedsbx-DiscoverGranules",
+    "execution_name": "dg-isslis-v2-nrt-76ca43ec-c30d-46fa-8711-8c20edbcacbb"
+  }
+}

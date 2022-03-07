@@ -144,9 +144,10 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        self.dg = DiscoverGranules(self.get_sample_event())
+        self.dg = DiscoverGranules(self.get_sample_event('skip_s3'))
         self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex="^key1")
+        ret_dict = self.dg.discover_granules_s3('test_host', '', file_reg_ex=None, dir_reg_ex=".*key1.*")
+        print(ret_dict)
         self.assertEqual(len(ret_dict), 1)
 
 
