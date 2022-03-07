@@ -32,6 +32,7 @@ class DiscoverGranules:
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        print(f'url_path: {self.collection.get("url_path")}')
         meta = self.collection.get('meta')
         self.discover_tf = meta.get('discover_tf')
         self.host = self.provider.get('host')
@@ -301,7 +302,9 @@ class DiscoverGranules:
         ret_dict = {}
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
-                key = s3_object['Key']
+                print(s3_object)
+                key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
+                print(f's3_key: {key}')
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
                 file_name = sections[1]
@@ -319,44 +322,34 @@ class DiscoverGranules:
 
         return ret_dict
 
-    @staticmethod
-    def get_s3_filename(filename: str):
+    def get_path(self, key):
         """
-        Helper function to prevent having to check the protocol for each file name assignment when generating the
-        cumulus output.
-        :param filename: In the case of granules discovered in S3 the entire key of the file has to be stored otherwise
-        the ingest stage will fail.
-        :return: The unmodified filename
+        Extracts the path and file name from they key as needed for the cumulus output
+        :param key: The full url where the file was discovered
+        :return: A dictionary containing the path and name. <protocol>://<host>/some/path/and/file will return
+        {'path': some/path/and, 'name': file}
         """
-        return filename.rsplit('/', 1)
+        temp = key.rsplit('/', 1)
+        name = temp[1]
+        replace_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        path = temp[0].replace(replace_str, '')
+        return {'path': path, 'name': name}
 
-    def get_non_s3_filename(self, filename: str):
-        """
-        Helper function to prevent having to check the protocol for each file name assignment when generating the
-        cumulus output.
-        :param filename: The current non-S3 protocols supported (http/https) require the base file name only.
-        :return: The last part of the filename ie some/name/with/slashes will return slashes
-        """
-        host = self.provider["host"]
-        t = re.search(rf'{host}', filename)
-        return filename[t.end():].rsplit('/', 1)
-
-    def generate_cumulus_record(self, key, value, filename_funct, mapping):
+    def generate_cumulus_record(self, key, value, mapping):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
         :param key: The name of the file
         :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
-        :param filename_funct: Helper function to extract the file name depending on the protocol used
         :param mapping: Dictionary of each file extension and needed output fields from the event
         :return: A cumulus granule dictionary
         """
         epoch = value.get('Last-Modified')
-        path_and_name = filename_funct(key)
+        path_and_name_dict = self.get_path(key)
         version = self.collection.get('version', '')
 
         temp_dict = {}
         for reg_key, v in mapping.items():
-            res = re.search(reg_key, path_and_name[1])
+            res = re.search(reg_key, path_and_name_dict.get('name'))
             if res:
                 temp_dict.update(v)
                 break
@@ -369,7 +362,7 @@ class DiscoverGranules:
             rdg_logger.info(f'LZARDS backing up: {key}')
 
         return {
-            'granuleId': path_and_name[1],
+            'granuleId': path_and_name_dict.get('name'),
             'dataType': self.collection.get('name', ''),
             'version': version,
             'files': [
@@ -377,12 +370,12 @@ class DiscoverGranules:
                     'bucket': f'{self.config_stack}-{temp_dict.get("bucket")}',
                     'checksum': checksum,
                     'checksumType': checksum_type,
-                    'name': path_and_name[1],
-                    'path': path_and_name[0],
+                    'filename': key,
+                    'name': path_and_name_dict.get('name'),
+                    'path': path_and_name_dict.get('path'),
                     'size': value.get('Size'),
                     'time': epoch,
                     'type': '',
-                    'url_path': self.collection.get('url_path', '')
                 }
             ]
         }
@@ -393,8 +386,6 @@ class DiscoverGranules:
         :param ret_dict: Dictionary containing only newly discovered granules.
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
-        filename_funct = self.get_s3_filename if self.provider["protocol"] == 's3' else self.get_non_s3_filename
-
         # Extract the data from the files array in the event
         mapping = {}
         for file_dict in self.files_list:
@@ -403,7 +394,7 @@ class DiscoverGranules:
             lzards = file_dict.get('lzards', {}).get('backup')
             mapping[reg] = {'bucket': bucket, 'lzards': lzards}
 
-        return [self.generate_cumulus_record(k, v, filename_funct, mapping) for k, v in ret_dict.items()]
+        return [self.generate_cumulus_record(k, v, mapping) for k, v in ret_dict.items()]
 
 
 if __name__ == '__main__':
