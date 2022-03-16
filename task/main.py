@@ -35,7 +35,18 @@ class DiscoverGranules:
         meta = self.collection.get('meta')
         self.discover_tf = meta.get('discover_tf')
         self.host = self.provider.get('host')
-        self.s3_client = boto3.client('s3')
+
+        aws_key_id = None
+        aws_secret_access_key = None
+        if self.host == 'geocloud-daac':
+            aws_key_id = os.getenv("rdg_aws_access_key_id", None)
+            aws_secret_access_key = os.getenv("rdg_aws_secret_access_key", None)
+
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_key_id,
+            aws_secret_access_key=aws_secret_access_key
+        )
         self.session = requests.Session()
 
         self.config_stack = self.config.get('stack')
