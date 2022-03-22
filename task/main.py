@@ -409,6 +409,5 @@ class DiscoverGranules:
 
 
 if __name__ == '__main__':
-    print('test%s%s' %('te st', 'also'))
     pass
 
