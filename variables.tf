@@ -3,16 +3,6 @@ variable "aws_profile" {
   default = "SBX"
 }
 
-variable "access_key_id_glm_arn" {
-  type = string
-  default = null
-}
-
-variable "aws_secret_key_glm_arn" {
-  type = string
-  default = null
-}
-
 variable "cumulus_lambda_role_arn" {
   type = string
 }
@@ -71,9 +61,3 @@ variable "timeout" {
   description = "Lambda function time-out"
   default     = 900
 }
-
-
-
-
-
-
