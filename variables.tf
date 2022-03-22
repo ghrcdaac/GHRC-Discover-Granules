@@ -61,9 +61,3 @@ variable "timeout" {
   description = "Lambda function time-out"
   default     = 900
 }
-
-
-
-
-
-

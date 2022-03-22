@@ -35,3 +35,24 @@ resource "aws_lambda_function" "discover_granules" {
     arn              = var.efs_arn
   }
 }
+
+resource "aws_iam_policy" "ssm_test" {
+  policy = jsonencode(
+  {
+    Version = "2012-10-17"
+    "Statement" = [
+      {
+        Effect = "Allow",
+        Action = "ssm:GetParameter",
+        Resource = [
+          "arn:aws:ssm:*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "glm-ssm-policy-attach" {
+  policy_arn = aws_iam_policy.ssm_test.arn
+  role = var.cumulus_lambda_role_name
+}

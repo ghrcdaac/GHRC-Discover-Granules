@@ -35,7 +35,21 @@ class DiscoverGranules:
         meta = self.collection.get('meta')
         self.discover_tf = meta.get('discover_tf')
         self.host = self.provider.get('host')
-        self.s3_client = boto3.client('s3')
+
+        aws_key_id = None
+        aws_secret_key = None
+        key_id_name = meta.get('aws_key_id_name')
+        secret_key_name = meta.get('aws_secret_key_name')
+        if key_id_name and secret_key_name:
+            ssm_client = boto3.client('ssm')
+            aws_key_id = ssm_client.get_parameter(Name=key_id_name).get('value')
+            aws_secret_key = ssm_client.get_parameter(Name=key_id_name).get('value')
+
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_key_id,
+            aws_secret_access_key=aws_secret_key
+        )
         self.session = requests.Session()
 
         self.config_stack = self.config.get('stack')
@@ -396,3 +410,4 @@ class DiscoverGranules:
 
 if __name__ == '__main__':
     pass
+
