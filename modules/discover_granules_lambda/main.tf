@@ -45,8 +45,7 @@ resource "aws_iam_policy" "ssm_test" {
         Effect = "Allow",
         Action = "ssm:GetParameter",
         Resource = [
-          var.access_key_id_glm_arn,
-          var.aws_secret_key_glm_arn
+          "arn:aws:ssm:*"
         ]
       }
     ]
