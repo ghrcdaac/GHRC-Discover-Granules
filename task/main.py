@@ -37,15 +37,18 @@ class DiscoverGranules:
         self.host = self.provider.get('host')
 
         aws_key_id = None
-        aws_secret_access_key = None
-        if self.host == 'geocloud-daac':
-            aws_key_id = os.getenv("rdg_aws_access_key_id", None)
-            aws_secret_access_key = os.getenv("rdg_aws_secret_access_key", None)
+        aws_secret_key = None
+        key_id_name = meta.get('aws_key_id_name')
+        secret_key_name = meta.get('aws_secret_key_name')
+        if key_id_name and secret_key_name:
+            ssm_client = boto3.client('ssm')
+            aws_key_id = ssm_client.get_parameter(Name=key_id_name).get('value')
+            aws_secret_key = ssm_client.get_parameter(Name=key_id_name).get('value')
 
         self.s3_client = boto3.client(
             's3',
             aws_access_key_id=aws_key_id,
-            aws_secret_access_key=aws_secret_access_key
+            aws_secret_access_key=aws_secret_key
         )
         self.session = requests.Session()
 
@@ -406,4 +409,6 @@ class DiscoverGranules:
 
 
 if __name__ == '__main__':
+    print('test%s%s' %('te st', 'also'))
     pass
+

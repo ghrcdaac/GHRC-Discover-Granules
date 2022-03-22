@@ -21,4 +21,6 @@ module "aws_lambda_function" {
   memory_size               = var.memory_size
   efs_arn                   = var.efs_arn
   efs_mount_path            = var.efs_mount_path
+  access_key_id_glm_arn     = var.access_key_id_glm_arn
+  aws_secret_key_glm_arn    = var.aws_secret_key_glm_arn
 }
