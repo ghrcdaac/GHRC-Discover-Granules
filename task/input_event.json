@@ -4,7 +4,7 @@
     'provider': {
       'host': 'data.remss.com',
       'updatedAt': 1617397534874,
-      'protocol': 'http',
+      'protocol': 'https',
       'createdAt': 1617397534874,
       'id': 'rss_provider',
       'globalConnectionLimit': 900
@@ -100,7 +100,7 @@
     'duplicateGranuleHandling': 'replace'
   },
   'cumulus_config': {
-    'state_machine': 'arn:aws:states:us-west-2:322322076095:stateMachine:ghrcsbxw-DiscoverGranules',
+    'state_machine': 'arn:aws:states:us-west-2:123654:stateMachine:ghrcsbxw-DiscoverGranules',
     'execution_name': 'da3ae583-2e8e-f162-6007-f27983d2c895'
   }
 }
