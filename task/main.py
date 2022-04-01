@@ -27,6 +27,11 @@ class DiscoverGranules(DiscoverGranulesBase):
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
+        self.switcher = {
+            'http': DiscoverGranulesHTTP,
+            'https': DiscoverGranulesHTTP,
+            's3': DiscoverGranulesS3
+        }
 
     def discover(self):
         """
@@ -102,12 +107,8 @@ class DiscoverGranules(DiscoverGranulesBase):
         correct cumulus event
         """
         protocol = self.provider["protocol"]
-        switcher = {
-            'http': DiscoverGranulesHTTP,
-            'https': DiscoverGranulesHTTP,
-            's3': DiscoverGranulesS3
-        }
-        return switcher.get(protocol)(self.event, self.logger).discover_granules()
+
+        return self.switcher.get(protocol)(self.event, self.logger).discover_granules()
 
 
 if __name__ == '__main__':
