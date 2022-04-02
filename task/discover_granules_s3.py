@@ -1,4 +1,4 @@
-from discover_granules_base import DiscoverGranulesBase
+from task.discover_granules_base import DiscoverGranulesBase
 import boto3
 import re
 
@@ -27,7 +27,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     def get_s3_client_with_keys(self, key_id_name, secret_key_name):
         ssm_client = boto3.client('ssm')
         id_key = lambda id_name: ssm_client.get_parameter(Name=id_name).get('value')
-        return self.get_s3_client(aws_key_id=key_id_name, aws_secret_key=id_key(secret_key_name))
+        return self.get_s3_client(aws_key_id=id_key(key_id_name), aws_secret_key=id_key(secret_key_name))
 
     def discover_granules(self):
         """

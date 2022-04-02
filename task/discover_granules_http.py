@@ -1,4 +1,4 @@
-from discover_granules_base import DiscoverGranulesBase
+from task.discover_granules_base import DiscoverGranulesBase
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -25,21 +25,21 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         """
         return self.session.get(url, verify=verify)
 
-    def html_request(self, url_path: str):
+    def html_request(self):
         """
         :param url_path: The base URL where the files are served
         :return: The html of the page if the fetch is successful
         """
-        opened_url = self.fetch_session(url_path)
+        opened_url = self.fetch_session(self.url_path)
         return BeautifulSoup(opened_url.text, features='html.parser')
 
-    def headers_request(self, url_path: str):
+    def headers_request(self):
         """
         Performs a head request for the given url.
         :param url_path The URL for the request
         :return Results of the request
         """
-        return self.session.head(url_path).headers
+        return self.session.head(self.url_path).headers
 
     def get_headers(self, granule):
         """
@@ -74,7 +74,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
         granule_dict = {}
 
-        fetched_html = self.html_request(self.url_path)
+        fetched_html = self.html_request()
         directory_list = []
         for a_tag in fetched_html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
@@ -108,6 +108,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         # Make 3 as the maximum depth
         self.depth = min(abs(self.depth), 3)
         if self.depth > 0:
+            print(directory_list)
             for directory in directory_list:
                 self.depth -= 1
                 self.url_path = directory
