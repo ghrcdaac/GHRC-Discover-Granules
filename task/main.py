@@ -4,7 +4,7 @@ from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_base import DiscoverGranulesBase
 from cumulus_logger import CumulusLogger
-import task.dgm
+import dgm
 from task.helpers import MyLogger
 
 rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()

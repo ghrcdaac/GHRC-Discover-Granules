@@ -33,13 +33,12 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         opened_url = self.fetch_session(self.url_path)
         return BeautifulSoup(opened_url.text, features='html.parser')
 
-    def headers_request(self):
+    def headers_request(self, url_path):
         """
         Performs a head request for the given url.
-        :param url_path The URL for the request
         :return Results of the request
         """
-        return self.session.head(self.url_path).headers
+        return self.session.head(url_path).headers
 
     def get_headers(self, granule):
         """
@@ -110,10 +109,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         if self.depth > 0:
             print(directory_list)
             for directory in directory_list:
-                self.depth -= 1
+
                 self.url_path = directory
                 granule_dict.update(
                     self.discover_granules()
                 )
-
+            self.depth -= 1
         return granule_dict

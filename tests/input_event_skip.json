@@ -9,7 +9,7 @@
       "id": "rss_provider",
       "globalConnectionLimit": 900
     },
-    "provider_path": "/ssmi/f16/bmaps_v07/y2021/",
+    "provider_path": "/ssmi/f16/bmaps_v07/y2021/m03/",
     "collection": {
       "process": "rss",
       "granuleIdExtraction": "^(f16_\\d{8}v7.gz)$",
@@ -17,12 +17,12 @@
       "dataType": "rssmif16d",
       "meta": {
         "discover_tf": {
-          "depth": 3,
+          "depth": 2,
           "dir_reg_ex": ".*"
         },
         "granuleRecoveryWorkflow": "DrRecoveryWorkflow",
         "hyrax_processing": "true",
-        "provider_path": "/ssmi/f16/bmaps_v07/y2021/",
+        "provider_path": "/ssmi/f16/bmaps_v07/y2021/m03/",
         "collectionVersion": "7",
         "collection_type": "test_collection",
         "collectionName": "rssmif16d",
