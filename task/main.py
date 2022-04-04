@@ -351,6 +351,9 @@ class DiscoverGranules:
         return ret_dict
 
     def prep_sftp(self):
+        """
+        Handles extracting the necessary information from the event to discover granules using the SFTP protocol.
+        """
         host = self.provider.get('host')
         port = self.provider.get('port')
         transport = paramiko.Transport((host, port))
@@ -369,16 +372,25 @@ class DiscoverGranules:
     def discover_granules_sftp(self, sftp_client: paramiko.SFTPClient, path: str, file_reg_ex: str = None,
                                dir_reg_ex: str = None,
                                depth: int = 0):
+        """
+        Discover granules on an SFTP provider
+        :param sftp_client: An initialized paramiko SFTP client
+        :param path: The location to begin discovery
+        :param file_reg_ex: Regular expression used to filter files
+        :param dir_reg_ex: Regular expression used to filter directories
+        :param depth: The positive number of levels to search down, will use the lesser of 3 or depth
+        :rtype: dictionary of discovered granules containing path, etag, and last modified dates
+        """
         directory_list = []
         granule_dict = {}
-        print(f'Exploring path {path} depth {depth}')
+        rdg_logger.info(f'Exploring path {path} depth {depth}')
         sftp_client.chdir(path)
 
         for dir_file in sftp_client.listdir():
             file_stat = sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
             if file_type == 'd' and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
-                print(f'Found directory: {dir_file}')
+                rdg_logger.info(f'Found directory: {dir_file}')
                 directory_list.append(dir_file)
             elif file_reg_ex is None or re.search(file_reg_ex, dir_file):
                 populate_dict(granule_dict, f'{path}/{dir_file}', etag='N/A',
@@ -485,42 +497,6 @@ def populate_dict(target_dict, key, etag, last_mod, size):
         'Last-Modified': str(last_mod),
         'Size': size
     }
-
-
-def prep_sftp(host: str, port: int, username: str, password: str, path: str):
-    transport = paramiko.Transport((host, port))
-    transport.connect(None, username, password)
-    sftp_client = paramiko.SFTPClient.from_transport(transport)
-    return discover_granules_sftp(sftp_client=sftp_client, path=path, file_reg_ex='test1.*', dir_reg_ex=None, depth=1)
-
-
-def discover_granules_sftp(sftp_client: paramiko.SFTPClient, path: str, file_reg_ex: str = None, dir_reg_ex: str = None,
-                           depth: int = 0):
-    directory_list = []
-    granule_dict = {}
-    sftp_client.chdir(path)
-
-    for dir_file in sftp_client.listdir():
-        file_stat = sftp_client.stat(dir_file)
-        file_type = str(file_stat)[0]
-        if file_type == 'd' and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
-            print(f'Found directory: {dir_file}')
-            directory_list.append(dir_file)
-        elif file_reg_ex is None or re.search(file_reg_ex, dir_file):
-            populate_dict(granule_dict, f'{path}/{dir_file}', etag='N/A',
-                          last_mod=file_stat.st_mtime, size=file_stat.st_size)
-        else:
-            rdg_logger.warning(f'Regex did not match dir_file: {dir_file}')
-
-    depth = min(abs(depth), 3)
-    if depth > 0:
-        for directory in directory_list:
-            granule_dict.update(
-                discover_granules_sftp(sftp_client, path=directory, file_reg_ex=file_reg_ex,
-                                       dir_reg_ex=dir_reg_ex, depth=(depth - 1))
-            )
-    sftp_client.chdir('../')
-    return granule_dict
 
 if __name__ == '__main__':
     pass
