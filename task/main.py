@@ -1,7 +1,9 @@
+import base64
 import logging
 import os
 import re
 import boto3
+import paramiko
 import requests
 import urllib3
 from bs4 import BeautifulSoup
@@ -43,7 +45,7 @@ class DiscoverGranules:
         if key_id_name and secret_key_name:
             ssm_client = boto3.client('ssm')
             aws_key_id = ssm_client.get_parameter(Name=key_id_name).get('value')
-            aws_secret_key = ssm_client.get_parameter(Name=key_id_name).get('value')
+            aws_secret_key = ssm_client.get_parameter(Name=secret_key_name).get('value')
 
         self.s3_client = boto3.client(
             's3',
@@ -60,6 +62,21 @@ class DiscoverGranules:
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
 
         self.lzards_backup = self.collection.get('files')
+
+    @staticmethod
+    def decode_decrypt(_ciphertext):
+        kms_client = boto3.client('kms')
+        decrypted_text = None
+        try:
+            response = kms_client.decrypt(
+                CiphertextBlob=base64.b64decode(_ciphertext),
+                KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
+            )
+            decrypted_text = response["Plaintext"].decode()
+        except TypeError:
+            rdg_logger.error('ciphertext was empty.')
+
+        return decrypted_text
 
     def discover(self):
         """
@@ -204,14 +221,6 @@ class DiscoverGranules:
         """
         return getattr(self, f'prep_{self.provider["protocol"]}')()
 
-    def prep_s3(self):
-        """
-        Extracts the appropriate information for discovering granules using the S3 protocol
-        """
-        return self.discover_granules_s3(host=self.host, prefix=self.collection['meta']['provider_path'],
-                                         file_reg_ex=self.collection.get('granuleIdExtraction'),
-                                         dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
-
     def prep_https(self):
         """
         Constructs an https url from the event provided at initialization and calls the http discovery function
@@ -301,6 +310,14 @@ class DiscoverGranules:
             }
         )
 
+    def prep_s3(self):
+        """
+        Extracts the appropriate information for discovering granules using the S3 protocol
+        """
+        return self.discover_granules_s3(host=self.host, prefix=self.collection['meta']['provider_path'],
+                                         file_reg_ex=self.collection.get('granuleIdExtraction'),
+                                         dir_reg_ex=self.discover_tf.get('dir_reg_ex'))
+
     def discover_granules_s3(self, host: str, prefix: str, file_reg_ex=None, dir_reg_ex=None):
         """
         Fetch the link of the granules in the host s3 bucket.
@@ -332,6 +349,52 @@ class DiscoverGranules:
                     self.populate_dict(ret_dict, key, etag, last_modified, size)
 
         return ret_dict
+
+    def prep_sftp(self):
+        host = self.provider.get('host')
+        port = self.provider.get('port')
+        transport = paramiko.Transport((host, port))
+        username_cypher = self.provider.get('username_cypher')
+        password_cypher = self.provider.get('password_cypher')
+        transport.connect(None, self.decode_decrypt(username_cypher), self.decode_decrypt(password_cypher))
+        sftp_client = paramiko.SFTPClient.from_transport(transport)
+
+        path = self.config.get('provider_path')
+        file_reg_ex = self.collection.get('granuleIdExtraction', None)
+        dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
+        depth = self.discover_tf.get('depth')
+        return self.discover_granules_sftp(sftp_client=sftp_client, path=path, file_reg_ex=file_reg_ex,
+                                           dir_reg_ex=dir_reg_ex, depth=depth)
+
+    def discover_granules_sftp(self, sftp_client: paramiko.SFTPClient, path: str, file_reg_ex: str = None,
+                               dir_reg_ex: str = None,
+                               depth: int = 0):
+        directory_list = []
+        granule_dict = {}
+        print(f'Exploring path {path} depth {depth}')
+        sftp_client.chdir(path)
+
+        for dir_file in sftp_client.listdir():
+            file_stat = sftp_client.stat(dir_file)
+            file_type = str(file_stat)[0]
+            if file_type == 'd' and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
+                print(f'Found directory: {dir_file}')
+                directory_list.append(dir_file)
+            elif file_reg_ex is None or re.search(file_reg_ex, dir_file):
+                populate_dict(granule_dict, f'{path}/{dir_file}', etag='N/A',
+                              last_mod=file_stat.st_mtime, size=file_stat.st_size)
+            else:
+                rdg_logger.warning(f'Regex did not match dir_file: {dir_file}')
+
+        depth = min(abs(depth), 3)
+        if depth > 0:
+            for directory in directory_list:
+                granule_dict.update(
+                    self.discover_granules_sftp(sftp_client, path=directory, file_reg_ex=file_reg_ex,
+                                                dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+                )
+        sftp_client.chdir('../')
+        return granule_dict
 
     def get_path(self, key):
         """
@@ -408,6 +471,56 @@ class DiscoverGranules:
         return [self.generate_cumulus_record(k, v, mapping) for k, v in ret_dict.items()]
 
 
+def populate_dict(target_dict, key, etag, last_mod, size):
+    """
+    Helper function to populate a dictionary with ETag and Last-Modified fields.
+    Clarifying Note: This function works by exploiting the mutability of dictionaries
+    :param target_dict: Dictionary to add a sub-dictionary to
+    :param key: Value that will function as the new dictionary element key
+    :param etag: The value of the ETag retrieved from the provider server
+    :param last_mod: The value of the Last-Modified value retrieved from the provider server
+    """
+    target_dict[key] = {
+        'ETag': etag,
+        'Last-Modified': str(last_mod),
+        'Size': size
+    }
+
+
+def prep_sftp(host: str, port: int, username: str, password: str, path: str):
+    transport = paramiko.Transport((host, port))
+    transport.connect(None, username, password)
+    sftp_client = paramiko.SFTPClient.from_transport(transport)
+    return discover_granules_sftp(sftp_client=sftp_client, path=path, file_reg_ex='test1.*', dir_reg_ex=None, depth=1)
+
+
+def discover_granules_sftp(sftp_client: paramiko.SFTPClient, path: str, file_reg_ex: str = None, dir_reg_ex: str = None,
+                           depth: int = 0):
+    directory_list = []
+    granule_dict = {}
+    sftp_client.chdir(path)
+
+    for dir_file in sftp_client.listdir():
+        file_stat = sftp_client.stat(dir_file)
+        file_type = str(file_stat)[0]
+        if file_type == 'd' and (dir_reg_ex is None or re.search(dir_reg_ex, path)):
+            print(f'Found directory: {dir_file}')
+            directory_list.append(dir_file)
+        elif file_reg_ex is None or re.search(file_reg_ex, dir_file):
+            populate_dict(granule_dict, f'{path}/{dir_file}', etag='N/A',
+                          last_mod=file_stat.st_mtime, size=file_stat.st_size)
+        else:
+            rdg_logger.warning(f'Regex did not match dir_file: {dir_file}')
+
+    depth = min(abs(depth), 3)
+    if depth > 0:
+        for directory in directory_list:
+            granule_dict.update(
+                discover_granules_sftp(sftp_client, path=directory, file_reg_ex=file_reg_ex,
+                                       dir_reg_ex=dir_reg_ex, depth=(depth - 1))
+            )
+    sftp_client.chdir('../')
+    return granule_dict
+
 if __name__ == '__main__':
     pass
-
