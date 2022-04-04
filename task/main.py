@@ -371,7 +371,7 @@ class DiscoverGranules:
                                depth: int = 0):
         directory_list = []
         granule_dict = {}
-        print(f'Exploring path {path} depth {depth}')
+        rdg_logger.info(f'Exploring path {path} depth {depth}')
         sftp_client.chdir(path)
 
         for dir_file in sftp_client.listdir():
