@@ -14,6 +14,11 @@ database file in S3.
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
 Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
+## Supported Protocols and Limitations
+Currently granules can be discovered via AWS S3, HTTP/HTTPS, and SFTP protocols. There are some limitations such as 
+HTTP/HTTPS not supporting redirects or username and passwords. Additionally, SFTP does not support public/private key
+authentication.
+
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
 * `<major>+1` means we changed the infrastructure and/or the major components that makes this software run. Will definitely 
