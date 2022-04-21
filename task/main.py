@@ -73,8 +73,9 @@ class DiscoverGranules:
                 KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
             )
             decrypted_text = response["Plaintext"].decode()
-        except TypeError:
-            rdg_logger.error('ciphertext was empty.')
+        except Exception as e:
+            rdg_logger.error(f'decode_decrypt exception: {e}')
+            raise
 
         return decrypted_text
 
@@ -355,10 +356,10 @@ class DiscoverGranules:
         Handles extracting the necessary information from the event to discover granules using the SFTP protocol.
         """
         host = self.provider.get('host')
-        port = self.provider.get('port')
+        port = self.provider.get('port', 22)
         transport = paramiko.Transport((host, port))
-        username_cypher = self.provider.get('username_cypher')
-        password_cypher = self.provider.get('password_cypher')
+        username_cypher = self.provider.get('username')
+        password_cypher = self.provider.get('password')
         transport.connect(None, self.decode_decrypt(username_cypher), self.decode_decrypt(password_cypher))
         sftp_client = paramiko.SFTPClient.from_transport(transport)
 
