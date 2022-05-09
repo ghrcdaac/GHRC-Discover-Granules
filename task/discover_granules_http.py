@@ -58,14 +58,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
     def discover_granules(self):
         """
         Fetch the link of the granules in the host url_path
-        :param url_path: The base URL where the files are served
-        :type url_path: string
-        :param file_reg_ex: Regular expression used to filter files
-        :type file_reg_ex: string
-        :param dir_reg_ex: Regular expression used to filter directories
-        :param depth: The positive number of levels to search down, will use the lesser of 3 or depth
-        :return: links of files matching reg_ex (if reg_ex is defined)
-        :rtype: dictionary of urls
         """
 
         file_reg_ex = self.collection.get('granuleIdExtraction')
@@ -109,7 +101,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         if self.depth > 0:
             print(directory_list)
             for directory in directory_list:
-
                 self.url_path = directory
                 granule_dict.update(
                     self.discover_granules()
