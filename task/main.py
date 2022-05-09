@@ -4,10 +4,11 @@ from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_base import DiscoverGranulesBase
 from cumulus_logger import CumulusLogger
-import dgm
+from task.dgm import *
 from task.helpers import MyLogger
 
-rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()
+rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) \
+    if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()
 
 
 class DiscoverGranules(DiscoverGranulesBase):
@@ -48,8 +49,8 @@ class DiscoverGranules(DiscoverGranulesBase):
                 name = f'{file.get("path")}/{file.get("name")}'
                 names.append(name)
 
-            with dgm.initialize_db(self.db_file_path):
-                num = dgm.Granule().delete_granules_by_names(names)
+            with initialize_db(self.db_file_path):
+                num = Granule().delete_granules_by_names(names)
 
             rdg_logger.info(f'Cleaned {num} records from the database.')
             pass
@@ -96,8 +97,8 @@ class DiscoverGranules(DiscoverGranulesBase):
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        with dgm.initialize_db(self.db_file_path):
-            getattr(dgm.Granule, f'db_{duplicates}')(dgm.Granule(), granule_dict)
+        with initialize_db(self.db_file_path):
+            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
 
         rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
@@ -107,7 +108,6 @@ class DiscoverGranules(DiscoverGranulesBase):
         correct cumulus event
         """
         protocol = self.provider["protocol"]
-
         return self.switcher.get(protocol)(self.event, self.logger).discover_granules()
 
 
