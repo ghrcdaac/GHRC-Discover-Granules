@@ -5,6 +5,7 @@ from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_base import DiscoverGranulesBase
 from cumulus_logger import CumulusLogger
 from task.dgm import *
+from task.discover_granules_sftp import DiscoverGranulesSFTP
 from task.helpers import MyLogger
 
 rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) \
@@ -31,7 +32,8 @@ class DiscoverGranules(DiscoverGranulesBase):
         self.switcher = {
             'http': DiscoverGranulesHTTP,
             'https': DiscoverGranulesHTTP,
-            's3': DiscoverGranulesS3
+            's3': DiscoverGranulesS3,
+            'sftp': DiscoverGranulesSFTP
         }
 
     def discover(self):
@@ -39,9 +41,9 @@ class DiscoverGranules(DiscoverGranulesBase):
         Helper function to kick off the entire discover process
         """
         output = {}
-        granules = self.collection.get('meta', {}).get('granules', None)
         if self.input:
             # If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
+            # from the database.
             names = []
             rdg_logger.warning(self.input.get('granules', {}))
             for granule in self.input.get('granules', {}):
@@ -53,15 +55,6 @@ class DiscoverGranules(DiscoverGranulesBase):
                 num = Granule().delete_granules_by_names(names)
 
             rdg_logger.info(f'Cleaned {num} records from the database.')
-            pass
-        elif granules:
-            # Re-ingest: Takes provided input and generates cumulus output.
-            # TODO: This should be removed as it is wasteful to load the entire lambda just to generate output.
-            rdg_logger.info(f'Received {len(granules)} to re-ingest.')
-            granule_dict = {}
-            for granule in granules:
-                self.populate_dict(granule_dict, key=granule, etag=None, last_mod=None, size=None)
-            output = self.cumulus_output_generator(granule_dict)
             pass
         else:
             # Discover granules
@@ -108,6 +101,7 @@ class DiscoverGranules(DiscoverGranulesBase):
         correct cumulus event
         """
         protocol = self.provider["protocol"]
+        self.logger.info(f'protocol: {protocol}')
         return self.switcher.get(protocol)(self.event, self.logger).discover_granules()
 
 

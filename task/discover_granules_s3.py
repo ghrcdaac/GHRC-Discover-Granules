@@ -2,9 +2,10 @@ from task.discover_granules_base import DiscoverGranulesBase
 import boto3
 import re
 
+
 class DiscoverGranulesS3(DiscoverGranulesBase):
     """
-       Class to discover granules from S3 provider
+    Class to discover granules from S3 provider
     """
 
     def __init__(self, event, logger):
@@ -14,7 +15,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.s3_client = self.get_s3_client() if None in [key_id_name, secret_key_name] \
             else self.get_s3_client_with_keys(key_id_name, secret_key_name)
 
-    def get_s3_client(self, aws_key_id=None, aws_secret_key=None):
+    @staticmethod
+    def get_s3_client(aws_key_id=None, aws_secret_key=None):
         """
         Create and return an S3 client
         """
@@ -32,11 +34,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     def discover_granules(self):
         """
         Fetch the link of the granules in the host s3 bucket.
-        :param host: The bucket where the files are served.
-        :param prefix: The path for the s3 granule.
-        :param file_reg_ex: Regular expression used to filter files.
-        :param dir_reg_ex: Regular expression used to filter directories.
-        :return: links of files matching reg_ex (if reg_ex is defined).
         """
         host = self.host
         prefix = self.collection['meta']['provider_path']
