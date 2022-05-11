@@ -6,6 +6,7 @@ bs4==0.0.1
 certifi==2021.10.8
 charset-normalizer==2.0.11
 click==8.0.3
+coverage==6.3.2
 cumulus-message-adapter==2.0.2
 cumulus-message-adapter-python==2.0.0
 decorator==5.1.1
