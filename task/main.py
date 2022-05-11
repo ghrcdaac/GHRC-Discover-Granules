@@ -1,5 +1,10 @@
+import base64
 import logging
 import os
+
+import boto3
+import requests
+
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_base import DiscoverGranulesBase
@@ -25,7 +30,32 @@ class DiscoverGranules(DiscoverGranulesBase):
         Default values goes here
         """
         super().__init__(event, logger)
+        self.input = event.get('input')
+        self.config = event.get('config')
+        self.provider = self.config.get('provider')
+        self.collection = self.config.get('collection')
+        meta = self.collection.get('meta')
+        self.discover_tf = meta.get('discover_tf')
+        self.host = self.provider.get('host')
 
+        aws_key_id = None
+        aws_secret_key = None
+        key_id_name = meta.get('aws_key_id_name')
+        secret_key_name = meta.get('aws_secret_key_name')
+        if key_id_name and secret_key_name:
+            ssm_client = boto3.client('ssm')
+            aws_key_id = ssm_client.get_parameter(Name=key_id_name).get('value')
+            aws_secret_key = ssm_client.get_parameter(Name=secret_key_name).get('value')
+
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_key_id,
+            aws_secret_access_key=aws_secret_key
+        )
+        self.session = requests.Session()
+
+        self.config_stack = self.config.get('stack')
+        self.files_list = self.config.get('collection').get('files')
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
@@ -35,6 +65,22 @@ class DiscoverGranules(DiscoverGranulesBase):
             's3': DiscoverGranulesS3,
             'sftp': DiscoverGranulesSFTP
         }
+
+    @staticmethod
+    def decode_decrypt(_ciphertext):
+        kms_client = boto3.client('kms')
+        decrypted_text = None
+        try:
+            response = kms_client.decrypt(
+                CiphertextBlob=base64.b64decode(_ciphertext),
+                KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
+            )
+            decrypted_text = response["Plaintext"].decode()
+        except Exception as e:
+            rdg_logger.error(f'decode_decrypt exception: {e}')
+            raise
+
+        return decrypted_text
 
     def discover(self):
         """
@@ -104,6 +150,21 @@ class DiscoverGranules(DiscoverGranulesBase):
         self.logger.info(f'protocol: {protocol}')
         return self.switcher.get(protocol)(self.event, self.logger).discover_granules()
 
+
+def populate_dict(target_dict, key, etag, last_mod, size):
+    """
+    Helper function to populate a dictionary with ETag and Last-Modified fields.
+    Clarifying Note: This function works by exploiting the mutability of dictionaries
+    :param target_dict: Dictionary to add a sub-dictionary to
+    :param key: Value that will function as the new dictionary element key
+    :param etag: The value of the ETag retrieved from the provider server
+    :param last_mod: The value of the Last-Modified value retrieved from the provider server
+    """
+    target_dict[key] = {
+        'ETag': etag,
+        'Last-Modified': str(last_mod),
+        'Size': size
+    }
 
 if __name__ == '__main__':
     pass
