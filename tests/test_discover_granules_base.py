@@ -2,7 +2,7 @@ import json
 import os
 
 from task.discover_granules_base import DiscoverGranulesBase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from bs4 import BeautifulSoup
 import logging
 import unittest
@@ -13,6 +13,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class TestDiscoverGranules(unittest.TestCase):
 
+    @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
         provider = {
             "host": "data.remss.com",
@@ -29,40 +30,31 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg = DiscoverGranulesBase(event, logging)
         self.dg.getSession = MagicMock()
 
-    def setup_http_mock(self, name):
-        """
-        """
-        name_html = self.get_html(name)
-        name_header_responses = self.get_header_responses(name)
-        self.dg.html_request = MagicMock(return_value=BeautifulSoup(name_html, features="html.parser"))
-        self.dg.headers_request = MagicMock(side_effect=name_header_responses)
+    def test_get_path(self):
+        self.dg.provider['host'] = 'host'
+        self.dg.provider['protocol'] = 'protocol'
+        path = 'protocol://host/some/path/and/file'
+        ret_dict = self.dg.get_path(path)
+        self.assertEqual(ret_dict.get('path'), 'some/path/and')
+        self.assertEqual(ret_dict.get('name'), 'file')
 
-    @staticmethod
-    def get_html(provider):
-        with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r') as test_html_file:
-            return test_html_file.read()
+    def test_populate_dict(self):
+        key = 'key'
+        etag = 'ETag'
+        last_mod = 'Last-Modified'
+        size = 'Size'
+        td = {}
+        self.dg.populate_dict(target_dict=td, key=key, etag=etag, last_mod=last_mod, size=size)
+        self.assertIn(key, td)
+        self.assertIn(etag, td['key'])
+        self.assertIn(last_mod, td['key'])
+        self.assertIn(size, td['key'])
 
-    @staticmethod
-    def get_header_responses(provider):
-        with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r') as test_file:
-            return json.load(test_file)['head_responses']
-
-    @staticmethod
-    def get_sample_event(event_type='skip'):
-        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r') as test_event_file:
-            return json.load(test_event_file)
-
-    # def test_get_file_link_remss_without_regex(self):
-    #     self.setup_http_mock(name="remss")
-    #     self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
-    #     retrieved_dict = self.dg.discover_granules()
-    #     self.assertEqual(len(retrieved_dict), 5)
-    #
-    # def test_get_file_link_remss_with_regex(self):
-    #     self.setup_http_mock(name="remss")
-    #     self.dg.event['config']['collection']['granuleIdExtraction'] = "^(f16_\\d{8}v7.gz)$"
-    #     retrieved_dict = self.dg.discover_granules()
-    #     self.assertEqual(len(retrieved_dict), 3)
+    def test_update_etag_lm(self):
+        d1 = {'key1': {'ETag': 'etag1', 'Last-Modified': 'lm1', 'Size': 's1'}}
+        d2 = {}
+        self.dg.update_etag_lm(d2, d1, 'key1')
+        self.assertDictEqual(d1, d2)
     #
     # def test_get_file_link_amsu_without_regex(self):
     #     self.setup_http_mock(name="msut")
