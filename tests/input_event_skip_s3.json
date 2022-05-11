@@ -11,7 +11,7 @@
     "provider_path": "isslis_v2_nrt__2/2022/0307/",
     "collection": {
       "process": "metadataextractor",
-      "granuleIdExtraction": "^(ISS_LIS_SC_V2\\.\\d_(202203|202107)\\d{2}_(16|23)\\d{4}_NRT.*)",
+      "granuleIdExtraction": ".*",
       "version": "2",
       "meta": {
         "discover_tf": {
