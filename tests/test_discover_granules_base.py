@@ -1,6 +1,7 @@
 import json
 import os
-from task.discover_granules_http import DiscoverGranulesHTTP
+
+from task.discover_granules_base import DiscoverGranulesBase
 from unittest.mock import MagicMock
 from bs4 import BeautifulSoup
 import logging
@@ -51,29 +52,29 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r') as test_event_file:
             return json.load(test_event_file)
 
-    def test_get_file_link_remss_without_regex(self):
-        self.setup_http_mock(name="remss")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
-        retrieved_dict = self.dg.discover_granules()
-        self.assertEqual(len(retrieved_dict), 5)
-
-    def test_get_file_link_remss_with_regex(self):
-        self.setup_http_mock(name="remss")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = "^(f16_\\d{8}v7.gz)$"
-        retrieved_dict = self.dg.discover_granules()
-        self.assertEqual(len(retrieved_dict), 3)
-
-    def test_get_file_link_amsu_without_regex(self):
-        self.setup_http_mock(name="msut")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
-        retrieved_dict = self.dg.discover_granules()
-        self.assertEqual(len(retrieved_dict), 4)
-
-    def test_get_file_link_amsu_with_regex(self):
-        self.setup_http_mock(name="msut")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = "^tlt.*\\d{4}_6\\.\\d"
-        retrieved_dict = self.dg.discover_granules()
-        self.assertEqual(len(retrieved_dict), 1)
+    # def test_get_file_link_remss_without_regex(self):
+    #     self.setup_http_mock(name="remss")
+    #     self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
+    #     retrieved_dict = self.dg.discover_granules()
+    #     self.assertEqual(len(retrieved_dict), 5)
+    #
+    # def test_get_file_link_remss_with_regex(self):
+    #     self.setup_http_mock(name="remss")
+    #     self.dg.event['config']['collection']['granuleIdExtraction'] = "^(f16_\\d{8}v7.gz)$"
+    #     retrieved_dict = self.dg.discover_granules()
+    #     self.assertEqual(len(retrieved_dict), 3)
+    #
+    # def test_get_file_link_amsu_without_regex(self):
+    #     self.setup_http_mock(name="msut")
+    #     self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
+    #     retrieved_dict = self.dg.discover_granules()
+    #     self.assertEqual(len(retrieved_dict), 4)
+    #
+    # def test_get_file_link_amsu_with_regex(self):
+    #     self.setup_http_mock(name="msut")
+    #     self.dg.event['config']['collection']['granuleIdExtraction'] = "^tlt.*\\d{4}_6\\.\\d"
+    #     retrieved_dict = self.dg.discover_granules()
+    #     self.assertEqual(len(retrieved_dict), 1)
 
 
 if __name__ == "__main__":
