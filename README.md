@@ -5,6 +5,8 @@
 | |_| | | ___) | |__| |_| |\ V / | |___|  _ <_____| |_| |  _ <  / ___ \| |\  | |_| | |___| |___ ___) |_____| | |  _|
 |____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
 ```
+<a href='https://coveralls.io/github/ghrcdaac/discover-granules-tf-module?branch=master'><img src='https://coveralls.io/repos/github/ghrcdaac/discover-granules-tf-module/badge.svg?branch=master' alt='Coverage Status' /></a>
+
 
 # Overview
 The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS
