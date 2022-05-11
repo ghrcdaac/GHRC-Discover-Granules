@@ -1,9 +1,7 @@
-import json
 import os
 
 from task.discover_granules_base import DiscoverGranulesBase
 from unittest.mock import MagicMock, patch
-from bs4 import BeautifulSoup
 import logging
 import unittest
 from .helpers import get_event
@@ -55,18 +53,6 @@ class TestDiscoverGranules(unittest.TestCase):
         d2 = {}
         self.dg.update_etag_lm(d2, d1, 'key1')
         self.assertDictEqual(d1, d2)
-    #
-    # def test_get_file_link_amsu_without_regex(self):
-    #     self.setup_http_mock(name="msut")
-    #     self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
-    #     retrieved_dict = self.dg.discover_granules()
-    #     self.assertEqual(len(retrieved_dict), 4)
-    #
-    # def test_get_file_link_amsu_with_regex(self):
-    #     self.setup_http_mock(name="msut")
-    #     self.dg.event['config']['collection']['granuleIdExtraction'] = "^tlt.*\\d{4}_6\\.\\d"
-    #     retrieved_dict = self.dg.discover_granules()
-    #     self.assertEqual(len(retrieved_dict), 1)
 
 
 if __name__ == "__main__":
