@@ -12,7 +12,12 @@ rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INF
     if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()
 
 
-def do_switch(param):
+def get_discovery_class(protocol):
+    """
+    Takes in a string parameter and attempts to return the class for a particular protocol.
+    :param protocol: The protocol that granules need to be discovered on.
+    :return A discover granules class for the appropriate protocol
+    """
     switcher = {
         'http': DiscoverGranulesHTTP,
         'https': DiscoverGranulesHTTP,
@@ -20,7 +25,7 @@ def do_switch(param):
         'sftp': DiscoverGranulesSFTP
     }
 
-    return switcher.get(param)
+    return switcher.get(protocol)
 
 
 def discover_granules(event):
@@ -30,7 +35,7 @@ def discover_granules(event):
     """
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
-    dg = do_switch(protocol)(event, rdg_logger)
+    dg = get_discovery_class(protocol)(event, rdg_logger)
 
     output = {}
     if dg.input:
