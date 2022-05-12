@@ -107,8 +107,16 @@ class DiscoverGranulesBase(ABC):
         """
         Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
         :param ret_dict: Dictionary containing only newly discovered granules.
+        granule_dict = {
+           'http://path/to/granule/file.extension': {
+              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'Last-Modified': '1645564956.0
+           },
+           ...
+        }
         :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
         """
+        # self.logger.warning(f'File_list: {self.files_list}')
         # Extract the data from the files array in the event
         mapping = {}
         for file_dict in self.files_list:
@@ -154,6 +162,6 @@ class DiscoverGranulesBase(ABC):
     @abstractmethod
     def discover_granules(self, *args, **kwargs):
         """
-        Abstract method to be implemented bu sub-classes
+        Abstract method to be implemented by sub-classes
         """
-        pass
+        raise NotImplementedError

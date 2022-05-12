@@ -19,6 +19,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     def get_s3_client(aws_key_id=None, aws_secret_key=None):
         """
         Create and return an S3 client
+        :param aws_key_id: If an access key is defined it will be used in the client initialization
+        :param aws_secret_key: If a secret key is defined it will be used in the client initialization
+        :return: An initialize boto3 s3 client
         """
         return boto3.client(
             's3',
@@ -27,13 +30,26 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         )
 
     def get_s3_client_with_keys(self, key_id_name, secret_key_name):
+        """
+        Gets a boto3 s3 client using an aws key id and secret key if provided
+        :param key_id_name: ID of the aws key
+        :param secret_key_name: Name of the aws key
+        """
         ssm_client = boto3.client('ssm')
         id_key = lambda id_name: ssm_client.get_parameter(Name=id_name).get('value')
         return self.get_s3_client(aws_key_id=id_key(key_id_name), aws_secret_key=id_key(secret_key_name))
 
     def discover_granules(self):
         """
-        Fetch the link of the granules in the host s3 bucket.
+        Fetch the link of the granules in the host url_path
+        :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
+        granule_dict = {
+           's3://bucket-name/path/to/granule/file.extension': {
+              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'Last-Modified': '1645564956.0
+           },
+           ...
+        }
         """
         host = self.host
         prefix = self.collection['meta']['provider_path']

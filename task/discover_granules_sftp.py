@@ -9,6 +9,9 @@ from task.discover_granules_base import DiscoverGranulesBase
 
 
 class DiscoverGranulesSFTP(DiscoverGranulesBase):
+    """
+    Class to discover granules from an SFTP provider
+    """
     def __init__(self, event, logger):
         super().__init__(event, logger)
         host = self.provider.get('host')
@@ -41,7 +44,15 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     def discover_granules(self):
         """
-        Discover granules on an SFTP provider
+        Fetch the link of the granules in the host url_path
+        :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
+        granule_dict = {
+           './path/to/granule/file.extension': {
+              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'Last-Modified': '1645564956.0
+           },
+           ...
+        }
         """
         directory_list = []
         granule_dict = {}

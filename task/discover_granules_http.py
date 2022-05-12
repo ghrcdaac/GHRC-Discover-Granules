@@ -8,7 +8,7 @@ from dateutil.parser import parse
 
 class DiscoverGranulesHTTP(DiscoverGranulesBase):
     """
-       Class to discover granules from HTTP/HTTPS provider
+    Class to discover granules from HTTP/HTTPS provider
     """
 
     def __init__(self, event, logger):
@@ -22,12 +22,15 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
     def fetch_session(self, url, verify=False):
         """
         Establishes a session for requests.
+        :param url: URL to establish a session at
+        :param verify: If using a certification provide the path, otherwise defaults to false
+        :return: session to the URL
         """
         return self.session.get(url, verify=verify)
 
     def html_request(self):
         """
-        :param url_path: The base URL where the files are served
+        Fetches the http served at the url
         :return: The html of the page if the fetch is successful
         """
         opened_url = self.fetch_session(self.url_path)
@@ -58,8 +61,15 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
     def discover_granules(self):
         """
         Fetch the link of the granules in the host url_path
+        :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
+        granule_dict = {
+           'http://path/to/granule/file.extension': {
+              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'Last-Modified': '1645564956.0
+           },
+           ...
+        }
         """
-
         file_reg_ex = self.collection.get('granuleIdExtraction')
         dir_reg_ex = self.discover_tf.get('dir_reg_ex')
 

@@ -54,6 +54,68 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.update_etag_lm(d2, d1, 'key1')
         self.assertDictEqual(d1, d2)
 
+    def test_generate_cumulus_output(self):
+        test_dict = {
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
+                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
+                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        mapping = {'^.*_NALMA_.*\\.cmr\\.(xml|json)$': {'bucket': 'public', 'lzards': None},
+                   '^.*_NALMA_.*(\\.gz)$': {'bucket': 'protected', 'lzards': None},
+                   '^.*_NALMA_.*(\\.dat)$': {'bucket': 'private', 'lzards': None}}
+
+        ret_list = [self.dg.generate_cumulus_record(k, v, mapping) for k, v in test_dict.items()]
+
+        expected_entries = [
+            {'granuleId': 'LA_NALMA_firetower_211130_000000.dat', 'dataType': 'rssmif16d', 'version': '7', 'files': [
+                {'bucket': 'ghrcsbxw-private', 'checksum': '', 'checksumType': '',
+                 'filename': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                 'name': 'LA_NALMA_firetower_211130_000000.dat',
+                 'path': 's3://sharedsbx-private/lma/nalma/raw/short_test', 'size': 4553538, 'time': '1645564956.0',
+                 'type': ''}]},
+            {'granuleId': 'LA_NALMA_firetower_211130_001000.dat', 'dataType': 'rssmif16d', 'version': '7', 'files': [
+                {'bucket': 'ghrcsbxw-private', 'checksum': '', 'checksumType': '',
+                 'filename': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                 'name': 'LA_NALMA_firetower_211130_001000.dat',
+                 'path': 's3://sharedsbx-private/lma/nalma/raw/short_test', 'size': 4706838, 'time': '1645564956.0',
+                 'type': ''}]}
+        ]
+
+        for x in expected_entries:
+            self.assertIn(x, ret_list)
+
+    def test_generate_cumulus_output_lzards(self):
+        test_dict = {
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
+                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
+                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        mapping = {'^.*_NALMA_.*\\.cmr\\.(xml|json)$': {'bucket': 'public', 'lzards': None},
+                   '^.*_NALMA_.*(\\.gz)$': {'bucket': 'protected', 'lzards': None},
+                   '^.*_NALMA_.*(\\.dat)$': {'bucket': 'private', 'lzards': True}}
+
+        ret_list = [self.dg.generate_cumulus_record(k, v, mapping) for k, v in test_dict.items()]
+
+        expected_entries = [
+            {'granuleId': 'LA_NALMA_firetower_211130_000000.dat', 'dataType': 'rssmif16d', 'version': '7', 'files': [
+                {'bucket': 'ghrcsbxw-private', 'checksum': 'ec5273963f74811028e38a367beaf7a5', 'checksumType': 'md5',
+                 'filename': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                 'name': 'LA_NALMA_firetower_211130_000000.dat',
+                 'path': 's3://sharedsbx-private/lma/nalma/raw/short_test', 'size': 4553538, 'time': '1645564956.0',
+                 'type': ''}]},
+            {'granuleId': 'LA_NALMA_firetower_211130_001000.dat', 'dataType': 'rssmif16d', 'version': '7', 'files': [
+                {'bucket': 'ghrcsbxw-private', 'checksum': '919a1ba1dfbbd417a662ab686a2ff574', 'checksumType': 'md5',
+                 'filename': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                 'name': 'LA_NALMA_firetower_211130_001000.dat',
+                 'path': 's3://sharedsbx-private/lma/nalma/raw/short_test', 'size': 4706838, 'time': '1645564956.0',
+                 'type': ''}]}]
+
+        for x in expected_entries:
+            self.assertIn(x, ret_list)
+
+    def test_discover_granules(self):
+        self.assertRaises(NotImplementedError, self.dg.discover_granules)
+
 
 if __name__ == "__main__":
     unittest.main()
