@@ -1,4 +1,3 @@
-import contextlib
 import datetime
 import json
 import logging
@@ -6,9 +5,7 @@ import os
 from dateutil.tz import tzutc
 
 from task.discover_granules_s3 import DiscoverGranulesS3
-from task.main import DiscoverGranules
 from unittest.mock import MagicMock
-from bs4 import BeautifulSoup
 import unittest
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,13 +15,6 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def setUp(self) -> None:
         self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'), logging)
-
-    def tearDown(self) -> None:
-        # with contextlib.suppress(FileNotFoundError):
-        #     os.remove(self.dg.db_file_path)
-        #     os.remove(self.dg.db_file_path)
-        #     os.remove(self.dg.db_file_path)
-        pass
 
     @staticmethod
     def get_sample_event(event_type='skip'):
