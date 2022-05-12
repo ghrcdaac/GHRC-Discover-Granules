@@ -1,8 +1,7 @@
 import os
 import sys
 
-from task.main import DiscoverGranules
-
+from task.main import discover_granules
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
@@ -10,7 +9,7 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def lambda_handler(event, context=None):
-    return DiscoverGranules(event).discover_granules()
+    return discover_granules(event)
 
 
 def handler(event, context):

@@ -1,10 +1,13 @@
+import os
 from abc import ABC, abstractmethod
 import re
+
+from task.dgm import initialize_db, Granule
 
 
 class DiscoverGranulesBase(ABC):
     """
-    Class to discover Granules
+    Base class for discovering granules
     """
 
     def __init__(self, event, logger):
@@ -19,7 +22,28 @@ class DiscoverGranulesBase(ABC):
         self.config_stack = self.config.get('stack')
         self.files_list = self.config.get('collection').get('files')
         self.logger = logger
+        db_suffix = self.meta.get('collection_type', 'static')
+        db_filename = f'discover_granules_{db_suffix}.db'
+        self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
         super().__init__()
+
+    def check_granule_updates_db(self, granule_dict: {}):
+        """
+        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
+        error, replace, or skip
+        :param granule_dict: Dictionary of granules to check
+        :return Dictionary of granules that were new or updated
+        """
+        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
+        if duplicates == 'replace' and force_replace == 'false':
+            duplicates = 'skip'
+
+        with initialize_db(self.db_file_path):
+            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
+
+        self.logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def get_path(self, key):
         """
