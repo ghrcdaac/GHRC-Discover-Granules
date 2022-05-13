@@ -13,7 +13,7 @@ def lambda_handler(event, context=None):
 
 
 def handler(event, context):
+    result = []
     if run_cumulus_task:
-        return run_cumulus_task(lambda_handler, event, context)
-    else:
-        return []
+        result = run_cumulus_task(lambda_handler, event, context)
+    return result
