@@ -1,6 +1,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/discover-granules-tf-module/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
 ![Build Status](https://github.com/amarouane-ABDELHAK/discover-granules-tf-module/actions/workflows/python-package.yml/badge.svg?branch=master)
-![Code Quality](https://github.com/amarouane-ABDELHAK/discover-granules-tf-module/actions/workflows/code-quality.yml/badge.svg?branch=master)
+![Code Quality](https://api.codiga.io/project/33434/score/svg)
+![Code Grade](https://api.codiga.io/project/33434/status/svg)
 ```
  ____ ___ ____   ____ _____     _______ ____        ____ ____      _    _   _ _   _ _     _____ ____      _____ _____
 |  _ \_ _/ ___| / ___/ _ \ \   / / ____|  _ \      / ___|  _ \    / \  | \ | | | | | |   | ____/ ___|    |_   _|  ___|
