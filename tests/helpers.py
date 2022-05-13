@@ -1,28 +1,21 @@
-{
+def get_event(provider,granuleIdExtraction, provider_path, discover_tf):
+    """
+    """
+    return {
   "input": {},
   "config": {
-    "provider": {
-      "host": "data.remss.com",
-      "updatedAt": 1627673888189,
-      "protocol": "https",
-      "createdAt": 1617397534874,
-      "id": "rss_provider",
-      "globalConnectionLimit": 900
-    },
-    "provider_path": "/ssmi/f16/bmaps_v07/y2021/m03/",
+    "provider": provider,
+    "provider_path": provider_path,
     "collection": {
       "process": "rss",
-      "granuleIdExtraction": "^(f16_\\d{8}v7.gz)$",
+      "granuleIdExtraction": granuleIdExtraction,
       "version": "7",
       "dataType": "rssmif16d",
       "meta": {
-        "discover_tf": {
-          "depth": 2,
-          "dir_reg_ex": ".*"
-        },
+        "discover_tf": discover_tf,
         "granuleRecoveryWorkflow": "DrRecoveryWorkflow",
         "hyrax_processing": "true",
-        "provider_path": "/ssmi/f16/bmaps_v07/y2021/m03/",
+        "provider_path": provider_path,
         "collectionVersion": "7",
         "collection_type": "test_collection",
         "collectionName": "rssmif16d",
@@ -104,3 +97,5 @@
     "execution_name": "rssmif16d-791e4ebb-ad97-44f5-af56-e6047c2a2739"
   }
 }
+
+
