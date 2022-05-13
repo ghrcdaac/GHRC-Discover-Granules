@@ -1,6 +1,6 @@
 [![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/discover-granules-tf-module/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
 ![Build Status](https://github.com/amarouane-ABDELHAK/discover-granules-tf-module/actions/workflows/python-package.yml/badge.svg?branch=master)
-![Code Quality Workflow](https://github.com/amarouane-ABDELHAK/discover-granules-tf-module/actions/workflows/python-package.yml/badge.svg?branch=master)
+![Code Quality Workflow](https://github.com/amarouane-ABDELHAK/discover-granules-tf-module/actions/workflows/code-quality.yml/badge.svg?branch=master)
 ![Code Quality](https://api.codiga.io/project/33434/score/svg)
 ![Code Grade](https://api.codiga.io/project/33434/status/svg)
 ```
