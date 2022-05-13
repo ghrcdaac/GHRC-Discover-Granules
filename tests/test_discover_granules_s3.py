@@ -96,6 +96,9 @@ class TestDiscoverGranules(unittest.TestCase):
         ret_dict = self.dg.discover_granules()
         self.assertEqual(len(ret_dict), 1)
 
+    def test_empty_test(self):
+        self.assertTrue('True')
+
 
 if __name__ == "__main__":
     unittest.main()
