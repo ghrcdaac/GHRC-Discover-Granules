@@ -1,10 +1,8 @@
 import base64
 import os
 import re
-
 import boto3
 import paramiko
-
 from task.discover_granules_base import DiscoverGranulesBase
 
 
@@ -14,10 +12,10 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     """
     def __init__(self, event, logger):
         super().__init__(event, logger)
-        host = self.provider.get('host')
+
         port = self.provider.get('port', 22)
 
-        transport = paramiko.Transport((host, port))
+        transport = paramiko.Transport((self.host, port))
         username_cypher = self.provider.get('username')
         password_cypher = self.provider.get('password')
         transport.connect(None, self.decode_decrypt(username_cypher), self.decode_decrypt(password_cypher))
@@ -29,7 +27,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     def decode_decrypt(self, _ciphertext):
         kms_client = boto3.client('kms')
-        decrypted_text = None
         try:
             response = kms_client.decrypt(
                 CiphertextBlob=base64.b64decode(_ciphertext),

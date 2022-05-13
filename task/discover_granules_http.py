@@ -55,7 +55,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         last_modified = head_resp.get('Last-Modified', None)
         if isinstance(last_modified, str):
             temp[granule]['Last-Modified'] = str(parse(last_modified))
-
         return temp
 
     def discover_granules(self):

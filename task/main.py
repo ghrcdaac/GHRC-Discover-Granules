@@ -1,6 +1,5 @@
 import logging
 import os
-
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -35,7 +34,10 @@ def discover_granules(event):
     """
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
-    dg = get_discovery_class(protocol)(event, rdg_logger)
+    try:
+        dg = get_discovery_class(protocol)(event, rdg_logger)
+    except Exception:
+        raise Exception(f"Protocol {protocol} is not supported")
 
     output = {}
     if dg.input:
