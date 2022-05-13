@@ -160,7 +160,7 @@ class DiscoverGranulesBase(ABC):
         }
 
     @abstractmethod
-    def discover_granules(self, *args, **kwargs):
+    def discover_granules(self):
         """
         Abstract method to be implemented by sub-classes
         """

@@ -1,4 +1,4 @@
-name: Python Package
+name: Build & Release
 on:
   pull_request:
   push:
