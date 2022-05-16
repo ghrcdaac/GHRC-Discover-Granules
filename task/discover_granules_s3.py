@@ -45,7 +45,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         granule_dict = {
            's3://bucket-name/path/to/granule/file.extension': {
-              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'ETag': '<S3-etag-place-holder>',
               'Last-Modified': '1645564956.0
            },
            ...
