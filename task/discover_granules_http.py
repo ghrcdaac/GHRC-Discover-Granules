@@ -1,9 +1,10 @@
-from task.discover_granules_base import DiscoverGranulesBase
-import requests
-from bs4 import BeautifulSoup
 import re
+import requests
 import urllib3
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
+from task.discover_granules_base import DiscoverGranulesBase
+
 
 
 class DiscoverGranulesHTTP(DiscoverGranulesBase):
@@ -63,7 +64,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         granule_dict = {
            'http://path/to/granule/file.extension': {
-              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'ETag': 'S3ETag',
               'Last-Modified': '1645564956.0
            },
            ...

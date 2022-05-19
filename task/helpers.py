@@ -1,4 +1,7 @@
 class MyLogger:
+    """
+    Class used for logging
+    """
     pass
 
 

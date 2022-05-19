@@ -8,7 +8,10 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     from run_cumulus_task import run_cumulus_task
 
 
-def lambda_handler(event, context=None):
+def lambda_handler(event):
+    """
+    AWS Lambda handler
+    """
     return discover_granules(event)
 
 

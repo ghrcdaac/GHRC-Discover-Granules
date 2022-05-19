@@ -1,4 +1,6 @@
-from peewee import *
+from tempfile import TemporaryDirectory
+
+from peewee import CharField, Model, chunked
 from playhouse.apsw_ext import APSWDatabase
 
 SQLITE_VAR_LIMIT = 999
@@ -91,8 +93,8 @@ class Granule(Model):
         """
         del_count = 0
         for key_batch in chunked(granule_names, SQLITE_VAR_LIMIT):
-            d = Granule.delete().where(Granule.name.in_(key_batch)).execute()
-            del_count += d
+            delete = Granule.delete().where(Granule.name.in_(key_batch)).execute()
+            del_count += delete
         return del_count
 
     @staticmethod
