@@ -1,6 +1,7 @@
-from task.discover_granules_base import DiscoverGranulesBase
-import boto3
 import re
+import boto3
+from task.discover_granules_base import DiscoverGranulesBase
+
 
 
 class DiscoverGranulesS3(DiscoverGranulesBase):

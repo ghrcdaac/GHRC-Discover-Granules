@@ -1,10 +1,11 @@
 import logging
 import os
+
+from task.dgm import initialize_db, Granule
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
 from cumulus_logger import CumulusLogger
-from task.dgm import *
 from task.helpers import MyLogger
 
 rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) \
@@ -70,7 +71,7 @@ def discover_granules(event):
     dg.logger.info(f'Discovered {len(output)} granules.')
 
     if os.getenv('no_return', 'false').lower() == 'true':
-        dg.logger.warning(f'no_return is set to true. No output will be returned.')
+        dg.logger.warning('no_return is set to true. No output will be returned.')
         output = []
 
     return {'granules': output}

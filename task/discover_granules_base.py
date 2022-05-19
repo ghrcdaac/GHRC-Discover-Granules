@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 import re
+from tempfile import TemporaryDirectory
 
 from task.dgm import initialize_db, Granule
 
@@ -24,7 +25,7 @@ class DiscoverGranulesBase(ABC):
         self.logger = logger
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", "/tmp")}/{db_filename}'
+        self.db_file_path = f'{os.getenv("efs_path", TemporaryDirectory().name)}/{db_filename}'
         super().__init__()
 
     def check_granule_updates_db(self, granule_dict: {}):
@@ -71,10 +72,10 @@ class DiscoverGranulesBase(ABC):
         version = self.collection.get('version', '')
 
         temp_dict = {}
-        for reg_key, v in mapping.items():
+        for reg_key, val in mapping.items():
             res = re.search(reg_key, path_and_name_dict.get('name'))
             if res:
-                temp_dict.update(v)
+                temp_dict.update(val)
                 break
 
         checksum = ''
@@ -109,7 +110,7 @@ class DiscoverGranulesBase(ABC):
         :param ret_dict: Dictionary containing only newly discovered granules.
         granule_dict = {
            'http://path/to/granule/file.extension': {
-              'ETag': 'ec5273963f74811028e38a367beaf7a5',
+              'ETag': 'S3ETag',
               'Last-Modified': '1645564956.0
            },
            ...
