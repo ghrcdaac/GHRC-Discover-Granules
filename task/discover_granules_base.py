@@ -25,7 +25,7 @@ class DiscoverGranulesBase(ABC):
         self.logger = logger
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", mkdtemp().name)}/{db_filename}'
+        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
         super().__init__()
 
     def check_granule_updates_db(self, granule_dict: {}):
