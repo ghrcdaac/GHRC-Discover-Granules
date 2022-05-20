@@ -1,5 +1,6 @@
-def get_event(provider,granuleIdExtraction, provider_path, discover_tf):
+def get_event(provider,granuleId_extraction, provider_path, discover_tf):
     """
+    returns event data
     """
     return {
   "input": {},
@@ -8,7 +9,7 @@ def get_event(provider,granuleIdExtraction, provider_path, discover_tf):
     "provider_path": provider_path,
     "collection": {
       "process": "rss",
-      "granuleIdExtraction": granuleIdExtraction,
+      "granuleIdExtraction": granuleId_extraction,
       "version": "7",
       "dataType": "rssmif16d",
       "meta": {
@@ -97,5 +98,3 @@ def get_event(provider,granuleIdExtraction, provider_path, discover_tf):
     "execution_name": "rssmif16d-791e4ebb-ad97-44f5-af56-e6047c2a2739"
   }
 }
-
-

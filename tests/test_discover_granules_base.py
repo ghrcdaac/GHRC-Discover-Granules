@@ -1,15 +1,18 @@
 import os
 
-from task.discover_granules_base import DiscoverGranulesBase
 from unittest.mock import MagicMock, patch
 import logging
 import unittest
+from task.discover_granules_base import DiscoverGranulesBase
 from .helpers import get_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
+    """
+    Tests discover Granules
+    """
 
     @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
@@ -18,15 +21,15 @@ class TestDiscoverGranules(unittest.TestCase):
             "protocol": "https"
 
         }
-        granuleIdExtraction = "^(f16_\\d{8}v7.gz)$"
+        granule_id_extraction = "^(f16_\\d{8}v7.gz)$"
         provider_path = "/ssmi/f16/bmaps_v07/y2021/"
         discover_tf = {
             "depth": 0,
             "dir_reg_ex": ".*"
         }
-        event = get_event(provider, granuleIdExtraction, provider_path, discover_tf)
+        event = get_event(provider, granule_id_extraction, provider_path, discover_tf)
         self.dg = DiscoverGranulesBase(event, logging)
-        self.dg.getSession = MagicMock()
+        self.dg.get_session = MagicMock()
 
     def test_get_path(self):
         self.dg.provider['host'] = 'host'
@@ -41,18 +44,18 @@ class TestDiscoverGranules(unittest.TestCase):
         etag = 'ETag'
         last_mod = 'Last-Modified'
         size = 'Size'
-        td = {}
-        self.dg.populate_dict(target_dict=td, key=key, etag=etag, last_mod=last_mod, size=size)
-        self.assertIn(key, td)
-        self.assertIn(etag, td['key'])
-        self.assertIn(last_mod, td['key'])
-        self.assertIn(size, td['key'])
+        t_dict = {}
+        self.dg.populate_dict(target_dict=t_dict, key=key, etag=etag, last_mod=last_mod, size=size)
+        self.assertIn(key, t_dict)
+        self.assertIn(etag, t_dict['key'])
+        self.assertIn(last_mod, t_dict['key'])
+        self.assertIn(size, t_dict['key'])
 
     def test_update_etag_lm(self):
-        d1 = {'key1': {'ETag': 'etag1', 'Last-Modified': 'lm1', 'Size': 's1'}}
-        d2 = {}
-        self.dg.update_etag_lm(d2, d1, 'key1')
-        self.assertDictEqual(d1, d2)
+        dict1 = {'key1': {'ETag': 'etag1', 'Last-Modified': 'lm1', 'Size': 's1'}}
+        dict2 = {}
+        self.dg.update_etag_lm(dict2, dict1, 'key1')
+        self.assertDictEqual(dict1, dict2)
 
     def test_generate_cumulus_output(self):
         test_dict = {
@@ -81,8 +84,8 @@ class TestDiscoverGranules(unittest.TestCase):
                  'type': ''}]}
         ]
 
-        for x in expected_entries:
-            self.assertIn(x, ret_list)
+        for val in expected_entries:
+            self.assertIn(val, ret_list)
 
     def test_generate_cumulus_output_lzards(self):
         test_dict = {
@@ -110,8 +113,8 @@ class TestDiscoverGranules(unittest.TestCase):
                  'path': 's3://sharedsbx-private/lma/nalma/raw/short_test', 'size': 4706838, 'time': '1645564956.0',
                  'type': ''}]}]
 
-        for x in expected_entries:
-            self.assertIn(x, ret_list)
+        for val in expected_entries:
+            self.assertIn(val, ret_list)
 
     def test_discover_granules(self):
         self.assertRaises(NotImplementedError, self.dg.discover_granules)
