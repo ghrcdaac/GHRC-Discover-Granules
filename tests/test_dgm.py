@@ -8,7 +8,7 @@ from task.dgm import initialize_db, db, Granule
 
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = f'/tmp/{mkstemp()[1]}.db'
+DB_PATH = f'{mkstemp()[1]}.db'
 
 
 class TestDbInit(unittest.TestCase):
