@@ -1,16 +1,20 @@
 import json
 import os
-from task.discover_granules_http import DiscoverGranulesHTTP
 from unittest.mock import MagicMock
-from bs4 import BeautifulSoup
 import logging
 import unittest
+from bs4 import BeautifulSoup
+from task.discover_granules_http import DiscoverGranulesHTTP
 from .helpers import get_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
+    """
+    Tests discover Granules
+    """
+
 
     def setUp(self) -> None:
         provider = {
@@ -18,18 +22,19 @@ class TestDiscoverGranules(unittest.TestCase):
             "protocol": "https"
 
         }
-        granuleIdExtraction = "^(f16_\\d{8}v7.gz)$"
+        granule_id_extraction = "^(f16_\\d{8}v7.gz)$"
         provider_path = "/ssmi/f16/bmaps_v07/y2021/"
         discover_tf = {
             "depth": 0,
             "dir_reg_ex": ".*"
         }
-        event = get_event(provider, granuleIdExtraction, provider_path, discover_tf)
+        event = get_event(provider, granule_id_extraction, provider_path, discover_tf)
         self.dg = DiscoverGranulesHTTP(event, logging)
         self.dg.getSession = MagicMock()
 
     def setup_http_mock(self, name):
         """
+        setts up mock http
         """
         name_html = self.get_html(name)
         name_header_responses = self.get_header_responses(name)

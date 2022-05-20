@@ -2,16 +2,19 @@ import datetime
 import json
 import logging
 import os
-from dateutil.tz import tzutc
 
 from task.discover_granules_s3 import DiscoverGranulesS3
 from unittest.mock import MagicMock
 import unittest
+from dateutil.tz import tzutc
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
+    """
+    Tests Discover Granules
+    """
 
     def setUp(self) -> None:
         self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'), logging)
@@ -95,9 +98,6 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = self.dg.discover_granules()
         self.assertEqual(len(ret_dict), 1)
-
-    def test_empty_test(self):
-        self.assertTrue('True')
 
 
 if __name__ == "__main__":

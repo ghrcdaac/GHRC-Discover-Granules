@@ -21,9 +21,9 @@ def main():
         while True:
             resp = client.list_executions(**args)
             tasks_to_kill += resp.get("executions")
-            nextToken = resp.get('nextToken')
-            if nextToken:
-                args.setdefault('nextToken', nextToken)
+            next_token = resp.get('nextToken')
+            if next_token:
+                args.setdefault('nextToken', next_token)
             else:
                 break
 
@@ -47,19 +47,19 @@ def main():
 def fast_copy():
     # Create file test_0.txt
     client = boto3.client('s3')
-    x = 0
+    val = 0
     base_name = 'test_'
     ftype = '.txt'
     # Loop for 10000
-    with open(f'{base_name}{x}{ftype}'):
+    with open(f'{base_name}{val}{ftype}'):
         pass
 
-    for x in range(30000):
+    for val in range(30000):
 
         # Upload file
         client.put_object(
             Bucket='sharedsbx-private',
-            Body=open(f'{base_name}{x}{ftype}'),
+            Body=open(f'{base_name}{val}{ftype}'),
             Key='fake_collection_mlh/dir1/'
 
         )
