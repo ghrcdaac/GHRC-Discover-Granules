@@ -43,17 +43,17 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @staticmethod
     def get_html(provider):
-        with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r') as test_html_file:
+        with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r', encoding='UTF-8') as test_html_file:
             return test_html_file.read()
 
     @staticmethod
     def get_header_responses(provider):
-        with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r') as test_file:
+        with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r', encoding='UTF-8') as test_file:
             return json.load(test_file)['head_responses']
 
     @staticmethod
     def get_sample_event(event_type='skip'):
-        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r') as test_event_file:
+        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
     def test_get_file_link_remss_without_regex(self):

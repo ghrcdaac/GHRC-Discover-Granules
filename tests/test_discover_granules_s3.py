@@ -21,7 +21,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @staticmethod
     def get_sample_event(event_type='skip'):
-        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r') as test_event_file:
+        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
     def test_discover_granules_s3(self):
