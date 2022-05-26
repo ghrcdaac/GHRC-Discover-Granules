@@ -8,7 +8,7 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     from run_cumulus_task import run_cumulus_task
 
 
-def lambda_handler(event, context):
+def lambda_handler(event, context):  # pylint: disable=unused-argument
     """
     AWS Lambda handler
     :param event: Cumulus workflow event used to setup the discover granules class
