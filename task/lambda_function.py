@@ -8,9 +8,12 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     from run_cumulus_task import run_cumulus_task
 
 
-def lambda_handler(event):
+def lambda_handler(event, context):
     """
     AWS Lambda handler
+    :param event: Cumulus workflow event used to setup the discover granules class
+    :param context: Unused variable but is required as the rum_cumulus_task passes it when the lambda handler is called
+    :return: Formatted output of the event with any discovered granules in the payload
     """
     return discover_granules(event)
 
