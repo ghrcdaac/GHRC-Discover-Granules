@@ -3,7 +3,6 @@ import boto3
 from task.discover_granules_base import DiscoverGranulesBase
 
 
-
 class DiscoverGranulesS3(DiscoverGranulesBase):
     """
     Class to discover granules from S3 provider
@@ -37,7 +36,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         :param secret_key_name: Name of the aws key
         """
         ssm_client = boto3.client('ssm')
-        id_key = lambda id_name: ssm_client.get_parameter(Name=id_name).get('value')
+        id_key = lambda id_name: ssm_client.get_parameter(Name=id_name, WithDecryption=True)\
+            .get('Parameter').get('Value')
+
         return self.get_s3_client(aws_key_id=id_key(key_id_name), aws_secret_key=id_key(secret_key_name))
 
     def discover_granules(self):
