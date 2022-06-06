@@ -4,7 +4,7 @@ import os
 import unittest
 from tempfile import mkstemp
 
-from task.dgm import initialize_db, Granule
+from task.dgm import Granule
 
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,6 @@ class TestDGM(unittest.TestCase):
     Tests DGM
     """
     def setUp(self) -> None:
-        initialize_db()
         self.model = Granule()
 
     def test_db_select_all(self):

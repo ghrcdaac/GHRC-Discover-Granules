@@ -6,7 +6,7 @@ from tempfile import mkdtemp
 
 import boto3
 
-from task.dgm import Granule, initialize_db
+from task.dgm import Granule
 
 
 class DiscoverGranulesBase(ABC):
@@ -37,15 +37,15 @@ class DiscoverGranulesBase(ABC):
                 SecretId=aws_rds_credentials_arn
             )
             aws_rds_credentials = ast.literal_eval(resp.get("SecretString"))
-            initialize_db(
-                dbname=aws_rds_credentials.get('database'),
+            Granule(
+                database=aws_rds_credentials.get('database'),
                 user=aws_rds_credentials.get('username'),
                 password=aws_rds_credentials.get('password'),
                 host=aws_rds_credentials.get('host'),
                 port=aws_rds_credentials.get('port')
             )
         else:
-            initialize_db()
+            Granule()
 
         super().__init__()
 
