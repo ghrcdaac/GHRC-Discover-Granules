@@ -1,18 +1,21 @@
-from tempfile import TemporaryDirectory
+import os
 
-from peewee import CharField, Model, chunked
+from peewee import CharField, Model, chunked, PostgresqlDatabase, ModelTupleCursorWrapper
 from playhouse.apsw_ext import APSWDatabase
 
 SQLITE_VAR_LIMIT = 999
-db = APSWDatabase(None, vfs='unix-excl')
+db = PostgresqlDatabase(None) if os.environ.get('RDS_CREDENTIALS_SECRET_ARN') else APSWDatabase(':memory:')
 
 
-def initialize_db(db_file_path):
-    db.init(db_file_path, timeout=60, pragmas={
-        'journal_mode': 'wal',
-        'cache_size': -1 * 64000})
-    db.create_tables([Granule], safe=True)
-    return db
+def initialize_db(dbname=None, user=None, password=None, host=None, port=None):
+    global db
+    if dbname and user and password and host and port:
+        db.init(database=dbname, user=user, password=password, host=host, port=port)
+        db.connect()
+        db.create_tables([Granule], safe=True)
+    else:
+        db.init(':memory:')
+        db.create_tables([Granule], safe=True)
 
 
 class Granule(Model):
@@ -100,7 +103,9 @@ class Granule(Model):
     @staticmethod
     def __insert_many(granule_dict):
         """
-        Helper function to separate the insert many logic that is reused between queries
+        Helper function to separate the insert many logic that is reused between queries. Note, that this query assumes
+        that the results to be inserted have already been checked against the database. Duplicate values will be
+        overwritten.
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
@@ -109,8 +114,17 @@ class Granule(Model):
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
                 num = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
-                    .on_conflict_replace().execute()
-                records_inserted += num
+                    .on_conflict(
+                    conflict_target=[Granule.name],
+                    preserve=[Granule.etag, Granule.last_modified]
+                ).execute()
+
+                # Note: The result of the query is a different type between postgres and sqlite so the following check
+                # is needed.
+                if type(num) is ModelTupleCursorWrapper:
+                    records_inserted += num.count
+                else:
+                    records_inserted += num
 
         return records_inserted
 

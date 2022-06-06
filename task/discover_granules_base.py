@@ -1,9 +1,12 @@
+import ast
 import os
 from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import initialize_db, Granule
+import boto3
+
+from task.dgm import Granule, initialize_db
 
 
 class DiscoverGranulesBase(ABC):
@@ -26,6 +29,24 @@ class DiscoverGranulesBase(ABC):
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+
+        aws_rds_credentials_arn = os.environ.get('RDS_CREDENTIALS_SECRET_ARN')
+        if aws_rds_credentials_arn:
+            client = boto3.client('secretsmanager')
+            resp = client.get_secret_value(
+                SecretId=aws_rds_credentials_arn
+            )
+            aws_rds_credentials = ast.literal_eval(resp.get("SecretString"))
+            initialize_db(
+                dbname=aws_rds_credentials.get('database'),
+                user=aws_rds_credentials.get('username'),
+                password=aws_rds_credentials.get('password'),
+                host=aws_rds_credentials.get('host'),
+                port=aws_rds_credentials.get('port')
+            )
+        else:
+            initialize_db()
+
         super().__init__()
 
     def check_granule_updates_db(self, granule_dict: {}):
@@ -41,9 +62,7 @@ class DiscoverGranulesBase(ABC):
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
 
-        with initialize_db(self.db_file_path):
-            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
-
+        getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
         self.logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def get_path(self, key):

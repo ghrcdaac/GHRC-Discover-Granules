@@ -56,3 +56,22 @@ resource "aws_iam_role_policy_attachment" "glm-ssm-policy-attach" {
   policy_arn = aws_iam_policy.ssm_test.arn
   role = var.cumulus_lambda_role_name
 }
+
+resource "aws_iam_policy" "secret_manager" {
+  policy = jsonencode(
+  {
+    Version = "2012-10-17",
+    "Statement" = [
+        {
+          Effect = "Allow",
+          Action = "secretsmanager:GetSecretValue",
+          Resource = var.env_variables.RDS_CREDENTIALS_SECRET_ARN
+        }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "rds-secrets-policy-attach" {
+  policy_arn = aws_iam_policy.secret_manager.arn
+  role = var.cumulus_lambda_role_name
+}

@@ -1,7 +1,9 @@
 import logging
 import os
 
-from task.dgm import initialize_db, Granule
+import boto3
+
+from task.dgm import Granule
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -25,7 +27,21 @@ def get_discovery_class(protocol):
         'sftp': DiscoverGranulesSFTP
     }
 
-    return switcher.get(protocol)
+    try:
+        return switcher[str(protocol).lower()]
+    except KeyError:
+        raise ValueError(f'Protocol {protocol} is not supported.')
+
+
+def test_funct(event):
+    client = boto3.client('secretsmanager')
+    resp = client.get_secret_value(
+        SecretId=os.environ.get('RDS_CREDENTIALS_SECRET_ARN')
+    )
+    # for key in resp:
+    rdg_logger.warning(f'key: {resp.get("SecretString")}')
+
+    return event
 
 
 def discover_granules(event):
@@ -35,10 +51,7 @@ def discover_granules(event):
     """
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
-    try:
-        dg = get_discovery_class(protocol)(event, rdg_logger)
-    except Exception:
-        raise Exception(f"Protocol {protocol} is not supported")
+    dg = get_discovery_class(protocol)(event, rdg_logger)
 
     output = {}
     if dg.input:
@@ -51,9 +64,7 @@ def discover_granules(event):
             name = f'{file.get("path")}/{file.get("name")}'
             names.append(name)
 
-        with initialize_db(dg.db_file_path):
-            num = Granule().delete_granules_by_names(names)
-
+        num = Granule().delete_granules_by_names(names)
         dg.logger.info(f'Cleaned {num} records from the database.')
     else:
         # Discover granules

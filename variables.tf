@@ -53,6 +53,11 @@ variable "region" {
   default = "us-west-2"
 }
 
+variable "rds_secrets_credentials_arn" {
+  type = string
+  default = ""
+}
+
 variable "s3_bucket_name" {
   type = string
 }

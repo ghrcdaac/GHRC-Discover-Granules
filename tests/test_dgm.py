@@ -4,27 +4,11 @@ import os
 import unittest
 from tempfile import mkstemp
 
-from task.dgm import initialize_db, db, Granule
+from task.dgm import initialize_db, Granule
 
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = f'{mkstemp()[1]}.db'
-
-
-class TestDbInit(unittest.TestCase):
-    """
-    Tests Db Initialization
-    """
-    def tearDown(self) -> None:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(DB_PATH)
-            os.remove(f'{DB_PATH}-shm')
-            os.remove(f'{DB_PATH}-wal')
-
-    def test_initialize_db(self):
-        self.assertEqual(db.database, None)
-        local_db = initialize_db(DB_PATH)
-        self.assertEqual(local_db.database, DB_PATH)
 
 
 class TestDGM(unittest.TestCase):
@@ -32,14 +16,8 @@ class TestDGM(unittest.TestCase):
     Tests DGM
     """
     def setUp(self) -> None:
-        self.db = initialize_db(DB_PATH)
+        initialize_db()
         self.model = Granule()
-
-    def tearDown(self) -> None:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(DB_PATH)
-            os.remove(f'{DB_PATH}-shm')
-            os.remove(f'{DB_PATH}-wal')
 
     def test_db_select_all(self):
         discovered_granules = {"granule_a": {"ETag": "tag1_a", "Last-Modified": "modified_a"},

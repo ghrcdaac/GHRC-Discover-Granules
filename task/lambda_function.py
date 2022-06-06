@@ -1,7 +1,7 @@
 import os
 import sys
 
-from task.main import discover_granules
+from task.main import discover_granules, test_funct
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     sys.path.insert(0, os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'))
@@ -16,6 +16,7 @@ def lambda_handler(event, context):  # pylint: disable=unused-argument
     :return: Formatted output of the event with any discovered granules in the payload
     """
     return discover_granules(event)
+    # return test_funct(event)
 
 
 def handler(event, context):
