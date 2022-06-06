@@ -51,38 +51,38 @@ def discover_granules(event):
     """
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
-    dg = get_discovery_class(protocol)(event, rdg_logger)
+    discover = get_discovery_class(protocol)(event, rdg_logger)
 
     output = {}
-    if dg.input:
+    if discover.input:
         # If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
         # from the database.
         names = []
-        dg.logger.warning(dg.input.get('granules', {}))
-        for granule in dg.input.get('granules', {}):
+        discover.logger.warning(discover.input.get('granules', {}))
+        for granule in discover.input.get('granules', {}):
             file = granule.get('files')[0]
             name = f'{file.get("path")}/{file.get("name")}'
             names.append(name)
 
         num = Granule().delete_granules_by_names(names)
-        dg.logger.info(f'Cleaned {num} records from the database.')
+        discover.logger.info(f'Cleaned {num} records from the database.')
     else:
         # Discover granules
-        granule_dict = dg.discover_granules()
+        granule_dict = discover.discover_granules()
         if not granule_dict:
-            dg.logger.warning(f'Warning: Found 0 {dg.collection.get("name")} granules at the provided location.')
+            discover.logger.warning(f'Warning: Found 0 {discover.collection.get("name")} granules at the provided location.')
         else:
-            dg.logger.info(f'Discovered {len(granule_dict)} {dg.collection.get("name")} '
+            discover.logger.info(f'Discovered {len(granule_dict)} {discover.collection.get("name")} '
                            f'granules for update processing.')
-        dg.check_granule_updates_db(granule_dict)
+        discover.check_granule_updates_db(granule_dict)
 
-        output = dg.cumulus_output_generator(granule_dict)
-        dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
+        output = discover.cumulus_output_generator(granule_dict)
+        discover.logger.info(f'Returning cumulus output for {len(output)} {discover.collection.get("name")} granules.')
 
-    dg.logger.info(f'Discovered {len(output)} granules.')
+    discover.logger.info(f'Discovered {len(output)} granules.')
 
     if os.getenv('no_return', 'false').lower() == 'true':
-        dg.logger.warning('no_return is set to true. No output will be returned.')
+        discover.logger.warning('no_return is set to true. No output will be returned.')
         output = []
 
     return {'granules': output}

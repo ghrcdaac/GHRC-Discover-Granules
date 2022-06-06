@@ -4,18 +4,26 @@ from peewee import CharField, Model, chunked, PostgresqlDatabase, ModelTupleCurs
 from playhouse.apsw_ext import APSWDatabase
 
 SQLITE_VAR_LIMIT = 999
-db = PostgresqlDatabase(None) if os.environ.get('RDS_CREDENTIALS_SECRET_ARN') else APSWDatabase(':memory:')
+granule_db = PostgresqlDatabase(None) if os.environ.get('RDS_CREDENTIALS_SECRET_ARN') else APSWDatabase(':memory:')
 
 
 def initialize_db(dbname=None, user=None, password=None, host=None, port=None):
-    global db
+    """
+    Function used to correctly initialize the database.
+    :param dbname: Name of the database
+    :param user: User of the database
+    :param password: Password for the database
+    :param host: Host for the database
+    :param port: Port to access the database
+    If all of the parameters are no assigned then an inmemory SQLite database will be used
+    """
     if dbname and user and password and host and port:
-        db.init(database=dbname, user=user, password=password, host=host, port=port)
-        db.connect()
-        db.create_tables([Granule], safe=True)
+        granule_db.init(database=dbname, user=user, password=password, host=host, port=port)
+        granule_db.connect()
+        granule_db.create_tables([Granule], safe=True)
     else:
-        db.init(':memory:')
-        db.create_tables([Granule], safe=True)
+        granule_db.init(':memory:')
+        granule_db.create_tables([Granule], safe=True)
 
 
 class Granule(Model):
@@ -27,7 +35,7 @@ class Granule(Model):
     last_modified = CharField()
 
     class Meta:
-        database = db
+        database = granule_db
 
     @staticmethod
     def select_all(granule_dict):
@@ -111,7 +119,7 @@ class Granule(Model):
         records_inserted = 0
         data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
         fields = [Granule.name, Granule.etag, Granule.last_modified]
-        with db.atomic():
+        with granule_db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
                 num = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
                     .on_conflict(
@@ -121,7 +129,7 @@ class Granule(Model):
 
                 # Note: The result of the query is a different type between postgres and sqlite so the following check
                 # is needed.
-                if type(num) is ModelTupleCursorWrapper:
+                if isinstance(num, ModelTupleCursorWrapper):
                     records_inserted += num.count
                 else:
                     records_inserted += num
