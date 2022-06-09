@@ -23,6 +23,7 @@ class DiscoverGranulesBase(ABC):
         self.config_stack = self.config.get('stack')
         self.files_list = self.config.get('collection').get('files')
         self.logger = logger
+        self.logger.warning(f'Event: {event}')
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
@@ -103,6 +104,38 @@ class DiscoverGranulesBase(ABC):
                 }
             ]
         }
+
+    def generate_cumulus_output_new(self, ret_dict):
+        ret_lst = []
+        for k, v in ret_dict.items():
+            filename = str(k).rsplit('/', 1)[-1]
+            ret_lst.append(
+                {
+                    'granuleId': filename,
+                    'dataType': self.collection.get('name', ''),
+                    'version': self.collection.get('version', ''),
+                    'files': [
+                        {
+                            'name': filename,
+                            'path': self.meta.get('provider_path'),
+                            'type': '',
+                        }
+                    ]
+                }
+            )
+
+        return ret_lst
+
+    def generate_lambda_output(self, ret_dict):
+        if self.config.get('workflow_name') == 'LZARDSBackup':
+            output_lst = self.lzards_output_generator(ret_dict)
+        else:
+            output_lst = self.generate_cumulus_output_new(ret_dict)
+
+        return output_lst
+
+    def lzards_output_generator(self, ret_dict):
+        return []
 
     def cumulus_output_generator(self, ret_dict):
         """
