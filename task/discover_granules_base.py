@@ -83,12 +83,11 @@ class DiscoverGranulesBase(ABC):
 
         return ret_lst
 
-    def lzards_output_generator(self, ret_dict):
+    def create_file_mapping(self):
         """
-        Generates a single dictionary generator that yields the expected cumulus output for a granule
-        :param ret_dict: Dictionary containing discovered granules, ETag, Last-Modified, and Size
-        :return: A list of dictionaries that follows this schema:
-        https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
+        Creates a mapping from the collection file list for generating LZARDS output.
+        :return A dictionary of the following format:
+        { '<regex>': {'bucket': <bucket_name>, 'lzards': <True/False>}, ...}
         """
         mapping = {}
         for file_dict in self.files_list:
@@ -97,16 +96,26 @@ class DiscoverGranulesBase(ABC):
             lzards = file_dict.get('lzards', {}).get('backup')
             mapping[reg] = {'bucket': bucket, 'lzards': lzards}
 
+        return mapping
+
+    def lzards_output_generator(self, ret_dict):
+        """
+        Generates a single dictionary generator that yields the expected cumulus output for a granule
+        :param ret_dict: Dictionary containing discovered granules, ETag, Last-Modified, and Size
+        :return: A list of dictionaries that follows this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
+        """
+        mapping = self.create_file_mapping()
         ret_lst = []
         for key, value in ret_dict.items():
             filename = str(key).rsplit('/', 1)[-1]
             version = self.collection.get('version', '')
 
-            temp_dict = {}
+            bucket = ''
             for reg_key, val in mapping.items():
                 res = re.search(reg_key, filename)
                 if res:
-                    temp_dict.update(val)
+                    bucket = value.get("bucket")
                     break
 
             ret_lst.append(
@@ -116,7 +125,7 @@ class DiscoverGranulesBase(ABC):
                     'version': version,
                     'files': [
                         {
-                            'bucket': f'{self.config_stack}-{temp_dict.get("bucket")}',
+                            'bucket': f'{self.config_stack}-{bucket}',
                             'checksum': value.get('ETag'),
                             'checksumType': 'md5',
                             'fileName': key,

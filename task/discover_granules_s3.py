@@ -3,6 +3,16 @@ import boto3
 from task.discover_granules_base import DiscoverGranulesBase
 
 
+def get_ssm_value(id_name, ssm_client):
+    """
+    Retrieves and decrypts ssm value from aws
+    :param id_name: The identifier of the managed secret
+    :param ssm_client:Initialized boto3 ssm client
+    :return: Decrypted ssm value
+    """
+    return ssm_client.get_parameter(Name=id_name, WithDecryption=True).get('Parameter').get('Value')
+
+
 class DiscoverGranulesS3(DiscoverGranulesBase):
     """
     Class to discover granules from S3 provider
@@ -36,10 +46,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         :param secret_key_name: Name of the aws key
         """
         ssm_client = boto3.client('ssm')
-        id_key = lambda id_name: ssm_client.get_parameter(Name=id_name, WithDecryption=True)\
-            .get('Parameter').get('Value')
-
-        return self.get_s3_client(aws_key_id=id_key(key_id_name), aws_secret_key=id_key(secret_key_name))
+        return self.get_s3_client(aws_key_id=get_ssm_value(key_id_name, ssm_client),
+                                  aws_secret_key=get_ssm_value(secret_key_name, ssm_client))
 
     def discover_granules(self):
         """
