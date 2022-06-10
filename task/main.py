@@ -65,7 +65,7 @@ def discover_granules(event):
                            f'granules for update processing.')
         dg.check_granule_updates_db(granule_dict)
 
-        output = dg.cumulus_output_generator(granule_dict)
+        output = dg.generate_lambda_output(granule_dict)
         dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
 
     dg.logger.info(f'Discovered {len(output)} granules.')
