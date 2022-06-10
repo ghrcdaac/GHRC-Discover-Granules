@@ -49,10 +49,10 @@ class DiscoverGranulesBase(ABC):
     def generate_lambda_output(self, ret_dict):
         if self.meta.get('workflow_name') == 'LZARDSBackup':
             output_lst = self.lzards_output_generator(ret_dict)
-            self.logger.info(f'LZARDS output generated')
+            self.logger.info('LZARDS output generated')
         else:
             output_lst = self.generate_cumulus_output_new(ret_dict)
-            self.logger.info(f'Cumulus output generated')
+            self.logger.info('Cumulus output generated')
 
         return output_lst
 
@@ -64,7 +64,7 @@ class DiscoverGranulesBase(ABC):
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
         ret_lst = []
-        for k, v in ret_dict.items():
+        for k in ret_dict:
             filename = str(k).rsplit('/', 1)[-1]
             ret_lst.append(
                 {
