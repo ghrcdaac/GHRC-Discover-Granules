@@ -58,7 +58,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_get_file_link_remss_without_regex(self):
         self.setup_http_mock(name="remss")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
+        self.dg.file_reg_ex = ''
         retrieved_dict = self.dg.discover_granules()
         self.assertEqual(len(retrieved_dict), 5)
 
@@ -70,13 +70,13 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_get_file_link_amsu_without_regex(self):
         self.setup_http_mock(name="msut")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = '^.*'
+        self.dg.file_reg_ex = ''
         retrieved_dict = self.dg.discover_granules()
         self.assertEqual(len(retrieved_dict), 4)
 
     def test_get_file_link_amsu_with_regex(self):
         self.setup_http_mock(name="msut")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = "^tlt.*\\d{4}_6\\.\\d"
+        self.dg.file_reg_ex = '^tlt.*\\d{4}_6\\.\\d'
         retrieved_dict = self.dg.discover_granules()
         self.assertEqual(len(retrieved_dict), 1)
 
