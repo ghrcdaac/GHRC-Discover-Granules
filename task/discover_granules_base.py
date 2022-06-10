@@ -115,7 +115,7 @@ class DiscoverGranulesBase(ABC):
             for reg_key, val in mapping.items():
                 res = re.search(reg_key, filename)
                 if res:
-                    bucket = value.get("bucket")
+                    bucket = val.get("bucket")
                     break
 
             ret_lst.append(
