@@ -46,7 +46,23 @@ class DiscoverGranulesBase(ABC):
 
         self.logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
+    def generate_lambda_output(self, ret_dict):
+        if self.meta.get('workflow_name') == 'LZARDSBackup':
+            output_lst = self.lzards_output_generator(ret_dict)
+            self.logger.info(f'LZARDS output generated')
+        else:
+            output_lst = self.generate_cumulus_output_new(ret_dict)
+            self.logger.info(f'Cumulus output generated')
+
+        return output_lst
+
     def generate_cumulus_output_new(self, ret_dict):
+        """
+        Generates necessary output for the ingest workflow.
+        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
+        :return List of dictionaries that follow this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
+        """
         ret_lst = []
         for k, v in ret_dict.items():
             filename = str(k).rsplit('/', 1)[-1]
@@ -67,21 +83,12 @@ class DiscoverGranulesBase(ABC):
 
         return ret_lst
 
-    def generate_lambda_output(self, ret_dict):
-        if self.meta.get('workflow_name') == 'LZARDSBackup':
-            output_lst = self.lzards_output_generator(ret_dict)
-        else:
-            output_lst = self.generate_cumulus_output_new(ret_dict)
-
-        return output_lst
-
     def lzards_output_generator(self, ret_dict):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
-        :param key: The name of the file
-        :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
-        :param mapping: Dictionary of each file extension and needed output fields from the event
-        :return: A cumulus granule dictionary
+        :param ret_dict: Dictionary containing discovered granules, ETag, Last-Modified, and Size
+        :return: A list of dictionaries that follows this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
         """
         mapping = {}
         for file_dict in self.files_list:
@@ -122,30 +129,6 @@ class DiscoverGranulesBase(ABC):
             )
 
         return ret_lst
-
-    # def cumulus_output_generator(self, ret_dict):
-    #     """
-    #     Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
-    #     :param ret_dict: Dictionary containing only newly discovered granules.
-    #     granule_dict = {
-    #        'http://path/to/granule/file.extension': {
-    #           'ETag': 'S3ETag',
-    #           'Last-Modified': '1645564956.0
-    #        },
-    #        ...
-    #     }
-    #     :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
-    #     """
-    #     # self.logger.warning(f'File_list: {self.files_list}')
-    #     # Extract the data from the files array in the event
-    #     mapping = {}
-    #     for file_dict in self.files_list:
-    #         bucket = file_dict.get('bucket')
-    #         reg = file_dict.get('regex')
-    #         lzards = file_dict.get('lzards', {}).get('backup')
-    #         mapping[reg] = {'bucket': bucket, 'lzards': lzards}
-    #
-    #     return [self.generate_cumulus_record(k, v, mapping) for k, v in ret_dict.items()]
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod, size):
