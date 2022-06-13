@@ -12,6 +12,7 @@ class DiscoverGranulesBase(ABC):
     """
 
     def __init__(self, event, logger):
+        self.logger = logger
         self.event = event
         self.input = event.get('input')
         self.config = event.get('config')
@@ -22,7 +23,6 @@ class DiscoverGranulesBase(ABC):
         self.host = self.provider.get('host')
         self.config_stack = self.config.get('stack')
         self.files_list = self.config.get('collection').get('files')
-        self.logger = logger
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
@@ -47,7 +47,7 @@ class DiscoverGranulesBase(ABC):
         self.logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def generate_lambda_output(self, ret_dict):
-        if self.meta.get('workflow_name') == 'LZARDSBackup':
+        if self.config.get('workflow_name') == 'LZARDSBackup':
             output_lst = self.lzards_output_generator(ret_dict)
             self.logger.info('LZARDS output generated')
         else:
@@ -65,7 +65,9 @@ class DiscoverGranulesBase(ABC):
         """
         ret_lst = []
         for k in ret_dict:
-            filename = str(k).rsplit('/', 1)[-1]
+            strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+            file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
+            filename = file_path_name[-1]
             ret_lst.append(
                 {
                     'granuleId': filename,
@@ -74,7 +76,7 @@ class DiscoverGranulesBase(ABC):
                     'files': [
                         {
                             'name': filename,
-                            'path': self.meta.get('provider_path'),
+                            'path': file_path_name[0],
                             'type': '',
                         }
                     ]
@@ -128,7 +130,7 @@ class DiscoverGranulesBase(ABC):
                             'bucket': f'{self.config_stack}-{bucket}',
                             'checksum': value.get('ETag'),
                             'checksumType': 'md5',
-                            'fileName': key,
+                            'key': key,
                             'size': value.get('Size'),
                             'source': '',
                             'type': '',

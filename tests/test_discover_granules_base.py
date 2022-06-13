@@ -58,30 +58,30 @@ class TestDiscoverGranules(unittest.TestCase):
         ret_list = self.dg.generate_cumulus_output_new(test_dict)
 
         expected_entries = [
-          {
-             'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-             'dataType': 'rssmif16d',
-             'version': '7',
-             'files': [
-                {
-                   'name': 'LA_NALMA_firetower_211130_000000.dat',
-                   'path': '/ssmi/f16/bmaps_v07/y2021/',
-                   'type': ''
-                 }
-               ]
-          },
-          {
-             'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-             'dataType': 'rssmif16d',
-             'version': '7',
-             'files': [
-                {
-                   'name': 'LA_NALMA_firetower_211130_001000.dat',
-                   'path': '/ssmi/f16/bmaps_v07/y2021/',
-                   'type': ''
-                }
-             ]
-          }
+            {
+                'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
+                'dataType': 'rssmif16d',
+                'version': '7',
+                'files': [
+                    {
+                        'name': 'LA_NALMA_firetower_211130_000000.dat',
+                        'path': 's3://sharedsbx-private/lma/nalma/raw/short_test',
+                        'type': ''
+                    }
+                ]
+            },
+            {
+                'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
+                'dataType': 'rssmif16d',
+                'version': '7',
+                'files': [
+                    {
+                        'name': 'LA_NALMA_firetower_211130_001000.dat',
+                        'path': 's3://sharedsbx-private/lma/nalma/raw/short_test',
+                        'type': ''
+                    }
+                ]
+            }
         ]
 
         for val in expected_entries:
@@ -89,13 +89,13 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_generate_lambda_output_lzards_called(self):
         self.dg.lzards_output_generator = MagicMock()
-        self.dg.meta['workflow_name'] = 'LZARDSBackup'
+        self.dg.config['workflow_name'] = 'LZARDSBackup'
         self.dg.generate_lambda_output({})
         assert self.dg.lzards_output_generator.called
 
     def test_generate_lambda_output_cumulus_called(self):
         self.dg.generate_cumulus_output_new = MagicMock()
-        self.dg.meta['workflow_name'] = 'DiscoverGranules'
+        self.dg.config['workflow_name'] = 'DiscoverGranules'
         self.dg.generate_lambda_output({})
         assert self.dg.generate_cumulus_output_new.called
 
@@ -118,7 +118,7 @@ class TestDiscoverGranules(unittest.TestCase):
                         'bucket': 'ghrcsbxw-private',
                         'checksum': 'ec5273963f74811028e38a367beaf7a5',
                         'checksumType': 'md5',
-                        'fileName': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                        'key': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
                         'size': 4553538,
                         'source': '',
                         'type': ''
@@ -134,7 +134,7 @@ class TestDiscoverGranules(unittest.TestCase):
                         'bucket': 'ghrcsbxw-private',
                         'checksum': '919a1ba1dfbbd417a662ab686a2ff574',
                         'checksumType': 'md5',
-                        'fileName': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                        'key': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
                         'size': 4706838,
                         'source': '',
                         'type': ''
