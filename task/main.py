@@ -5,8 +5,8 @@ from task.dgm import initialize_db, Granule
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
-from cumulus_logger import CumulusLogger
 from task.helpers import MyLogger
+from cumulus_logger import CumulusLogger
 
 rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) \
     if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()
@@ -42,31 +42,9 @@ def discover_granules(event):
 
     output = {}
     if dg.input:
-        # If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
-        # from the database.
-        names = []
-        dg.logger.warning(dg.input.get('granules', {}))
-        for granule in dg.input.get('granules', {}):
-            file = granule.get('files')[0]
-            name = f'{file.get("path")}/{file.get("name")}'
-            names.append(name)
-
-        with initialize_db(dg.db_file_path):
-            num = Granule().delete_granules_by_names(names)
-
-        dg.logger.info(f'Cleaned {num} records from the database.')
+        clean_database(dg)
     else:
-        # Discover granules
-        granule_dict = dg.discover_granules()
-        if not granule_dict:
-            dg.logger.warning(f'Warning: Found 0 {dg.collection.get("name")} granules at the provided location.')
-        else:
-            dg.logger.info(f'Discovered {len(granule_dict)} {dg.collection.get("name")} '
-                           f'granules for update processing.')
-        dg.check_granule_updates_db(granule_dict)
-
-        output = dg.cumulus_output_generator(granule_dict)
-        dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
+        output = discovery(dg)
 
     dg.logger.info(f'Discovered {len(output)} granules.')
 
@@ -75,6 +53,45 @@ def discover_granules(event):
         output = []
 
     return {'granules': output}
+
+
+def clean_database(dg):
+    """
+    If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
+    from the database.
+    :param dg Initialized discover granules object.
+    """
+    names = []
+    dg.logger.warning(dg.input.get('granules', {}))
+    for granule in dg.input.get('granules', {}):
+        file = granule.get('files')[0]
+        name = f'{file.get("path")}/{file.get("name")}'
+        names.append(name)
+
+    with initialize_db(dg.db_file_path):
+        num = Granule().delete_granules_by_names(names)
+
+    dg.logger.info(f'Cleaned {num} records from the database.')
+
+
+def discovery(dg):
+    """
+    Discovers granules, checks against the database, and returns correctly formatted output.
+    :param dg: Initialized discover granules object
+    :return: List of formatted dictionaries.
+    """
+    granule_dict = dg.discover_granules()
+    if not granule_dict:
+        dg.logger.warning(f'Warning: Found 0 {dg.collection.get("name")} granules at the provided location.')
+    else:
+        dg.logger.info(f'Discovered {len(granule_dict)} {dg.collection.get("name")} '
+                       f'granules for update processing.')
+    dg.check_granule_updates_db(granule_dict)
+
+    output = dg.generate_lambda_output(granule_dict)
+    dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
+
+    return output
 
 
 if __name__ == '__main__':

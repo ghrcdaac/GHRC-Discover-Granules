@@ -46,79 +46,49 @@ class DiscoverGranulesBase(ABC):
 
         self.logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
-    def get_path(self, key):
-        """
-        Extracts the path and file name from they key as needed for the cumulus output
-        :param key: The full url where the file was discovered
-        :return: A dictionary containing the path and name. <protocol>://<host>/some/path/and/file will return
-        {'path': some/path/and, 'name': file}
-        """
-        temp = key.rsplit('/', 1)
-        name = temp[1]
-        replace_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
-        path = temp[0].replace(replace_str, '')
-        return {'path': path, 'name': name}
+    def generate_lambda_output(self, ret_dict):
+        if self.meta.get('workflow_name') == 'LZARDSBackup':
+            output_lst = self.lzards_output_generator(ret_dict)
+            self.logger.info('LZARDS output generated')
+        else:
+            output_lst = self.generate_cumulus_output_new(ret_dict)
+            self.logger.info('Cumulus output generated')
 
-    def generate_cumulus_record(self, key, value, mapping):
+        return output_lst
+
+    def generate_cumulus_output_new(self, ret_dict):
         """
-        Generates a single dictionary generator that yields the expected cumulus output for a granule
-        :param key: The name of the file
-        :param value: A dictionary of the form {'ETag': tag, 'Last-Modified': last_mod}
-        :param mapping: Dictionary of each file extension and needed output fields from the event
-        :return: A cumulus granule dictionary
+        Generates necessary output for the ingest workflow.
+        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
+        :return List of dictionaries that follow this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
-        epoch = value.get('Last-Modified')
-        path_and_name_dict = self.get_path(key)
-        version = self.collection.get('version', '')
-
-        temp_dict = {}
-        for reg_key, val in mapping.items():
-            res = re.search(reg_key, path_and_name_dict.get('name'))
-            if res:
-                temp_dict.update(val)
-                break
-
-        checksum = ''
-        checksum_type = ''
-        if temp_dict.get('lzards'):
-            checksum = value.get('ETag')
-            checksum_type = 'md5'
-            self.logger.info(f'LZARDS backing up: {key}')
-
-        return {
-            'granuleId': path_and_name_dict.get('name'),
-            'dataType': self.collection.get('name', ''),
-            'version': version,
-            'files': [
+        ret_lst = []
+        for k in ret_dict:
+            filename = str(k).rsplit('/', 1)[-1]
+            ret_lst.append(
                 {
-                    'bucket': f'{self.config_stack}-{temp_dict.get("bucket")}',
-                    'checksum': checksum,
-                    'checksumType': checksum_type,
-                    'filename': key,
-                    'name': path_and_name_dict.get('name'),
-                    'path': path_and_name_dict.get('path'),
-                    'size': value.get('Size'),
-                    'time': epoch,
-                    'type': '',
+                    'granuleId': filename,
+                    'dataType': self.collection.get('name', ''),
+                    'version': self.collection.get('version', ''),
+                    'files': [
+                        {
+                            'name': filename,
+                            'path': self.meta.get('provider_path'),
+                            'type': '',
+                        }
+                    ]
                 }
-            ]
-        }
+            )
 
-    def cumulus_output_generator(self, ret_dict):
+        return ret_lst
+
+    def create_file_mapping(self):
         """
-        Function to generate correctly formatted output for the next step in the workflow which is queue_granules.
-        :param ret_dict: Dictionary containing only newly discovered granules.
-        granule_dict = {
-           'http://path/to/granule/file.extension': {
-              'ETag': 'S3ETag',
-              'Last-Modified': '1645564956.0
-           },
-           ...
-        }
-        :return: Dictionary with a list of dictionaries formatted for the queue_granules workflow step.
+        Creates a mapping from the collection file list for generating LZARDS output.
+        :return A dictionary of the following format:
+        { '<regex>': {'bucket': <bucket_name>, 'lzards': <True/False>}, ...}
         """
-        # self.logger.warning(f'File_list: {self.files_list}')
-        # Extract the data from the files array in the event
         mapping = {}
         for file_dict in self.files_list:
             bucket = file_dict.get('bucket')
@@ -126,7 +96,48 @@ class DiscoverGranulesBase(ABC):
             lzards = file_dict.get('lzards', {}).get('backup')
             mapping[reg] = {'bucket': bucket, 'lzards': lzards}
 
-        return [self.generate_cumulus_record(k, v, mapping) for k, v in ret_dict.items()]
+        return mapping
+
+    def lzards_output_generator(self, ret_dict):
+        """
+        Generates a single dictionary generator that yields the expected cumulus output for a granule
+        :param ret_dict: Dictionary containing discovered granules, ETag, Last-Modified, and Size
+        :return: A list of dictionaries that follows this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
+        """
+        mapping = self.create_file_mapping()
+        ret_lst = []
+        for key, value in ret_dict.items():
+            filename = str(key).rsplit('/', 1)[-1]
+            version = self.collection.get('version', '')
+
+            bucket = ''
+            for reg_key, val in mapping.items():
+                res = re.search(reg_key, filename)
+                if res:
+                    bucket = val.get("bucket")
+                    break
+
+            ret_lst.append(
+                {
+                    'granuleId': filename,
+                    'dataType': self.collection.get('name', ''),
+                    'version': version,
+                    'files': [
+                        {
+                            'bucket': f'{self.config_stack}-{bucket}',
+                            'checksum': value.get('ETag'),
+                            'checksumType': 'md5',
+                            'fileName': key,
+                            'size': value.get('Size'),
+                            'source': '',
+                            'type': '',
+                        }
+                    ]
+                }
+            )
+
+        return ret_lst
 
     @staticmethod
     def populate_dict(target_dict, key, etag, last_mod, size):
