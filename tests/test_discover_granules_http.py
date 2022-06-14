@@ -5,7 +5,7 @@ import logging
 import unittest
 from bs4 import BeautifulSoup
 from task.discover_granules_http import DiscoverGranulesHTTP
-from .helpers import get_event
+from .helpers import get_event, configure_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -14,7 +14,6 @@ class TestDiscoverGranules(unittest.TestCase):
     """
     Tests discover Granules
     """
-
 
     def setUp(self) -> None:
         provider = {
@@ -28,7 +27,7 @@ class TestDiscoverGranules(unittest.TestCase):
             "depth": 0,
             "dir_reg_ex": ".*"
         }
-        event = get_event(provider, granule_id_extraction, provider_path, discover_tf)
+        event = configure_event(provider, granule_id_extraction, provider_path, discover_tf)
         self.dg = DiscoverGranulesHTTP(event, logging)
         self.dg.getSession = MagicMock()
 

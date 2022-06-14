@@ -1,4 +1,16 @@
-def get_event(provider, granuleId_extraction, provider_path, discover_tf):
+import json
+import os
+
+
+def get_event(event_protocol):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(f'{dir_path}/event_{event_protocol}.json', 'r', encoding='utf-8') as file:
+        json_dict = json.load(file)
+
+    return json_dict
+
+
+def configure_event(provider, granuleId_extraction, provider_path, discover_tf):
     """
     returns event data
     """

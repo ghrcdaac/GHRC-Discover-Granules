@@ -107,6 +107,7 @@ class DiscoverGranulesBase(ABC):
         :return: A list of dictionaries that follows this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
         """
+        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
         mapping = self.create_file_mapping()
         ret_lst = []
         for key, value in ret_dict.items():
@@ -130,7 +131,7 @@ class DiscoverGranulesBase(ABC):
                             'bucket': f'{self.config_stack}-{bucket}',
                             'checksum': value.get('ETag'),
                             'checksumType': 'md5',
-                            'key': key,
+                            'key': key.replace(strip_str, ''),
                             'size': value.get('Size'),
                             'source': '',
                             'type': '',
