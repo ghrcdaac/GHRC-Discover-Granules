@@ -214,5 +214,3 @@ def get_s3_event():
             'execution_name': 'dg-nalmaraw-7a7b991a-cc3f-45ce-af4f-40b9b3647ac2'
         }
     }
-
-    pass
