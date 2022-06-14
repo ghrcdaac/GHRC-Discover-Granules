@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import logging
 import unittest
 from task.discover_granules_base import DiscoverGranulesBase
-from .helpers import get_event, get_s3_event
+from .helpers import get_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,7 +16,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
-        event = get_s3_event()
+        event = get_event('s3')
         self.dg = DiscoverGranulesBase(event, logging)
         self.dg.get_session = MagicMock()
 
