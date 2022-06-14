@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import logging
 import unittest
 from task.discover_granules_base import DiscoverGranulesBase
-from .helpers import get_event
+from .helpers import get_event, get_s3_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,17 +16,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
-        provider = {
-            "host": "data.remss.com",
-            "protocol": "https"
-        }
-        granule_id_extraction = "^(f16_\\d{8}v7.gz)$"
-        provider_path = "/ssmi/f16/bmaps_v07/y2021/"
-        discover_tf = {
-            "depth": 0,
-            "dir_reg_ex": ".*"
-        }
-        event = get_event(provider, granule_id_extraction, provider_path, discover_tf)
+        event = get_s3_event()
         self.dg = DiscoverGranulesBase(event, logging)
         self.dg.get_session = MagicMock()
 
@@ -60,24 +50,24 @@ class TestDiscoverGranules(unittest.TestCase):
         expected_entries = [
             {
                 'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-                'dataType': 'rssmif16d',
-                'version': '7',
+                'dataType': 'nalmaraw',
+                'version': '1',
                 'files': [
                     {
                         'name': 'LA_NALMA_firetower_211130_000000.dat',
-                        'path': 's3://sharedsbx-private/lma/nalma/raw/short_test',
+                        'path': 'lma/nalma/raw/short_test',
                         'type': ''
                     }
                 ]
             },
             {
                 'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-                'dataType': 'rssmif16d',
-                'version': '7',
+                'dataType': 'nalmaraw',
+                'version': '1',
                 'files': [
                     {
                         'name': 'LA_NALMA_firetower_211130_001000.dat',
-                        'path': 's3://sharedsbx-private/lma/nalma/raw/short_test',
+                        'path': 'lma/nalma/raw/short_test',
                         'type': ''
                     }
                 ]
@@ -111,14 +101,14 @@ class TestDiscoverGranules(unittest.TestCase):
         expected_entries = [
             {
                 'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-                'dataType': 'rssmif16d',
-                'version': '7',
+                'dataType': 'nalmaraw',
+                'version': '1',
                 'files': [
                     {
-                        'bucket': 'ghrcsbxw-private',
+                        'bucket': 'sharedsbx-private',
                         'checksum': 'ec5273963f74811028e38a367beaf7a5',
                         'checksumType': 'md5',
-                        'key': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                        'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
                         'size': 4553538,
                         'source': '',
                         'type': ''
@@ -127,14 +117,14 @@ class TestDiscoverGranules(unittest.TestCase):
             },
             {
                 'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-                'dataType': 'rssmif16d',
-                'version': '7',
+                'dataType': 'nalmaraw',
+                'version': '1',
                 'files': [
                     {
-                        'bucket': 'ghrcsbxw-private',
+                        'bucket': 'sharedsbx-private',
                         'checksum': '919a1ba1dfbbd417a662ab686a2ff574',
                         'checksumType': 'md5',
-                        'key': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                        'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
                         'size': 4706838,
                         'source': '',
                         'type': ''
