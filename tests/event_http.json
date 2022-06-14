@@ -1,0 +1,107 @@
+{
+  "input": {},
+  "config": {
+    "provider": {
+      "host": "data.remss.com",
+      "updatedAt": 1636482718717,
+      "protocol": "https",
+      "createdAt": 1635960702721,
+      "id": "rss_provider",
+      "globalConnectionLimit": 900
+    },
+    "provider_path": "/ssmi/f17/bmaps_v07/y2022/m03/",
+    "collection": {
+      "process": "rss",
+      "granuleIdExtraction": "^(f17_\\d{8}v7.gz)$",
+      "version": "7",
+      "dataType": "rssmif17d",
+      "meta": {
+        "discover_tf": {
+          "force_replace": "true",
+          "depth": 2,
+          "dir_reg_ex": ".*"
+        },
+        "hyrax_processing": "true",
+        "granuleRecoveryWorkflow": "OrcaRecoveryWorkflow",
+        "provider_path": "/ssmi/f17/bmaps_v07/y2022/m03/",
+        "collectionVersion": "7",
+        "collection_type": "ongoing",
+        "collectionName": "rssmif17d",
+        "metadata_extractor": [
+          {
+            "lon_var_key": "longitude",
+            "regex": "^(f17_.*).nc$",
+            "time_units": "units",
+            "time_var_key": "time",
+            "lat_var_key": "latitude",
+            "module": "netcdf"
+          }
+        ]
+      },
+      "createdAt": 1636479532855,
+      "name": "rssmif17d",
+      "duplicateHandling": "replace",
+      "files": [
+        {
+          "bucket": "internal",
+          "regex": "^(f17_.*)\\dv7.gz$",
+          "reportToEms": "True",
+          "sampleFileName": "f17_20190301v7.gz"
+        },
+        {
+          "bucket": "protected",
+          "regex": "^(f17_.*).(dmrpp|nc)$",
+          "reportToEms": "True",
+          "sampleFileName": "f17_ssmis_20190317v7.nc"
+        },
+        {
+          "bucket": "public",
+          "regex": "^(f17_.*).nc\\.cmr\\.(xml|json)$",
+          "reportToEms": "True",
+          "sampleFileName": "f17_ssmis_20190317v7.nc.cmr.xml"
+        }
+      ],
+      "updatedAt": 1636643619263,
+      "url_path": "rssmif17d__7",
+      "reportToEms": "True",
+      "granuleId": "^(f17_\\d{8}v7).*$",
+      "sampleFileName": "f17_20190301v7.gz"
+    },
+    "buckets": {
+      "dashboard": {
+        "name": "sharedsbx-dashboard",
+        "type": "public"
+      },
+      "internal": {
+        "name": "sharedsbx-internal",
+        "type": "internal"
+      },
+      "orca_default": {
+        "name": "",
+        "type": "orca"
+      },
+      "private": {
+        "name": "sharedsbx-private",
+        "type": "private"
+      },
+      "protected": {
+        "name": "sharedsbx-protected",
+        "type": "protected"
+      },
+      "public": {
+        "name": "sharedsbx-public",
+        "type": "public"
+      },
+      "sharedprivate": {
+        "name": "ghrcw-private",
+        "type": "sharedprivate"
+      }
+    },
+    "stack": "sharedsbx",
+    "duplicateGranuleHandling": "replace"
+  },
+  "cumulus_config": {
+    "state_machine": "arn:aws:states:us-west-2:322322076095:stateMachine:sharedsbx-DiscoverGranules",
+    "execution_name": "rssmif17d-df72958a-6577-4b01-8f4b-66c8b4b6e797"
+  }
+}
