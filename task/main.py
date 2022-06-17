@@ -88,6 +88,14 @@ def discovery(dg):
                        f'granules for update processing.')
     dg.check_granule_updates_db(granule_dict)
 
+    # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules step
+    # will be able to copy them. As of 06-17-2022 Cumulus sync ganules does not support access keys. Additionally the
+    # provider needs to be updated to use the new location.
+    if dg.meta.get('aws_key_id_name', None) and dg.meta.get('aws_secret_key_name', None):
+        dg.move_granule_wrapper(granule_dict)
+        dg.provider['id'] = 'private_bucket'
+        dg.provider['host'] = f'{os.getenv("stackName")}-private'
+
     output = dg.generate_lambda_output(granule_dict)
     dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
 

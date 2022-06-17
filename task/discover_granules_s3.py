@@ -1,3 +1,5 @@
+import concurrent.futures
+import os
 import re
 import boto3
 from task.discover_granules_base import DiscoverGranulesBase
@@ -20,10 +22,10 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
     def __init__(self, event, logger):
         super().__init__(event, logger)
-        key_id_name = self.meta.get('aws_key_id_name')
-        secret_key_name = self.meta.get('aws_secret_key_name')
-        self.s3_client = self.get_s3_client() if None in [key_id_name, secret_key_name] \
-            else self.get_s3_client_with_keys(key_id_name, secret_key_name)
+        self.key_id_name = self.meta.get('aws_key_id_name')
+        self.secret_key_name = self.meta.get('aws_secret_key_name')
+        self.s3_client = self.get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
+            else self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
 
     @staticmethod
     def get_s3_client(aws_key_id=None, aws_secret_key=None):
@@ -102,3 +104,42 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 'PageSize': 1000
             }
         )
+
+    def move_granule(self, source_s3_uri):
+        """
+        Moves a granule from an external provider bucket to the <stack_prefix>-private bucket
+        :param source_s3_uri: The external location to copy from
+        :return: The new location the granule has been copied to.
+        """
+        s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
+        self.logger.info(f'bucket: {bucket_and_key[0]}, key: {bucket_and_key[-1]}')
+        copy_source = {
+            'Bucket': bucket_and_key[0],
+            'Key': bucket_and_key[-1]
+        }
+
+        destination_bucket = f'{os.getenv("stackName")}-private'
+        s3_client.copy(copy_source, destination_bucket, bucket_and_key[-1])
+        new_s3_uri = f's3://{destination_bucket}/{bucket_and_key[-1]}'
+        self.logger.info(f'Moving {source_s3_uri} to {new_s3_uri}')
+
+        return new_s3_uri
+
+    def move_granule_wrapper(self, granule_dict):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for s3_uri in granule_dict.keys():
+                # Move granules
+                futures.append(
+                    executor.submit(self.move_granule, s3_uri)
+                )
+
+            for future in concurrent.futures.as_completed(futures):
+                self.logger.info(future.result())
+
+
+if __name__ == '__main__':
+    c = boto3.client('s3')
+    print(dir(c))
+    pass

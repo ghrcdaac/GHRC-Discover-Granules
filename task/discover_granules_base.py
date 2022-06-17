@@ -180,3 +180,7 @@ class DiscoverGranulesBase(ABC):
         Abstract method to be implemented by sub-classes
         """
         raise NotImplementedError
+
+
+if __name__ == '__main__':
+    pass

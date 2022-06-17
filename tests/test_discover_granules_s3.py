@@ -99,6 +99,24 @@ class TestDiscoverGranules(unittest.TestCase):
         ret_dict = self.dg.discover_granules()
         self.assertEqual(len(ret_dict), 1)
 
+    def test_move_granule(self):
+        self.dg.get_s3_client_with_keys = MagicMock()
+        os.environ['stackName'] = 'unit-test'
+        t = 's3://some_provider/at/a/path/that/is/fake.txt'
+        check_t = t.replace('some_provider', 'unit-test-private')
+        new_t = self.dg.move_granule(t)
+        self.assertEqual(new_t, check_t)
+
+    def test_move_granule_wrapper(self):
+        test_dict = {
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
+                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
+                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        self.dg.move_granule = MagicMock()
+        self.dg.move_granule_wrapper(test_dict)
+        self.assertEqual(self.dg.move_granule.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
