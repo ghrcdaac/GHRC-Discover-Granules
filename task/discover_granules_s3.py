@@ -1,7 +1,6 @@
 import concurrent.futures
 import os
 import re
-from functools import partial
 
 import boto3
 from task.discover_granules_base import DiscoverGranulesBase
@@ -109,99 +108,38 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
     def move_granule(self, source_s3_uri):
         """
-        Moves a granule from an external provider bucket to the <stack_prefix>-private bucket
+        Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
+        internal S3 bucket.
         :param source_s3_uri: The external location to copy from
-        :return: The new location the granule has been copied to.
         """
-        external_s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        # Download granule from external S3 bucket with provided keys
+        # external_s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        external_s3_client = self.get_s3_client()
         bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
         download_path = os.getenv('efs_path')
         filename = f'{download_path}/{bucket_and_key[-1].rsplit("/" , 1)[-1]}'
         external_s3_client.download_file(Bucket=bucket_and_key[0], Key=bucket_and_key[-1], Filename=filename)
 
+        # Upload from ec2 to internal S3 then delete the copied file
         internal_s3_client = self.get_s3_client()
         destination_bucket = f'{os.getenv("stackName")}-private'
         internal_s3_client.upload_file(Filename=filename, Bucket=destination_bucket, Key=bucket_and_key[-1])
-
-        self.logger.warning(f'Attempting to remove: {filename}')
         os.remove(filename)
-        # s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        # bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
-        # self.logger.info(f'bucket: {bucket_and_key[0]}, key: {bucket_and_key[-1]}')
-        # copy_source = {
-        #     'Bucket': bucket_and_key[0],
-        #     'Key': bucket_and_key[-1]
-        # }
-        #
-        # destination_bucket = f'{os.getenv("stackName")}-private'
-        # s3_client.copy(copy_source, destination_bucket, bucket_and_key[-1])
-        # new_s3_uri = f's3://{destination_bucket}/{bucket_and_key[-1]}'
-        # self.logger.info(f'Moving {source_s3_uri} to {new_s3_uri}')
-
-        # return new_s3_uri
-
-    def download_granule(self, bucket, filename, key):
-        s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        s3_client.download_file(Bucket=bucket, Key=key, Filename=filename)
-
-    def upload_granule(self, bucket, filename, key):
-        s3_client = boto3.client('s3')
-        s3_client.upload_file(Filename=filename, Bucket=bucket, Key=key)
-
-    def network_io_executor(self, granule_dict):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
-            futures_2 = []
-            for s3_uri in granule_dict:
-                source_bucket = ''
-                destination_bucket = ''
-                filename = ''
-                s3_key = ''
-                futures.append(
-                    executor.submit(self.move_granule, s3_uri).add_done_callback(partial(
-                        executor.submit, fn=self.upload_granule, bucket=destination_bucket, filename=filename, key=s3_key)
-                    )
-                )
-
-            for future in concurrent.futures.as_completed(futures):
-                self.logger.info(future.result())
 
     def move_granule_wrapper(self, granule_dict):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for s3_uri in granule_dict:
-                source_bucket = ''
-                destination_bucket = ''
-                filename = ''
-                s3_key = ''
                 futures.append(
                     executor.submit(self.move_granule, s3_uri)
                 )
 
             for future in concurrent.futures.as_completed(futures):
-                self.logger.info(future.result())
-
-
-def funct_1(bucket, key, filename):
-    print('funct_1')
-    funct_2(bucket, key, filename)
-    print('Now delete')
-
-def funct_2(destination_bucket, key, filename):
-    executor = concurrent.futures.ThreadPoolExecutor()
-    futurees = []
-    print('funct_2')
-
-def move_granule_wrapper():
-    executor = concurrent.futures.ThreadPoolExecutor()
-    futures = []
-    for x in range(10):
-        futures.append(executor.submit(funct_1, 'bucket', 'key', 'filename'))
-
-    for future in concurrent.futures.as_completed(futures):
-        future.result()
+                try:
+                    future.result()
+                except Exception as e:
+                    self.logger.warning(f'Failed to move granule: {str(e)}')
 
 
 if __name__ == '__main__':
-    move_granule_wrapper()
     pass

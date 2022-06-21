@@ -25,7 +25,7 @@ def get_discovery_class(protocol):
         'sftp': DiscoverGranulesSFTP
     }
 
-    return switcher.get(protocol)
+    return switcher.get(protocol, None)
 
 
 def discover_granules(event):
@@ -36,9 +36,11 @@ def discover_granules(event):
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
     try:
-        dg = get_discovery_class(protocol)(event, rdg_logger)
-    except Exception:
-        raise Exception(f"Protocol {protocol} is not supported")
+        dg = get_discovery_class(protocol)
+    except Exception as e:
+        raise Exception(f"Protocol {protocol} is not supported: {str(e)}")
+
+    dg = dg(event, rdg_logger)
 
     output = {}
     if dg.input:
