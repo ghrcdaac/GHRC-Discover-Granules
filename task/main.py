@@ -25,7 +25,7 @@ def get_discovery_class(protocol):
         'sftp': DiscoverGranulesSFTP
     }
 
-    return switcher.get(protocol)
+    return switcher.get(protocol, None)
 
 
 def discover_granules(event):
@@ -36,9 +36,11 @@ def discover_granules(event):
     rdg_logger.warning(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
     try:
-        dg = get_discovery_class(protocol)(event, rdg_logger)
-    except Exception:
-        raise Exception(f"Protocol {protocol} is not supported")
+        dg = get_discovery_class(protocol)
+    except Exception as e:
+        raise Exception(f"Protocol {protocol} is not supported: {str(e)}")
+
+    dg = dg(event, rdg_logger)
 
     output = {}
     if dg.input:
@@ -88,8 +90,17 @@ def discovery(dg):
                        f'granules for update processing.')
     dg.check_granule_updates_db(granule_dict)
 
+    # Since the provider can be updated for external granules the output must be generated first
     output = dg.generate_lambda_output(granule_dict)
     dg.logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
+
+    # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules step
+    # will be able to copy them. As of 06-17-2022 Cumulus sync ganules does not support access keys. Additionally the
+    # provider needs to be updated to use the new location.
+    if dg.meta.get('aws_key_id_name', None) and dg.meta.get('aws_secret_key_name', None):
+        dg.move_granule_wrapper(granule_dict)
+        dg.provider['id'] = 'private_bucket'
+        dg.provider['host'] = f'{os.getenv("stackName")}-private'
 
     return output
 

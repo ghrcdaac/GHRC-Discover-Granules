@@ -1,4 +1,7 @@
+import concurrent.futures
+import os
 import re
+
 import boto3
 from task.discover_granules_base import DiscoverGranulesBase
 
@@ -20,10 +23,10 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
     def __init__(self, event, logger):
         super().__init__(event, logger)
-        key_id_name = self.meta.get('aws_key_id_name')
-        secret_key_name = self.meta.get('aws_secret_key_name')
-        self.s3_client = self.get_s3_client() if None in [key_id_name, secret_key_name] \
-            else self.get_s3_client_with_keys(key_id_name, secret_key_name)
+        self.key_id_name = self.meta.get('aws_key_id_name')
+        self.secret_key_name = self.meta.get('aws_secret_key_name')
+        self.s3_client = self.get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
+            else self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
 
     @staticmethod
     def get_s3_client(aws_key_id=None, aws_secret_key=None):
@@ -102,3 +105,40 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 'PageSize': 1000
             }
         )
+
+    def move_granule(self, source_s3_uri):
+        """
+        Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
+        internal S3 bucket.
+        :param source_s3_uri: The external location to copy from
+        """
+        # Download granule from external S3 bucket with provided keys
+        external_s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
+        download_path = os.getenv('efs_path')
+        filename = f'{download_path}/{bucket_and_key[-1].rsplit("/" , 1)[-1]}'
+        external_s3_client.download_file(Bucket=bucket_and_key[0], Key=bucket_and_key[-1], Filename=filename)
+
+        # Upload from ec2 to internal S3 then delete the copied file
+        internal_s3_client = self.get_s3_client()
+        destination_bucket = f'{os.getenv("stackName")}-private'
+        internal_s3_client.upload_file(Filename=filename, Bucket=destination_bucket, Key=bucket_and_key[-1])
+        try:
+            os.remove(filename)
+        except FileNotFoundError:
+            self.logger.info(f'Failed to delete {filename}. File does not exist.')
+
+    def move_granule_wrapper(self, granule_dict):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for s3_uri in granule_dict:
+                futures.append(
+                    executor.submit(self.move_granule, s3_uri)
+                )
+
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
+
+
+if __name__ == '__main__':
+    pass

@@ -3,6 +3,8 @@ import json
 import logging
 import os
 
+from boto3 import s3
+
 from task.discover_granules_s3 import DiscoverGranulesS3
 from unittest.mock import MagicMock
 import unittest
@@ -98,6 +100,24 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
         ret_dict = self.dg.discover_granules()
         self.assertEqual(len(ret_dict), 1)
+
+    def test_move_granule(self):
+        self.dg.get_s3_client_with_keys = MagicMock()
+        self.dg.get_s3_client = MagicMock()
+        os.environ['stackName'] = 'unit-test'
+        os.environ['efs_path'] = 'tmp'
+        t = 's3://some_provider/at/a/path/that/is/fake.txt'
+        self.dg.move_granule(t)
+
+    def test_move_granule_wrapper(self):
+        test_dict = {
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
+                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
+            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
+                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        self.dg.move_granule = MagicMock()
+        self.dg.move_granule_wrapper(test_dict)
+        self.assertEqual(self.dg.move_granule.call_count, 2)
 
 
 if __name__ == "__main__":
