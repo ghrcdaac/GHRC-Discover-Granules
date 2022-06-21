@@ -113,8 +113,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         :param source_s3_uri: The external location to copy from
         """
         # Download granule from external S3 bucket with provided keys
-        # external_s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        external_s3_client = self.get_s3_client()
+        external_s3_client = self.get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
         bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
         download_path = os.getenv('efs_path')
         filename = f'{download_path}/{bucket_and_key[-1].rsplit("/" , 1)[-1]}'
@@ -124,7 +123,10 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = self.get_s3_client()
         destination_bucket = f'{os.getenv("stackName")}-private'
         internal_s3_client.upload_file(Filename=filename, Bucket=destination_bucket, Key=bucket_and_key[-1])
-        os.remove(filename)
+        try:
+            os.remove(filename)
+        except FileNotFoundError:
+            self.logger.info(f'Failed to delete {filename}. File does not exist.')
 
     def move_granule_wrapper(self, granule_dict):
         with concurrent.futures.ThreadPoolExecutor() as executor:

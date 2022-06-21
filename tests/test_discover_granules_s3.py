@@ -3,6 +3,8 @@ import json
 import logging
 import os
 
+from boto3 import s3
+
 from task.discover_granules_s3 import DiscoverGranulesS3
 from unittest.mock import MagicMock
 import unittest
@@ -101,11 +103,12 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_move_granule(self):
         self.dg.get_s3_client_with_keys = MagicMock()
+        self.dg.get_s3_client = MagicMock()
         os.environ['stackName'] = 'unit-test'
+        os.environ['efs_path'] = 'tmp'
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
         check_t = t.replace('some_provider', 'unit-test-private')
-        new_t = self.dg.move_granule(t)
-        self.assertEqual(new_t, check_t)
+        self.dg.move_granule(t)
 
     def test_move_granule_wrapper(self):
         test_dict = {
