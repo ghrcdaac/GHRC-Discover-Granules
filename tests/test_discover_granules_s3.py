@@ -107,7 +107,6 @@ class TestDiscoverGranules(unittest.TestCase):
         os.environ['stackName'] = 'unit-test'
         os.environ['efs_path'] = 'tmp'
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
-        check_t = t.replace('some_provider', 'unit-test-private')
         self.dg.move_granule(t)
 
     def test_move_granule_wrapper(self):

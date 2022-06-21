@@ -137,10 +137,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 )
 
             for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    self.logger.warning(f'Failed to move granule: {str(e)}')
+                future.result()
 
 
 if __name__ == '__main__':
