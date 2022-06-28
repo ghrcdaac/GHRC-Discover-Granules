@@ -13,6 +13,7 @@ class DiscoverGranulesBase(ABC):
 
     def __init__(self, event, logger):
         self.logger = logger
+        self.logger.warning(f'Event: {event}')
         self.event = event
         self.input = event.get('input')
         self.config = event.get('config')
