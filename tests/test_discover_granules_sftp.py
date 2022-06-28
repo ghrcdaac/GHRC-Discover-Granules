@@ -52,7 +52,6 @@ class TestDiscoverGranules(unittest.TestCase):
     """
     will test discover granules
     """
-    # TODO: SFTP needs unit tests
     @staticmethod
     def get_sample_event(event_type='skip'):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
