@@ -12,7 +12,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     """
     def __init__(self, event, logger):
         super().__init__(event, logger)
-        self.sftp_client = self.sftp_client()
+        self.sftp_client = self.setup_sftp_client()
         self.path = self.config.get('provider_path')
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
@@ -83,33 +83,8 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     @staticmethod
     def check_reg_ex(regex, target):
-        return regex is None or re.search(regex, target)
-
-
-class SFTPTestFile:
-    # def __new__(cls, *args, **kwargs):
-        # temp = super(SFTPTestFile, cls).__new__(cls)
-        # # temp.filename =
-        # # temp.file_type = file_type
-        # # temp.st_mtime = mod_time
-        # # temp.st_size = size
-        # return temp
-
-    def __init__(self, filename, file_type, mod_time, size):
-        self.filename = filename
-        self.file_type = file_type
-        self.st_mtime = mod_time
-        self.st_size = size
-
-    def stat(self):
-        return self
-
-    def __str__(self):
-        return f'{self.file_type}'
+        return regex is None or re.search(regex, target) is not None
 
 
 if __name__ == "__main__":
-    test_file = SFTPTestFile('test_name', 'directory', 1, 1)
-    print(isinstance(test_file, str))
-    print(test_file.file_type)
-    print(test_file.st_size)
+    pass
