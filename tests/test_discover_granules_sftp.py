@@ -31,7 +31,6 @@ class SFTPTestClient:
     def listdir_setup(self, path, dir_count, file_count):
         resp = []
         for x in range(dir_count):
-            tfile = SFTPTestFile(f'dir_{x}', 'dir', 1, 1)
             resp.append(SFTPTestFile(f'dir_{x}', 'dir', 1, 1))
 
         for x in range(file_count):
@@ -62,7 +61,7 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch.object(re, 'search')
     def test_discover_granules_sftp(self, re_test):
         event = self.get_sample_event('sftp')
-        DiscoverGranulesSFTP.sftp_client = MagicMock(
+        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
             return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
         )
         dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'), logging.getLogger())
@@ -79,7 +78,7 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_discover_granules_sftp_recursion(self, re_test):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
-        DiscoverGranulesSFTP.sftp_client = MagicMock(
+        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
             return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         )
         dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())
@@ -93,7 +92,7 @@ class TestDiscoverGranules(unittest.TestCase):
         re.search = MagicMock(return_value='False')
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
-        DiscoverGranulesSFTP.sftp_client = MagicMock(
+        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
             return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         )
         dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())

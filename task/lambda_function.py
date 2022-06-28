@@ -20,7 +20,7 @@ def lambda_handler(event, context):  # pylint: disable=unused-argument
 
 
 def handler(event, context):
-    logging.warning(f'Pre_event: {event}')
+    logging.warning(f'Pre_event: %s', event)
     result = []
     if run_cumulus_task:
         result = run_cumulus_task(lambda_handler, event, context)

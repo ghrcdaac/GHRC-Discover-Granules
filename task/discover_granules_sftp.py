@@ -18,7 +18,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.depth = self.discover_tf.get('depth')
 
-    def sftp_client(self):
+    def setup_sftp_client(self):
         port = self.provider.get('port', 22)
         transport = paramiko.Transport((self.host, port))
         username_cypher = self.provider.get('username')
@@ -83,10 +83,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     @staticmethod
     def check_reg_ex(regex, target):
-        if regex is None or re.search(regex, target):
-            return True
-        else:
-            return False
+        return regex is None or re.search(regex, target)
 
 
 class SFTPTestFile:
