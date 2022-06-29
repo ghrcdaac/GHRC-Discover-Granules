@@ -26,17 +26,14 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         transport.connect(None, self.decode_decrypt(username_cypher), self.decode_decrypt(password_cypher))
         return paramiko.SFTPClient.from_transport(transport)
 
-    def decode_decrypt(self, _ciphertext):
+    @staticmethod
+    def decode_decrypt(_ciphertext):
         kms_client = boto3.client('kms')
-        try:
-            response = kms_client.decrypt(
-                CiphertextBlob=base64.b64decode(_ciphertext),
-                KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
-            )
-            decrypted_text = response["Plaintext"].decode()
-        except Exception as err:
-            self.logger.error(f'decode_decrypt exception: {err}')
-            raise
+        response = kms_client.decrypt(
+            CiphertextBlob=base64.b64decode(_ciphertext),
+            KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
+        )
+        decrypted_text = response["Plaintext"].decode()
 
         return decrypted_text
 
@@ -87,4 +84,5 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
 
 if __name__ == "__main__":
+    'test'.decode()
     pass

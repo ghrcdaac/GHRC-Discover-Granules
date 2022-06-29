@@ -108,6 +108,18 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(DiscoverGranulesSFTP.check_reg_ex('This will not match', 'any_text'), False)
         pass
 
+    @patch('paramiko.Transport')
+    @patch('paramiko.SFTPClient.from_transport')
+    def test_setup_sftp_client(self, mock_paramiko, mock_from_transport):
+        event = self.get_sample_event('sftp')
+        DiscoverGranulesSFTP.decode_decrypt = MagicMock(return_value='coveralls wants coverage')
+        dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())
+        dg_sftp.setup_sftp_client()
+
+    @patch('boto3.client')
+    def test_decode_decrypt(self, mock_boto):
+        DiscoverGranulesSFTP.decode_decrypt('')
+
 
 if __name__ == "__main__":
     test_file = SFTPTestFile('test_name', 'directory', 1, 1)
