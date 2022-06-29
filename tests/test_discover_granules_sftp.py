@@ -118,10 +118,8 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch('boto3.client')
     def test_decode_decrypt(self, mock_boto):
-        DiscoverGranulesSFTP.decode_decrypt('')
+        temp = DiscoverGranulesSFTP.decode_decrypt('')
 
 
 if __name__ == "__main__":
-    test_file = SFTPTestFile('test_name', 'directory', 1, 1)
-    logging.warning(isinstance(test_file, str))
-    # unittest.main()
+    unittest.main()
