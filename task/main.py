@@ -33,7 +33,7 @@ def discover_granules(event):
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
-    rdg_logger.warning(f'Event: {event}')
+    rdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol")
     try:
         dg = get_discovery_class(protocol)
