@@ -118,7 +118,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch('boto3.client')
     def test_decode_decrypt(self, mock_boto):
-        temp = DiscoverGranulesSFTP.decode_decrypt('')
+        DiscoverGranulesSFTP.decode_decrypt('')
 
 
 if __name__ == "__main__":
