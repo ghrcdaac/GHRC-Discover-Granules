@@ -4,7 +4,9 @@ import urllib3
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from task.discover_granules_base import DiscoverGranulesBase
+from main import rdg_logger
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class DiscoverGranulesHTTP(DiscoverGranulesBase):
@@ -12,9 +14,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
     Class to discover granules from HTTP/HTTPS provider
     """
 
-    def __init__(self, event, logger):
-        super().__init__(event, logger)
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    def __init__(self, event):
+        super().__init__(event)
         self.session = requests.Session()
         self.url_path = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
                         f'{self.config["provider_path"].lstrip("/")}'
@@ -78,7 +79,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
             if (etag is not None or last_modified is not None) and \
                     (self.file_reg_ex is None or re.search(self.file_reg_ex, url_segment)):
-                self.logger.info(f'Discovered granule: {path}')
+                rdg_logger.info(f'Discovered granule: {path}')
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
@@ -87,7 +88,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                     (self.dir_reg_ex is None or re.search(self.dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:
-                self.logger.warning(f'Notice: {path} not processed as granule or directory. '
+                rdg_logger.warning(f'Notice: {path} not processed as granule or directory. '
                                     f'The supplied regex [{self.file_reg_ex}] may not match.')
 
         # Make 3 as the maximum depth

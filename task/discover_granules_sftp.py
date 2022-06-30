@@ -6,7 +6,8 @@ import boto3
 import paramiko
 from paramiko import AutoAddPolicy
 
-from task.discover_granules_base import DiscoverGranulesBase
+from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
+from main import rdg_logger
 
 # logging.basicConfig()
 # logging.getLogger("paramiko").setLevel(logging.INFO)
@@ -61,45 +62,81 @@ def decode_decrypt(_ciphertext):
     return decrypted_text
 
 
-def check_reg_ex(regex, target):
-    return regex is None or re.search(regex, target) is not None
-
-
 class DiscoverGranulesSFTP(DiscoverGranulesBase):
     """
     Class to discover granules from an SFTP provider
     """
-    def __init__(self, event, logger):
-        super().__init__(event, logger)
-        self.sftp_client = test_setup_ssh_sftp_client(**create_sftp_config(**self.provider))
+    def __init__(self, event):
+        super().__init__(event)
         self.path = self.config.get('provider_path')
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.depth = self.discover_tf.get('depth')
 
-    # def _discover_granules(self):
-    #     sftp_client = test_setup_ssh_sftp_client(**create_sftp_config(**self.provider))
-    #     return self.discover_granules_2(sftp_client)
-    #
-    # def discover_granules_2(self, sftp_client):
+    def discover_granules(self):
+        sftp_client = test_setup_ssh_sftp_client(**create_sftp_config(**self.provider))
+        return self._discover_granules(sftp_client)
+
+    def _discover_granules(self, sftp_client):
+        directory_list = []
+        granule_dict = {}
+        rdg_logger.info(f'Exploring path {self.path} depth {self.depth}')
+        sftp_client.chdir(self.path)
+
+        for dir_file in sftp_client.listdir():
+            file_stat = sftp_client.stat(dir_file)
+            file_type = str(file_stat)[0]
+            if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
+                rdg_logger.warning(f'Found directory: {dir_file}')
+                directory_list.append(dir_file)
+            elif check_reg_ex(self.file_reg_ex, str(dir_file)):
+                rdg_logger.warning(f'Found file: {dir_file}')
+                self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
+                                   last_mod=file_stat.st_mtime, size=file_stat.st_size)
+            else:
+                rdg_logger.warning(f'Regex did not match dir_file: {dir_file}')
+
+        self.depth = min(abs(self.depth), 3)
+        if self.depth > 0:
+            self.depth -= 1
+            for directory in directory_list:
+                self.path = directory
+                granule_dict.update(
+                    self._discover_granules(sftp_client)
+                )
+        sftp_client.chdir('../')
+        return granule_dict
+
+    # def discover_granules(self):
+    #     """
+    #     Fetch the link of the granules in the host url_path
+    #     :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
+    #     granule_dict = {
+    #        './path/to/granule/file.extension': {
+    #           'ETag': 'S3ETag',
+    #           'Last-Modified': '1645564956.0
+    #        },
+    #        ...
+    #     }
+    #     """
     #     directory_list = []
     #     granule_dict = {}
-    #     self.logger.info(f'Exploring path {self.path} depth {self.depth}')
-    #     sftp_client.chdir(self.path)
-    #
-    #     for dir_file in sftp_client.listdir():
-    #         file_stat = sftp_client.stat(dir_file)
+    #     rdg_logger.info(f'Exploring path {self.path} depth {self.depth}')
+    #     self.sftp_client.chdir(self.path)
+    # 
+    #     for dir_file in self.sftp_client.listdir():
+    #         file_stat = self.sftp_client.stat(dir_file)
     #         file_type = str(file_stat)[0]
     #         if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
-    #             self.logger.warning(f'Found directory: {dir_file}')
+    #             rdg_logger.warning(f'Found directory: {dir_file}')
     #             directory_list.append(dir_file)
     #         elif check_reg_ex(self.file_reg_ex, str(dir_file)):
-    #             self.logger.warning(f'Found file: {dir_file}')
+    #             rdg_logger.warning(f'Found file: {dir_file}')
     #             self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
     #                                last_mod=file_stat.st_mtime, size=file_stat.st_size)
     #         else:
-    #             self.logger.warning(f'Regex did not match dir_file: {dir_file}')
-    #
+    #             rdg_logger.warning(f'Regex did not match dir_file: {dir_file}')
+    # 
     #     self.depth = min(abs(self.depth), 3)
     #     if self.depth > 0:
     #         self.depth -= 1
@@ -108,49 +145,8 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     #             granule_dict.update(
     #                 self.discover_granules()
     #             )
-    #     sftp_client.chdir('../')
+    #     self.sftp_client.chdir('../')
     #     return granule_dict
-
-    def discover_granules(self):
-        """
-        Fetch the link of the granules in the host url_path
-        :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
-        granule_dict = {
-           './path/to/granule/file.extension': {
-              'ETag': 'S3ETag',
-              'Last-Modified': '1645564956.0
-           },
-           ...
-        }
-        """
-        directory_list = []
-        granule_dict = {}
-        self.logger.info(f'Exploring path {self.path} depth {self.depth}')
-        self.sftp_client.chdir(self.path)
-
-        for dir_file in self.sftp_client.listdir():
-            file_stat = self.sftp_client.stat(dir_file)
-            file_type = str(file_stat)[0]
-            if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
-                self.logger.warning(f'Found directory: {dir_file}')
-                directory_list.append(dir_file)
-            elif check_reg_ex(self.file_reg_ex, str(dir_file)):
-                self.logger.warning(f'Found file: {dir_file}')
-                self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
-                                   last_mod=file_stat.st_mtime, size=file_stat.st_size)
-            else:
-                self.logger.warning(f'Regex did not match dir_file: {dir_file}')
-
-        self.depth = min(abs(self.depth), 3)
-        if self.depth > 0:
-            self.depth -= 1
-            for directory in directory_list:
-                self.path = directory
-                granule_dict.update(
-                    self.discover_granules()
-                )
-        self.sftp_client.chdir('../')
-        return granule_dict
 
 
 if __name__ == "__main__":
