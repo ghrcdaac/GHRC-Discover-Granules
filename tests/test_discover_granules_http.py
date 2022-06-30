@@ -1,13 +1,23 @@
 import json
 import os
-from unittest.mock import MagicMock
-import logging
+from unittest.mock import MagicMock, patch
 import unittest
-from bs4 import BeautifulSoup
+
 from task.discover_granules_http import DiscoverGranulesHTTP
-from .helpers import get_event, configure_event
+from .helpers import configure_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+class FakeResponse:
+    def __init__(self, text):
+        self.text = text
+
+
+class FakeHeadResponse:
+    def __init__(self, headers):
+        self.headers = headers
+        pass
 
 
 class TestDiscoverGranules(unittest.TestCase):
@@ -28,17 +38,14 @@ class TestDiscoverGranules(unittest.TestCase):
             "dir_reg_ex": ".*"
         }
         event = configure_event(provider, granule_id_extraction, provider_path, discover_tf)
-        self.dg = DiscoverGranulesHTTP(event, logging)
-        self.dg.getSession = MagicMock()
+        self.dg = DiscoverGranulesHTTP(event)
 
-    def setup_http_mock(self, name):
-        """
-        setts up mock http
-        """
-        name_html = self.get_html(name)
-        name_header_responses = self.get_header_responses(name)
-        self.dg.html_request = MagicMock(return_value=BeautifulSoup(name_html, features="html.parser"))
-        self.dg.headers_request = MagicMock(side_effect=name_header_responses)
+    def configure_mock_session(self, mock_session, provider):
+        mock_session.get.return_value = FakeResponse(self.get_html(provider))
+        fhrs = []
+        for x in self.get_header_responses(provider):
+            fhrs.append(FakeHeadResponse(x))
+        mock_session.head.side_effect = fhrs
 
     @staticmethod
     def get_html(provider):
@@ -55,28 +62,39 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
-    def test_get_file_link_remss_without_regex(self):
-        self.setup_http_mock(name="remss")
+    @patch('requests.Session')
+    def test_discover_granules(self, mock_session):
+        self.dg._discover_granules = MagicMock()
+        self.dg.discover_granules()
+        self.assertTrue(mock_session.called)
+        self.assertTrue(self.dg._discover_granules.called)
+
+    @patch('requests.Session')
+    def test_get_file_link_remss_without_regex(self, mock_session):
+        self.configure_mock_session(mock_session, 'remss')
         self.dg.file_reg_ex = ''
-        retrieved_dict = self.dg.discover_granules()
+        retrieved_dict = self.dg._discover_granules(mock_session)
         self.assertEqual(len(retrieved_dict), 5)
 
-    def test_get_file_link_remss_with_regex(self):
-        self.setup_http_mock(name="remss")
-        self.dg.event['config']['collection']['granuleIdExtraction'] = "^(f16_\\d{8}v7.gz)$"
-        retrieved_dict = self.dg.discover_granules()
+    @patch('requests.Session')
+    def test_get_file_link_remss_with_regex(self, mock_session):
+        self.configure_mock_session(mock_session, 'remss')
+        self.dg.file_reg_ex = "^(f16_\\d{8}v7.gz)$"
+        retrieved_dict = self.dg._discover_granules(mock_session)
         self.assertEqual(len(retrieved_dict), 3)
 
-    def test_get_file_link_amsu_without_regex(self):
-        self.setup_http_mock(name="msut")
+    @patch('requests.Session')
+    def test_get_file_link_amsu_without_regex(self, mock_session):
+        self.configure_mock_session(mock_session, 'msut')
         self.dg.file_reg_ex = ''
-        retrieved_dict = self.dg.discover_granules()
+        retrieved_dict = self.dg._discover_granules(mock_session)
         self.assertEqual(len(retrieved_dict), 4)
 
-    def test_get_file_link_amsu_with_regex(self):
-        self.setup_http_mock(name="msut")
+    @patch('requests.Session')
+    def test_get_file_link_amsu_with_regex(self, mock_session):
+        self.configure_mock_session(mock_session, 'msut')
         self.dg.file_reg_ex = '^tlt.*\\d{4}_6\\.\\d'
-        retrieved_dict = self.dg.discover_granules()
+        retrieved_dict = self.dg._discover_granules(mock_session)
         self.assertEqual(len(retrieved_dict), 1)
 
 
