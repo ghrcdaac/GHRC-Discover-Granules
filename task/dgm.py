@@ -1,10 +1,7 @@
-from tempfile import TemporaryDirectory
-
-from peewee import CharField, Model, chunked
-from playhouse.apsw_ext import APSWDatabase
+from peewee import CharField, Model, chunked, SqliteDatabase
 
 SQLITE_VAR_LIMIT = 999
-db = APSWDatabase(None, vfs='unix-excl')
+db = SqliteDatabase(None)
 
 
 def initialize_db(db_file_path):

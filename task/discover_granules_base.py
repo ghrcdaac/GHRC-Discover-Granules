@@ -4,7 +4,7 @@ import re
 from tempfile import mkdtemp
 
 from task.dgm import initialize_db, Granule
-from main import rdg_logger
+from task.logger import rdg_logger
 
 
 def check_reg_ex(regex, target):
@@ -27,6 +27,8 @@ class DiscoverGranulesBase(ABC):
         self.host = self.provider.get('host')
         self.config_stack = self.config.get('stack')
         self.files_list = self.config.get('collection').get('files')
+        self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
+        self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
@@ -49,6 +51,23 @@ class DiscoverGranulesBase(ABC):
             getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
 
         rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
+
+    def clean_database(self):
+        """
+        If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
+        from the database.
+        """
+        names = []
+        rdg_logger.warning(self.input.get('granules', {}))
+        for granule in self.input.get('granules', {}):
+            file = granule.get('files')[0]
+            name = f'{file.get("path")}/{file.get("name")}'
+            names.append(name)
+
+        with initialize_db(self.db_file_path):
+            num = Granule().delete_granules_by_names(names)
+
+        rdg_logger.info(f'Cleaned {num} records from the database.')
 
     def generate_lambda_output(self, ret_dict):
         if self.config.get('workflow_name') == 'LZARDSBackup':

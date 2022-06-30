@@ -1,15 +1,8 @@
-import logging
 import os
-
-from task.dgm import initialize_db, Granule
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
-from task.helpers import MyLogger
-from cumulus_logger import CumulusLogger
-
-rdg_logger = CumulusLogger(name='Recursive-Discover-Granules', level=logging.INFO) \
-    if os.getenv('enable_logging', 'false').lower() == 'true' else MyLogger()
+from task.logger import rdg_logger
 
 
 def get_discovery_class(protocol):
@@ -18,91 +11,47 @@ def get_discovery_class(protocol):
     :param protocol: The protocol that granules need to be discovered on.
     :return A discover granules class for the appropriate protocol
     """
-    switcher = {
+    protocol_switch = {
         'http': DiscoverGranulesHTTP,
         'https': DiscoverGranulesHTTP,
         's3': DiscoverGranulesS3,
         'sftp': DiscoverGranulesSFTP
     }
+    try:
+        dg_class = protocol_switch[protocol]
+    except Exception as e:
+        raise Exception(f"Protocol {protocol} is not supported: {str(e)}")
 
-    return switcher.get(protocol, None)
+    return dg_class
 
 
-def discover_granules(event):
+def main(event):
     """
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
     rdg_logger.info(f'Event: {event}')
-    protocol = event.get('config').get('provider').get("protocol")
-    try:
-        dg = get_discovery_class(protocol)
-    except Exception as e:
-        raise Exception(f"Protocol {protocol} is not supported: {str(e)}")
-
-    dg = dg(event)
-
+    protocol = event.get('config').get('provider').get("protocol").lower()
+    dg_client = get_discovery_class(protocol)(event)
     output = {}
-    if dg.input:
-        clean_database(dg)
+    if dg_client.input:
+        dg_client.clean_database()
     else:
-        output = discovery(dg)
+        dg_dict = dg_client.discover_granules()
+        rdg_logger.info(f'Discovered {len(dg_dict)} granules.')
+        dg_client.check_granule_updates_db(dg_dict)
+        output = dg_client.generate_lambda_output(dg_dict)
+        rdg_logger.info(f'Returning cumulus output for {len(output)} {dg_client.collection.get("name")} granules.')
 
-    rdg_logger.info(f'Discovered {len(output)} granules.')
-
-    if os.getenv('no_return', 'false').lower() == 'true':
-        rdg_logger.warning('no_return is set to true. No output will be returned.')
-        output = []
+        # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules
+        # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
+        # Additionally the provider needs to be updated to use the new location.
+        if dg_client.meta.get('aws_key_id_name', None) and dg_client.meta.get('aws_secret_key_name', None):
+            dg_client.move_granule_wrapper(dg_dict)
+            dg_client.provider['id'] = 'private_bucket'
+            dg_client.provider['host'] = f'{os.getenv("stackName")}-private'
 
     return {'granules': output}
-
-
-def clean_database(dg):
-    """
-    If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
-    from the database.
-    :param dg Initialized discover granules object.
-    """
-    names = []
-    rdg_logger.warning(dg.input.get('granules', {}))
-    for granule in dg.input.get('granules', {}):
-        file = granule.get('files')[0]
-        name = f'{file.get("path")}/{file.get("name")}'
-        names.append(name)
-
-    with initialize_db(dg.db_file_path):
-        num = Granule().delete_granules_by_names(names)
-
-    rdg_logger.info(f'Cleaned {num} records from the database.')
-
-
-def discovery(dg):
-    """
-    Discovers granules, checks against the database, and returns correctly formatted output.
-    :param dg: Initialized discover granules object
-    :return: List of formatted dictionaries.
-    """
-    granule_dict = dg.discover_granules()
-    if not granule_dict:
-        rdg_logger.warning(f'Warning: Found 0 {dg.collection.get("name")} granules at the provided location.')
-    else:
-        rdg_logger.info(f'Discovered {len(granule_dict)} {dg.collection.get("name")} '
-                       f'granules for update processing.')
-    dg.check_granule_updates_db(granule_dict)
-
-    # Since the provider can be updated for external granules the output must be generated first
-    output = dg.generate_lambda_output(granule_dict)
-    rdg_logger.info(f'Returning cumulus output for {len(output)} {dg.collection.get("name")} granules.')
-
-    # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules step
-    # will be able to copy them. As of 06-17-2022 Cumulus sync ganules does not support access keys. Additionally the
-    # provider needs to be updated to use the new location.
-    if dg.meta.get('aws_key_id_name', None) and dg.meta.get('aws_secret_key_name', None):
-        dg.move_granule_wrapper(granule_dict)
-        dg.provider['id'] = 'private_bucket'
-        dg.provider['host'] = f'{os.getenv("stackName")}-private'
-
-    return output
 
 
 if __name__ == '__main__':

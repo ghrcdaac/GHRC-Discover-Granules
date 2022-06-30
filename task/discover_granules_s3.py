@@ -3,7 +3,7 @@ import os
 
 import boto3
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from main import rdg_logger
+from task.logger import rdg_logger
 
 
 def get_ssm_value(id_name, ssm_client):
@@ -68,13 +68,11 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = self.collection['meta']['provider_path']
-        self.file_reg_ex = self.collection.get('granuleIdExtraction')
-        self.dir_reg_ex = self.discover_tf.get('dir_reg_ex')
 
     def discover_granules(self):
         s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
             else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        self._discover_granules(s3_client)
+        return self._discover_granules(s3_client)
 
     def _discover_granules(self, s3_client):
         """
@@ -101,11 +99,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
-
-                    # rdg_logger.info(f'Found granule: {key}')
-                    # rdg_logger.info(f'ETag: {etag}')
-                    # rdg_logger.info(f'Last-Modified: {last_modified}')
-
                     self.populate_dict(ret_dict, key, etag, last_modified, size)
 
         return ret_dict
