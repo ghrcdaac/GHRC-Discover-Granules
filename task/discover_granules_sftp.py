@@ -1,9 +1,68 @@
 import base64
+import logging
 import os
 import re
 import boto3
 import paramiko
+from paramiko import AutoAddPolicy
+
 from task.discover_granules_base import DiscoverGranulesBase
+
+# logging.basicConfig()
+# logging.getLogger("paramiko").setLevel(logging.INFO)
+
+
+def create_sftp_config(**kwargs):
+    """
+    Create a mapping between the cumulus provider fields and the paramiko connect(...) parameter names.
+    The cumulus provider parameters can be found here:
+    https://nasa.github.io/cumulus/docs/operator-docs/provider#sftp
+    The paramiko connect(...) parameters can be found here:
+    https://docs.paramiko.org/en/stable/api/client.html
+    :return sftp_config: A dictionary with provided configuration parameters
+    """
+    sftp_config = {
+        'hostname': kwargs.get('host', '127.0.0.1'),
+        'port': kwargs.get('port', 22),
+        'username': decode_decrypt(kwargs.get('username')),
+        'password': decode_decrypt(kwargs.get('password')),
+        'passphrase': kwargs.get('passphrase'),
+        'pKey': kwargs.get('private_key'),
+        'key_filename': kwargs.get('key_filename'),
+
+    }
+
+    for k in list(sftp_config.keys()):
+        if not sftp_config[k]:
+            sftp_config.pop(k)
+
+    return sftp_config
+
+
+def test_setup_ssh_sftp_client(**kwargs):
+    """
+    Sets up and returns a paramiko sftp client
+    :return: A configured sftp client
+    """
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+    ssh_client.connect(**kwargs)
+    return ssh_client.open_sftp()
+
+
+def decode_decrypt(_ciphertext):
+    kms_client = boto3.client('kms')
+    response = kms_client.decrypt(
+        CiphertextBlob=base64.b64decode(_ciphertext),
+        KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
+    )
+    decrypted_text = response["Plaintext"].decode()
+
+    return decrypted_text
+
+
+def check_reg_ex(regex, target):
+    return regex is None or re.search(regex, target) is not None
 
 
 class DiscoverGranulesSFTP(DiscoverGranulesBase):
@@ -12,30 +71,45 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     """
     def __init__(self, event, logger):
         super().__init__(event, logger)
-        self.sftp_client = self.setup_sftp_client()
+        self.sftp_client = test_setup_ssh_sftp_client(**create_sftp_config(**self.provider))
         self.path = self.config.get('provider_path')
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.depth = self.discover_tf.get('depth')
 
-    def setup_sftp_client(self):
-        port = self.provider.get('port', 22)
-        transport = paramiko.Transport((self.host, port))
-        username_cypher = self.provider.get('username')
-        password_cypher = self.provider.get('password')
-        transport.connect(None, self.decode_decrypt(username_cypher), self.decode_decrypt(password_cypher))
-        return paramiko.SFTPClient.from_transport(transport)
-
-    @staticmethod
-    def decode_decrypt(_ciphertext):
-        kms_client = boto3.client('kms')
-        response = kms_client.decrypt(
-            CiphertextBlob=base64.b64decode(_ciphertext),
-            KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')
-        )
-        decrypted_text = response["Plaintext"].decode()
-
-        return decrypted_text
+    # def _discover_granules(self):
+    #     sftp_client = test_setup_ssh_sftp_client(**create_sftp_config(**self.provider))
+    #     return self.discover_granules_2(sftp_client)
+    #
+    # def discover_granules_2(self, sftp_client):
+    #     directory_list = []
+    #     granule_dict = {}
+    #     self.logger.info(f'Exploring path {self.path} depth {self.depth}')
+    #     sftp_client.chdir(self.path)
+    #
+    #     for dir_file in sftp_client.listdir():
+    #         file_stat = sftp_client.stat(dir_file)
+    #         file_type = str(file_stat)[0]
+    #         if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
+    #             self.logger.warning(f'Found directory: {dir_file}')
+    #             directory_list.append(dir_file)
+    #         elif check_reg_ex(self.file_reg_ex, str(dir_file)):
+    #             self.logger.warning(f'Found file: {dir_file}')
+    #             self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
+    #                                last_mod=file_stat.st_mtime, size=file_stat.st_size)
+    #         else:
+    #             self.logger.warning(f'Regex did not match dir_file: {dir_file}')
+    #
+    #     self.depth = min(abs(self.depth), 3)
+    #     if self.depth > 0:
+    #         self.depth -= 1
+    #         for directory in directory_list:
+    #             self.path = directory
+    #             granule_dict.update(
+    #                 self.discover_granules()
+    #             )
+    #     sftp_client.chdir('../')
+    #     return granule_dict
 
     def discover_granules(self):
         """
@@ -57,10 +131,10 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         for dir_file in self.sftp_client.listdir():
             file_stat = self.sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
-            if file_type == 'd' and self.check_reg_ex(self.dir_reg_ex, self.path):
+            if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
                 self.logger.warning(f'Found directory: {dir_file}')
                 directory_list.append(dir_file)
-            elif self.check_reg_ex(self.file_reg_ex, str(dir_file)):
+            elif check_reg_ex(self.file_reg_ex, str(dir_file)):
                 self.logger.warning(f'Found file: {dir_file}')
                 self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
                                    last_mod=file_stat.st_mtime, size=file_stat.st_size)
@@ -78,11 +152,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         self.sftp_client.chdir('../')
         return granule_dict
 
-    @staticmethod
-    def check_reg_ex(regex, target):
-        return regex is None or re.search(regex, target) is not None
-
 
 if __name__ == "__main__":
-    'test'.decode()
     pass
