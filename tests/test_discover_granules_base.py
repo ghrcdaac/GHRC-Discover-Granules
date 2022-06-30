@@ -1,9 +1,8 @@
 import os
 
 from unittest.mock import MagicMock, patch
-import logging
 import unittest
-from task.discover_granules_base import DiscoverGranulesBase
+from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from .helpers import get_event
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,7 +16,7 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
         event = get_event('s3')
-        self.dg = DiscoverGranulesBase(event, logging)
+        self.dg = DiscoverGranulesBase(event)
         self.dg.get_session = MagicMock()
 
     def test_populate_dict(self):
@@ -138,6 +137,15 @@ class TestDiscoverGranules(unittest.TestCase):
 
     def test_discover_granules(self):
         self.assertRaises(NotImplementedError, self.dg.discover_granules)
+
+    def test_check_reg_ex_match(self):
+        self.assertTrue(check_reg_ex(r'.*', 'test_text'))
+
+    def test_check_reg_ex_no_match(self):
+        self.assertFalse(check_reg_ex(r'No_match', 'test_text'))
+
+    def test_check_reg_ex_none(self):
+        self.assertTrue(check_reg_ex(None, 'test_text'))
 
 
 if __name__ == "__main__":
