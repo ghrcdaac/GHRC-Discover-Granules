@@ -93,9 +93,9 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         # Make 3 as the maximum depth
         self.depth = min(abs(self.depth), 3)
         if self.depth > 0:
+            self.depth -= 1
             for directory in directory_list:
                 self.url_path = directory
                 granule_dict.update(self.discover_granules())
-            self.depth -= 1
 
         return granule_dict

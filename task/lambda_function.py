@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -19,6 +20,7 @@ def lambda_handler(event, context):  # pylint: disable=unused-argument
 
 
 def handler(event, context):
+    logging.info('Full Event: %s', event)
     result = []
     if run_cumulus_task:
         result = run_cumulus_task(lambda_handler, event, context)
