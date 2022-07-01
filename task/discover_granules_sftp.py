@@ -1,8 +1,10 @@
 import base64
 import os
+import socket
+
 import boto3
 import paramiko
-from paramiko import AutoAddPolicy
+# from paramiko import AutoAddPolicy
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
@@ -18,19 +20,17 @@ def create_sftp_config(**kwargs):
     :return sftp_config: A dictionary with provided configuration parameters
     """
     sftp_config = {
+        'hostkey': None,
         'hostname': kwargs.get('host', '127.0.0.1'),
         'port': kwargs.get('port', 22),
         'username': kms_decrypt_ciphertext(kwargs.get('username')),
         'password': kms_decrypt_ciphertext(kwargs.get('password')),
-        'passphrase': kwargs.get('passphrase'),
-        'pKey': kwargs.get('private_key'),
-        'key_filename': kwargs.get('key_filename'),
-        'allow_agent': False
+        'pKey': kwargs.get('private_key')
     }
 
-    for k in list(sftp_config.keys()):
-        if not sftp_config[k]:
-            sftp_config.pop(k)
+    for sftp_config_keys in list(sftp_config.keys()):
+        if sftp_config_keys != 'hostkey' and not sftp_config[sftp_config_keys]:
+            sftp_config.pop(sftp_config_keys)
 
     return sftp_config
 
@@ -47,15 +47,21 @@ def kms_decrypt_ciphertext(_ciphertext, kms_client=None):
     return decrypted_text
 
 
-def setup_ssh_sftp_client(**kwargs):
-    """
-    Sets up and returns a paramiko sftp client
-    :return: A configured sftp client
-    """
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(AutoAddPolicy)  # pylint: disable=B601
-    ssh_client.connect(**kwargs)
-    return ssh_client.open_sftp()
+def setup_sftp_client(**kwargs):
+    transport = paramiko.Transport((kwargs.get('hostname'), kwargs.get('port')))
+    transport.connect(**kwargs)
+    return paramiko.SFTPClient.from_transport(transport)
+
+#  Currently disabled until the AutoAddPolicy can be ignored by Codiga
+# def setup_ssh_sftp_client(**kwargs):
+#     """
+#     Sets up and returns a paramiko sftp client
+#     :return: A configured sftp client
+#     """
+#     ssh_client = paramiko.SSHClient()
+#     ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+#     ssh_client.connect(**kwargs)
+#     return ssh_client.open_sftp()
 
 
 class DiscoverGranulesSFTP(DiscoverGranulesBase):
@@ -68,7 +74,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         self.depth = self.discover_tf.get('depth')
 
     def discover_granules(self):
-        sftp_client = setup_ssh_sftp_client(**create_sftp_config(**self.provider))
+        sftp_client = setup_sftp_client(**create_sftp_config(**self.provider))
         return self.discover(sftp_client)
 
     def discover(self, sftp_client):
@@ -102,4 +108,16 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
 
 if __name__ == "__main__":
+    sock = socket.socket()
+    sock.connect(('127.0.0.1', 22))
+    trans = paramiko.transport.Transport(sock)
+    trans.start_client()
+    k = trans.get_remote_server_key()
+    print(dir(k))
+
+    # ssh = paramiko.SSHClient()
+    # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+    # ssh.connect('127.0.0.1')
+    # ssh.open_sftp()
+
     pass

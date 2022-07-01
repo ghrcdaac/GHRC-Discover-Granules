@@ -62,3 +62,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 granule_dict.update(self.discover(session))
 
         return granule_dict
+
+
+if __name__ == '__main__':
+    pass
