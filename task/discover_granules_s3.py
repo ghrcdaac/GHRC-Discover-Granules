@@ -75,9 +75,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         rdg_logger.info(f'Discovering in s3://{self.host}/{self.prefix}.')
         s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
             else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        return self._discover_granules(get_s3_resp_iterator(self.host, self.prefix, s3_client))
+        return self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
 
-    def _discover_granules(self, response_iterator):
+    def discover(self, response_iterator):
         """
         Fetch the link of the granules in the host url_path
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule

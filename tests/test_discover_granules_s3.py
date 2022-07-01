@@ -59,7 +59,7 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        ret_dict = self.dg._discover_granules(test_resp_iter)
+        ret_dict = self.dg.discover(test_resp_iter)
         self.assertEqual(len(ret_dict), 2)
 
     def test_discover_granules_s3_file_regex(self):
@@ -84,7 +84,7 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg._discover_granules(test_resp_iter)
+        ret_dict = self.dg.discover(test_resp_iter)
         self.assertEqual(len(ret_dict), 1)
 
     def test_discover_granules_s3_dir_regex(self):
@@ -109,7 +109,7 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg._discover_granules(test_resp_iter)
+        ret_dict = self.dg.discover(test_resp_iter)
         self.assertEqual(len(ret_dict), 1)
 
     @patch('task.discover_granules_s3.get_s3_client')

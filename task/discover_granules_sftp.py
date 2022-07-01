@@ -68,9 +68,9 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     def discover_granules(self):
         sftp_client = setup_ssh_sftp_client(**create_sftp_config(**self.provider))
-        return self._discover_granules(sftp_client)
+        return self.discover(sftp_client)
 
-    def _discover_granules(self, sftp_client):
+    def discover(self, sftp_client):
         directory_list = []
         granule_dict = {}
         rdg_logger.info(f'Exploring path {self.path} depth {self.depth}')
@@ -94,7 +94,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             for directory in directory_list:
                 self.path = directory
                 granule_dict.update(
-                    self._discover_granules(sftp_client)
+                    self.discover(sftp_client)
                 )
         sftp_client.chdir('../')
         return granule_dict

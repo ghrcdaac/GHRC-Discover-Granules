@@ -21,9 +21,9 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
     def discover_granules(self):
         session = requests.Session()
-        return self._discover_granules(session)
+        return self.discover(session)
 
-    def _discover_granules(self, session):
+    def discover(self, session):
         """
         Fetch the link of the granules in the host url_path
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
@@ -59,6 +59,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             self.depth -= 1
             for directory in directory_list:
                 self.url_path = directory
-                granule_dict.update(self._discover_granules(session))
+                granule_dict.update(self.discover(session))
 
         return granule_dict

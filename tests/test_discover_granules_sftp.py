@@ -64,9 +64,9 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch('task.discover_granules_sftp.setup_ssh_sftp_client')
     def test_discover_granules(self, mock_sftp_setup, mock_sftp_config):
         dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'))
-        dg_sftp._discover_granules = MagicMock()
+        dg_sftp.discover = MagicMock()
         dg_sftp.discover_granules()
-        self.assertEqual(dg_sftp._discover_granules.call_count, 1)
+        self.assertEqual(dg_sftp.discover.call_count, 1)
         self.assertEqual(mock_sftp_setup.call_count, 1)
         self.assertEqual(mock_sftp_config.call_count, 1)
 
@@ -74,7 +74,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
         dg_sftp = DiscoverGranulesSFTP(event)
-        res = dg_sftp._discover_granules(sftp_test_client)
+        res = dg_sftp.discover(sftp_test_client)
         expected = {
             '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
             '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
@@ -89,7 +89,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         dg_sftp = DiscoverGranulesSFTP(event)
-        res = dg_sftp._discover_granules(sftp_test_client)
+        res = dg_sftp.discover(sftp_test_client)
         expected = {}
 
         self.assertEqual(res, expected)
@@ -101,7 +101,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         dg_sftp = DiscoverGranulesSFTP(event)
-        res = dg_sftp._discover_granules(sftp_test_client)
+        res = dg_sftp.discover(sftp_test_client)
         expected = {}
 
         self.assertEqual(res, expected)

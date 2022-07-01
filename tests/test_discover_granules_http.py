@@ -64,37 +64,37 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch('requests.Session')
     def test_discover_granules(self, mock_session):
-        self.dg._discover_granules = MagicMock()
+        self.dg.discover = MagicMock()
         self.dg.discover_granules()
         self.assertTrue(mock_session.called)
-        self.assertTrue(self.dg._discover_granules.called)
+        self.assertTrue(self.dg.discover.called)
 
     @patch('requests.Session')
     def test_get_file_link_remss_without_regex(self, mock_session):
         self.configure_mock_session(mock_session, 'remss')
         self.dg.file_reg_ex = ''
-        retrieved_dict = self.dg._discover_granules(mock_session)
+        retrieved_dict = self.dg.discover(mock_session)
         self.assertEqual(len(retrieved_dict), 5)
 
     @patch('requests.Session')
     def test_get_file_link_remss_with_regex(self, mock_session):
         self.configure_mock_session(mock_session, 'remss')
         self.dg.file_reg_ex = "^(f16_\\d{8}v7.gz)$"
-        retrieved_dict = self.dg._discover_granules(mock_session)
+        retrieved_dict = self.dg.discover(mock_session)
         self.assertEqual(len(retrieved_dict), 3)
 
     @patch('requests.Session')
     def test_get_file_link_amsu_without_regex(self, mock_session):
         self.configure_mock_session(mock_session, 'msut')
         self.dg.file_reg_ex = ''
-        retrieved_dict = self.dg._discover_granules(mock_session)
+        retrieved_dict = self.dg.discover(mock_session)
         self.assertEqual(len(retrieved_dict), 4)
 
     @patch('requests.Session')
     def test_get_file_link_amsu_with_regex(self, mock_session):
         self.configure_mock_session(mock_session, 'msut')
         self.dg.file_reg_ex = '^tlt.*\\d{4}_6\\.\\d'
-        retrieved_dict = self.dg._discover_granules(mock_session)
+        retrieved_dict = self.dg.discover(mock_session)
         self.assertEqual(len(retrieved_dict), 1)
 
 
