@@ -16,7 +16,7 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
     def setUp(self) -> None:
         event = get_event('s3')
-        self.dg = DiscoverGranulesBase(event)
+        self.dg = DiscoverGranulesBase(event)  # pylint: disable=abstract-class-instantiated
         self.dg.get_session = MagicMock()
 
     def test_populate_dict(self):

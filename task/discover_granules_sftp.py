@@ -24,7 +24,8 @@ def create_sftp_config(**kwargs):
         'password': kms_decrypt_ciphertext(kwargs.get('password')),
         'passphrase': kwargs.get('passphrase'),
         'pKey': kwargs.get('private_key'),
-        'key_filename': kwargs.get('key_filename')
+        'key_filename': kwargs.get('key_filename'),
+        'allow_agent': False
     }
 
     for k in list(sftp_config.keys()):
@@ -52,7 +53,7 @@ def setup_ssh_sftp_client(**kwargs):
     :return: A configured sftp client
     """
     ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy)  # pylint: disable=B601
     ssh_client.connect(**kwargs)
     return ssh_client.open_sftp()
 

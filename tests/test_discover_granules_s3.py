@@ -2,10 +2,11 @@ import datetime
 import json
 import os
 
-from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys
 from unittest.mock import MagicMock, patch
 import unittest
 from dateutil.tz import tzutc
+from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys
+
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
