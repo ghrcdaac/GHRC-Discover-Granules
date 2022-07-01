@@ -1,12 +1,9 @@
 import datetime
 import json
-import logging
 import os
 
-from boto3 import s3
-
-from task.discover_granules_s3 import DiscoverGranulesS3
-from unittest.mock import MagicMock
+from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys
+from unittest.mock import MagicMock, patch
 import unittest
 from dateutil.tz import tzutc
 
@@ -19,14 +16,29 @@ class TestDiscoverGranules(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'), logging)
+        self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'))
 
     @staticmethod
     def get_sample_event(event_type='skip'):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
-    def test_discover_granules_s3(self):
+    def test_get_ssm(self):
+        mock_ssm = MagicMock()
+        mock_ssm.get_parameter.return_value = {'Parameter': {'Value': 'test_value'}}
+        ret = get_ssm_value('test_name', mock_ssm)
+        self.assertEqual(ret, 'test_value')
+
+    def test_get_s3_client(self):
+        test_client = get_s3_client()
+        self.assertIsNot(test_client, None)
+
+    @patch('boto3.client')
+    def test_get_s3_client_with_keys(self, mock_ssm_client):
+        test_client = get_s3_client_with_keys('test_key_id', 'test_secret_key')
+        self.assertIsNot(test_client, None)
+
+    def test__discover_granules_s3(self):
         self.dg.collection['granuleIdExtraction'] = None
         self.dg.discover_tf['dir_reg_ex'] = None
         test_resp_iter = [
@@ -47,13 +59,12 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = self.dg.discover_granules()
+        ret_dict = self.dg._discover_granules(test_resp_iter)
         self.assertEqual(len(ret_dict), 2)
 
     def test_discover_granules_s3_file_regex(self):
-        self.dg.collection['granuleIdExtraction'] = 'key1.txt'
-        self.dg.discover_tf['dir_reg_ex'] = None
+        self.dg.file_reg_ex = 'key1.txt'
+        self.dg.dir_reg_ex = None
         test_resp_iter = [
             {
                 'Contents': [
@@ -72,13 +83,13 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = self.dg.discover_granules()
+
+        ret_dict = self.dg._discover_granules(test_resp_iter)
         self.assertEqual(len(ret_dict), 1)
 
     def test_discover_granules_s3_dir_regex(self):
-        self.dg.collection['granuleIdExtraction'] = None
-        self.dg.discover_tf['dir_reg_ex'] = 'key1'
+        self.dg.file_reg_ex = None
+        self.dg.dir_reg_ex = 'key1'
         test_resp_iter = [
             {
                 'Contents': [
@@ -97,13 +108,14 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        self.dg.get_s3_resp_iterator = MagicMock(return_value=test_resp_iter)
-        ret_dict = self.dg.discover_granules()
+
+        ret_dict = self.dg._discover_granules(test_resp_iter)
         self.assertEqual(len(ret_dict), 1)
 
-    def test_move_granule(self):
-        self.dg.get_s3_client_with_keys = MagicMock()
-        self.dg.get_s3_client = MagicMock()
+    @patch('task.discover_granules_s3.get_s3_client')
+    @patch('task.discover_granules_s3.get_s3_client_with_keys')
+    @patch('task.discover_granules_s3.get_ssm_value')
+    def test_move_granule(self, mock_ssm, mock_get_client_with_keys, mock_get_client):
         os.environ['stackName'] = 'unit-test'
         os.environ['efs_path'] = 'tmp'
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
