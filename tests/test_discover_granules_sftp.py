@@ -1,11 +1,14 @@
 import json
-import logging
 import os
 import re
 import unittest
 from unittest.mock import MagicMock, patch
 
-from task.discover_granules_sftp import DiscoverGranulesSFTP
+import boto3
+from botocore.stub import Stubber
+
+from task.discover_granules_sftp import DiscoverGranulesSFTP, setup_ssh_sftp_client, kms_decrypt_ciphertext, \
+    create_sftp_config
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,14 +60,21 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
-    @patch.object(re, 'search')
-    def test_discover_granules_sftp(self, re_test):
+    @patch('task.discover_granules_sftp.create_sftp_config')
+    @patch('task.discover_granules_sftp.setup_ssh_sftp_client')
+    def test_discover_granules(self, mock_sftp_setup, mock_sftp_config):
+        dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'))
+        dg_sftp._discover_granules = MagicMock()
+        dg_sftp.discover_granules()
+        self.assertEqual(dg_sftp._discover_granules.call_count, 1)
+        self.assertEqual(mock_sftp_setup.call_count, 1)
+        self.assertEqual(mock_sftp_config.call_count, 1)
+
+    def test_discover_granules_sftp(self):
         event = self.get_sample_event('sftp')
-        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
-            return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
-        )
-        dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'), logging.getLogger())
-        res = dg_sftp.discover_granules()
+        sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
+        dg_sftp = DiscoverGranulesSFTP(event)
+        res = dg_sftp._discover_granules(sftp_test_client)
         expected = {
             '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
             '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
@@ -77,11 +87,9 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_discover_granules_sftp_recursion(self, re_test):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
-        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
-            return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        )
-        dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())
-        res = dg_sftp.discover_granules()
+        sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
+        dg_sftp = DiscoverGranulesSFTP(event)
+        res = dg_sftp._discover_granules(sftp_test_client)
         expected = {}
 
         self.assertEqual(res, expected)
@@ -91,34 +99,69 @@ class TestDiscoverGranules(unittest.TestCase):
         re.search = MagicMock(return_value='False')
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
-        DiscoverGranulesSFTP.setup_sftp_client = MagicMock(
-            return_value=SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        )
-        dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())
-        res = dg_sftp.discover_granules()
+        sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
+        dg_sftp = DiscoverGranulesSFTP(event)
+        res = dg_sftp._discover_granules(sftp_test_client)
         expected = {}
 
         self.assertEqual(res, expected)
 
-    def test_check_regex_true(self):
-        self.assertEqual(DiscoverGranulesSFTP.check_reg_ex('.*', 'any_text'), True)
+    @patch('paramiko.SSHClient')
+    def test_setup_sftp_client(self, mock_paramiko):
+        sftp_client = setup_ssh_sftp_client()
+        self.assertIsNot(sftp_client, None)
+
+    @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
+    def test_create_sftp_config(self, mock_decrypt):
+        uname = 'username'
+        pword = 'password'
+        mock_decrypt.side_effect = [uname, pword]
+        config_params = {
+            'host': 'host',
+            'port': 22,
+            'username': uname,
+            'password': pword,
+            'passphrase': 'passphrase',
+            'private_key': 'private_key',
+            'key_filename': 'key_filename'
+        }
+
+        res = create_sftp_config(**config_params)
+        config_values = config_params.values()
+        response_values = res.values()
+        for config_value, response_value in zip(config_values, response_values):
+            self.assertEqual(config_value, response_value)
+
+    @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
+    def test_create_sftp_config_unset_params(self, mock_decrypt):
+        uname = 'username'
+        pword = 'password'
+        mock_decrypt.side_effect = [uname, pword]
+        config_params = {
+            'host': 'host',
+            'port': 22,
+            'username': uname,
+            'password': pword,
+            'private_key': 'private_key',
+        }
+
+        res = create_sftp_config(**config_params)
+        config_values = config_params.values()
+        response_values = res.values()
+        for config_value, response_value in zip(config_values, response_values):
+            self.assertEqual(config_value, response_value)
+
+    def test_kms_decrypt_ciphertext(self):
+        os.environ['AWS_DECRYPT_KEY_ARN'] = 'fake_arn'
+        t = b'test_text'
+        kms_response = {'Plaintext': t}
+        kms_client = boto3.client('kms')
+        stubbed_client = Stubber(kms_client)
+        stubbed_client.add_response('decrypt', kms_response)
+        stubbed_client.activate()
+        res = kms_decrypt_ciphertext(t, kms_client)
+        self.assertEqual(t.decode(), res)
         pass
-
-    def test_check_regex_false(self):
-        self.assertEqual(DiscoverGranulesSFTP.check_reg_ex('This will not match', 'any_text'), False)
-        pass
-
-    @patch('paramiko.Transport')
-    @patch('paramiko.SFTPClient.from_transport')
-    def test_setup_sftp_client(self, mock_paramiko, mock_from_transport):
-        event = self.get_sample_event('sftp')
-        DiscoverGranulesSFTP.decode_decrypt = MagicMock(return_value='coveralls wants coverage')
-        dg_sftp = DiscoverGranulesSFTP(event, logging.getLogger())
-        dg_sftp.setup_sftp_client()
-
-    @patch('boto3.client')
-    def test_decode_decrypt(self, mock_boto):
-        DiscoverGranulesSFTP.decode_decrypt('')
 
 
 if __name__ == "__main__":

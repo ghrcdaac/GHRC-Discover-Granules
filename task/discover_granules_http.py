@@ -33,7 +33,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         granule_dict = {}
         directory_list = []
         response = session.get(self.url_path)
-        # fetched_html = self.html_request()
         html = BeautifulSoup(response.text, features='html.parser')
         for a_tag in html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]

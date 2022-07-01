@@ -34,8 +34,9 @@ def create_sftp_config(**kwargs):
     return sftp_config
 
 
-def kms_decrypt_ciphertext(_ciphertext):
-    kms_client = boto3.client('kms')
+def kms_decrypt_ciphertext(_ciphertext, kms_client=None):
+    if not kms_client:
+        kms_client = boto3.client('kms')
     response = kms_client.decrypt(
         CiphertextBlob=base64.b64decode(_ciphertext),
         KeyId=os.getenv('AWS_DECRYPT_KEY_ARN')

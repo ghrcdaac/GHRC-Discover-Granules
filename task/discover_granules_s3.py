@@ -41,20 +41,22 @@ def get_s3_client_with_keys(key_id_name, secret_key_name):
                          aws_secret_key=get_ssm_value(secret_key_name, ssm_client))
 
 
-def get_s3_resp_iterator(host, prefix, s3_client):
+def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None):
     """
     Returns an s3 paginator.
     :param host: The bucket.
     :param prefix: The path for the s3 granules.
     :param s3_client: Initialized boto3 S3 client
+    :param pagination_config: Configuration for s3 pagination
     """
+    if pagination_config is None:
+        pagination_config = {'page_size': 1000}
+
     s3_paginator = s3_client.get_paginator('list_objects')
     return s3_paginator.paginate(
         Bucket=host,
         Prefix=prefix,
-        PaginationConfig={
-            'PageSize': 1000
-        }
+        PaginationConfig=pagination_config
     )
 
 
@@ -70,11 +72,12 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.prefix = self.collection['meta']['provider_path']
 
     def discover_granules(self):
+        rdg_logger.info(f'Discovering in s3://{self.host}/{self.prefix}.')
         s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
             else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        return self._discover_granules(s3_client)
+        return self._discover_granules(get_s3_resp_iterator(self.host, self.prefix, s3_client))
 
-    def _discover_granules(self, s3_client):
+    def _discover_granules(self, response_iterator):
         """
         Fetch the link of the granules in the host url_path
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
@@ -86,9 +89,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
            ...
         }
         """
-        rdg_logger.info(f'Discovering in s3://{self.host}/{self.prefix}.')
         ret_dict = {}
-        response_iterator = get_s3_resp_iterator(self.host, self.prefix, s3_client)
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
@@ -103,7 +104,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
         return ret_dict
 
-    def move_granule(self, source_s3_uri):
+    def move_granule(self, source_s3_uri, destination_bucket=None):
         """
         Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
         internal S3 bucket.
@@ -118,7 +119,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
         # Upload from ec2 to internal S3 then delete the copied file
         internal_s3_client = get_s3_client()
-        destination_bucket = f'{os.getenv("stackName")}-private'
+        if not destination_bucket:
+            destination_bucket = f'{os.getenv("stackName")}-private'
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)

@@ -121,6 +121,18 @@ class TestDiscoverGranules(unittest.TestCase):
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
         self.dg.move_granule(t)
 
+    @patch('os.remove')
+    @patch('task.discover_granules_s3.get_s3_client')
+    @patch('task.discover_granules_s3.get_s3_client_with_keys')
+    @patch('task.discover_granules_s3.get_ssm_value')
+    def test_move_granule_file_exception(self, mock_ssm, mock_get_client_with_keys, mock_get_client, mock_os):
+        mock_os.side_effect = MagicMock(side_effect=FileNotFoundError)
+        os.environ['stackName'] = 'unit-test'
+        os.environ['efs_path'] = 'tmp'
+        t = 's3://some_provider/at/a/path/that/is/fake.txt'
+        self.dg.move_granule(t)
+        self.assertRaises(FileNotFoundError)
+
     def test_move_granule_wrapper(self):
         test_dict = {
             's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
