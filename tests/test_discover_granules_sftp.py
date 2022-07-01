@@ -51,6 +51,14 @@ class SFTPTestClient:
         return sftp_test_file.stat()
 
 
+class FakeKms:
+    def __init__(self, CiphertextBlob):
+        self.rsp = {'Plaintext': CiphertextBlob}
+
+    def decrypt(self, CiphertextBlob, KeyId):
+        return self.rsp
+
+
 class TestDiscoverGranules(unittest.TestCase):
     """
     will test discover granules
@@ -154,11 +162,7 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_kms_decrypt_ciphertext(self):
         os.environ['AWS_DECRYPT_KEY_ARN'] = 'fake_arn'
         t = b'test_text'
-        kms_response = {'Plaintext': t}
-        kms_client = boto3.client('kms')
-        stubbed_client = Stubber(kms_client)
-        stubbed_client.add_response('decrypt', kms_response)
-        stubbed_client.activate()
+        kms_client = FakeKms(t)
         res = kms_decrypt_ciphertext(t, kms_client)
         self.assertEqual(t.decode(), res)
         pass
