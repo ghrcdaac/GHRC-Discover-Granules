@@ -29,7 +29,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         {'http://path/to/granule/file.extension': { 'ETag': 'S3ETag', 'Last-Modified': '1645564956.0},...}
         """
-        rdg_logger.info(f'Discovering in s3://{self.host}/{self.url_path}.')
+        rdg_logger.info(f'Discovering in {self.url_path}.')
         granule_dict = {}
         directory_list = []
         response = session.get(self.url_path)

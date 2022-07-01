@@ -4,9 +4,6 @@ import re
 import unittest
 from unittest.mock import MagicMock, patch
 
-import boto3
-from botocore.stub import Stubber
-
 from task.discover_granules_sftp import DiscoverGranulesSFTP, kms_decrypt_ciphertext, \
     create_sftp_config, setup_sftp_client
 
