@@ -14,31 +14,6 @@ from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
 
-def create_sftp_config(**kwargs):
-    """
-    Create a mapping between the cumulus provider fields and the paramiko transport connect(...) parameter names.
-    The cumulus provider parameters can be found here:
-    https://nasa.github.io/cumulus/docs/operator-docs/provider#sftp
-    The paramiko transport connect(...) parameters can be found here:
-    https://docs.paramiko.org/en/stable/api/client.html
-    :return sftp_config: A dictionary with provided configuration parameters
-    """
-    sftp_config = {
-        'hostkey': None,
-        'hostname': kwargs.get('host', '127.0.0.1'),
-        'port': kwargs.get('port', 22),
-        'username': kms_decrypt_ciphertext(kwargs.get('username')),
-        'password': kms_decrypt_ciphertext(kwargs.get('password')),
-        'pKey': kwargs.get('private_key')
-    }
-
-    for sftp_config_keys in list(sftp_config.keys()):
-        if sftp_config_keys != 'hostkey' and not sftp_config[sftp_config_keys]:
-            sftp_config.pop(sftp_config_keys)
-
-    return sftp_config
-
-
 def create_ssh_sftp_config(**kwargs):
     """
     Create a mapping between the cumulus provider fields and the paramiko connect(...) parameter names.
@@ -74,16 +49,6 @@ def kms_decrypt_ciphertext(_ciphertext, kms_client=None):
     decrypted_text = response["Plaintext"].decode()
 
     return decrypted_text
-
-
-def setup_sftp_client(**kwargs):
-    """
-    Sets up and returns a paramiko sftp client using the transport layer
-    :return: A configured sftp client
-    """
-    transport = paramiko.Transport((kwargs.get('hostname'), kwargs.get('port')))
-    transport.connect(**kwargs)
-    return paramiko.SFTPClient.from_transport(transport)
 
 
 def setup_ssh_sftp_client(**kwargs):
