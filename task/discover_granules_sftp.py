@@ -1,13 +1,13 @@
 import base64
 import os
-import warnings
+# import warnings
 import boto3
 
-from cryptography.utils import CryptographyDeprecationWarning
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
-    import paramiko
-    from paramiko import AutoAddPolicy
+# from cryptography.utils import CryptographyDeprecationWarning
+# with warnings.catch_warnings():
+#     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
+import paramiko
+from paramiko import AutoAddPolicy
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
