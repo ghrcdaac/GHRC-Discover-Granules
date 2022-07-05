@@ -4,11 +4,8 @@ import re
 import unittest
 from unittest.mock import MagicMock, patch
 
-import boto3
-from botocore.stub import Stubber
-
 from task.discover_granules_sftp import DiscoverGranulesSFTP, kms_decrypt_ciphertext, \
-    create_sftp_config, setup_sftp_client
+    create_ssh_sftp_config, setup_ssh_sftp_client
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -68,8 +65,8 @@ class TestDiscoverGranules(unittest.TestCase):
         with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
             return json.load(test_event_file)
 
-    @patch('task.discover_granules_sftp.create_sftp_config')
-    @patch('task.discover_granules_sftp.setup_sftp_client')
+    @patch('task.discover_granules_sftp.create_ssh_sftp_config')
+    @patch('task.discover_granules_sftp.setup_ssh_sftp_client')
     def test_discover_granules(self, mock_sftp_setup, mock_sftp_config):
         dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'))
         dg_sftp.discover = MagicMock()
@@ -114,10 +111,9 @@ class TestDiscoverGranules(unittest.TestCase):
 
         self.assertEqual(res, expected)
 
-    @patch('paramiko.SFTPClient')
-    @patch('paramiko.Transport')
-    def test_setup_sftp_client(self, mock_paramiko, mock_sftp_client):
-        sftp_client = setup_sftp_client()
+    @patch('paramiko.SSHClient')
+    def test_setup_ssh_sftp_client(self, mock_paramiko):
+        sftp_client = setup_ssh_sftp_client()
         self.assertIsNot(sftp_client, None)
 
     @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
@@ -126,15 +122,15 @@ class TestDiscoverGranules(unittest.TestCase):
         pword = 'password'
         mock_decrypt.side_effect = [uname, pword]
         config_params = {
-            'hostkey': None,
             'host': 'host',
             'port': 22,
             'username': uname,
             'password': pword,
-            'private_key': 'private_key'
+            'private_key': 'private_key',
+            'key_filename': 'key_filename'
         }
 
-        res = create_sftp_config(**config_params)
+        res = create_ssh_sftp_config(**config_params)
         config_values = config_params.values()
         response_values = res.values()
         for config_value, response_value in zip(config_values, response_values):
@@ -146,14 +142,15 @@ class TestDiscoverGranules(unittest.TestCase):
         pword = 'password'
         mock_decrypt.side_effect = [uname, pword]
         config_params = {
-            'hostkey': None,
             'host': 'host',
             'port': 22,
             'username': uname,
             'password': pword,
+            'private_key': None,
+            'key_filename': None
         }
 
-        res = create_sftp_config(**config_params)
+        res = create_ssh_sftp_config(**config_params)
         config_values = config_params.values()
         response_values = res.values()
         for config_value, response_value in zip(config_values, response_values):
