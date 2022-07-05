@@ -1,10 +1,10 @@
 import base64
 import os
 import socket
-
-import boto3
-from cryptography.utils import CryptographyDeprecationWarning
 import warnings
+import boto3
+
+from cryptography.utils import CryptographyDeprecationWarning
 with warnings.catch_warnings():
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     import paramiko
