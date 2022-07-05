@@ -1,6 +1,5 @@
 import base64
 import os
-import socket
 import warnings
 import boto3
 
@@ -106,16 +105,4 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
 
 if __name__ == "__main__":
-    sock = socket.socket()
-    sock.connect(('127.0.0.1', 22))
-    trans = paramiko.transport.Transport(sock)
-    trans.start_client()
-    k = trans.get_remote_server_key()
-    print(dir(k))
-
-    # ssh = paramiko.SSHClient()
-    # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-    # ssh.connect('127.0.0.1')
-    # ssh.open_sftp()
-
     pass
