@@ -3,7 +3,6 @@ import os
 import boto3
 
 import paramiko
-from paramiko import AutoAddPolicy
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
@@ -52,7 +51,7 @@ def setup_ssh_sftp_client(**kwargs):
     :return: A configured sftp client
     """
     ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(AutoAddPolicy)
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
     ssh_client.connect(**kwargs)
     return ssh_client.open_sftp()
 
