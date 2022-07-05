@@ -3,8 +3,8 @@ import os
 import socket
 
 import boto3
-import warnings
 from cryptography.utils import CryptographyDeprecationWarning
+import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     import paramiko
