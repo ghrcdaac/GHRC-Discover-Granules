@@ -1,11 +1,7 @@
 import base64
 import os
-# import warnings
 import boto3
 
-# from cryptography.utils import CryptographyDeprecationWarning
-# with warnings.catch_warnings():
-#     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
 import paramiko
 from paramiko import AutoAddPolicy
 
