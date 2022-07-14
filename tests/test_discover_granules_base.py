@@ -105,8 +105,6 @@ class TestDiscoverGranules(unittest.TestCase):
                 'files': [
                     {
                         'bucket': 'sharedsbx-private',
-                        'checksum': 'ec5273963f74811028e38a367beaf7a5',
-                        'checksumType': 'md5',
                         'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
                         'size': 4553538,
                         'source': '',
@@ -121,8 +119,6 @@ class TestDiscoverGranules(unittest.TestCase):
                 'files': [
                     {
                         'bucket': 'sharedsbx-private',
-                        'checksum': '919a1ba1dfbbd417a662ab686a2ff574',
-                        'checksumType': 'md5',
                         'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
                         'size': 4706838,
                         'source': '',

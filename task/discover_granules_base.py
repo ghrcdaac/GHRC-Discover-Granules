@@ -152,8 +152,6 @@ class DiscoverGranulesBase(ABC):
                     'files': [
                         {
                             'bucket': f'{self.config_stack}-{bucket}',
-                            'checksum': value.get('ETag'),
-                            'checksumType': 'md5',
                             'key': key.replace(strip_str, ''),
                             'size': value.get('Size'),
                             'source': '',
