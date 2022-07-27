@@ -1,4 +1,5 @@
 import os
+import time
 from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
@@ -22,6 +23,7 @@ class DiscoverGranulesBase(ABC):
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        self.buckets = self.config.get('buckets')
         self.meta = self.collection.get('meta')
         self.discover_tf = self.meta.get('discover_tf')
         self.host = self.provider.get('host')
@@ -79,16 +81,87 @@ class DiscoverGranulesBase(ABC):
 
         return output_lst
 
-    def generate_cumulus_output_new(self, ret_dict):
-        """
-        Generates necessary output for the ingest workflow.
-        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
-        :return List of dictionaries that follow this schema:
-        https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
-        """
+    def group_granules(self, dict):
+        temp_dict = {}
+        gid_regex = self.collection.get('granuleId')
+        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        file_list = self.collection.get('files')
+
+        for k, v in dict.items():
+            file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
+            filename = file_path_name[-1]
+
+            file_type = ''
+            bucket_type = ''
+            for file_def in file_list:
+                if re.search(file_def.get('regex'), filename):
+                    file_type = file_def.get('type', '')
+                    bucket_type = file_def.get('bucket', '')
+
+            bucket_name = None
+            rdg_logger.info(f'bucket_type: {bucket_type}')
+            for bk, bv in self.buckets.items():
+                rdg_logger.info(f'bv: {bv}')
+                if bv.get('type') == bucket_type:
+                    bucket_name = bv.get('name')
+
+            granule_id = ''
+            if re.search(gid_regex, filename):
+                granule_id = filename
+                # temp_dict[granule_id] = self.generate_cumulus_granule(filename)
+                # temp_dict[granule_id].get('files').append(
+                #     self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+                # )
+            else:
+                res = re.search(self.collection.get('granuleIdExtraction'), filename)
+                granule_id = res.group(1)
+                # if granule_id not in temp_dict:
+                #     temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
+                #     temp_dict[granule_id].get('files').append(
+                #         self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+                #     )
+                # else:
+                #     temp_dict[granule_id].get('files').append(
+                #         self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+                #     )
+            if granule_id not in temp_dict:
+                temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
+                # temp_dict[granule_id].get('files').append(
+                #     self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+                # )
+            # else:
+            #     temp_dict[granule_id].get('files').append(
+            #         self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+            #     )
+            temp_dict[granule_id].get('files').append(
+                self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'), bucket_name, file_type)
+            )
+
+        return temp_dict
+
+    def generate_cumulus_granule(self, granule_id):
+        return {
+            'granuleId': granule_id,
+            'dataType': self.collection.get('name', ''),
+            'version': self.collection.get('version', ''),
+            'files': []
+        }
+
+    def generate_cumulus_file(self, filename, path, size, bucket_name, file_type):
+        return {
+            'name': filename,
+            'path': path,
+            'size': size,
+            'time': round(time.time() * 1000),
+            'url_path': self.collection.get('url_path'),
+            'bucket': bucket_name,
+            'type': file_type,
+        }
+
+    def generate_output(self, grouped_dict):
         ret_lst = []
-        for k in ret_dict:
-            strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        for k in grouped_dict:
             file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
             filename = file_path_name[-1]
             ret_lst.append(
@@ -105,6 +178,38 @@ class DiscoverGranulesBase(ABC):
                     ]
                 }
             )
+
+    def generate_cumulus_output_new(self, ret_dict):
+        """
+        Generates necessary output for the ingest workflow.
+        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
+        :return List of dictionaries that follow this schema:
+        https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
+        """
+        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        grouped_dict = self.group_granules(ret_dict)
+        rdg_logger.info(f'ret_dict: {ret_dict}')
+        rdg_logger.info(f'grouped: {grouped_dict}')
+
+        ret_lst = []
+        for k, v in grouped_dict.items():
+            ret_lst.append(v)
+            # file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
+            # filename = file_path_name[-1]
+            # ret_lst.append(
+            #     {
+            #         'granuleId': filename,
+            #         'dataType': self.collection.get('name', ''),
+            #         'version': self.collection.get('version', ''),
+            #         'files': [
+            #             {
+            #                 'name': filename,
+            #                 'path': file_path_name[0],
+            #                 'type': '',
+            #             }
+            #         ]
+            #     }
+            # )
 
         return ret_lst
 
@@ -204,4 +309,25 @@ class DiscoverGranulesBase(ABC):
 
 
 if __name__ == '__main__':
+    # f1 = '20220111135009-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02.0-fv03.0.nc'
+    # f2 = '20220111135009-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02.0-fv03.0.nc.md5'
+    # res1 = re.match(r'^([0-9]{14}-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02\.0-fv03\.0)((\.nc)|(\.nc\.md5)|(\.cmr\.json)|(\.nc\.dmrpp))?$', f1)
+    # res2 = re.match(r'^([0-9]{14}-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02\.0-fv03\.0)((\.nc)|(\.nc\.md5)|(\.cmr\.json)|(\.nc\.dmrpp))?$', f2)
+    #
+    # f3 = 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat'
+    # res3 = re.search('^.*_NALMA_.*(\\.dat)$', f3)
+    # print(res3.group())
+    test = {
+        'a': 'a_value',
+        'lst': [1]
+    }
+
+    test.get('lst').append(2)
+
+    print(test)
+    # print(res1.group(1))
+    # print(res2)
+    print(round(time.time() * 1000))
+
+
     pass
