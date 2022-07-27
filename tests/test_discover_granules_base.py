@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 from unittest.mock import MagicMock, patch
 import unittest
@@ -37,6 +38,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.update_etag_lm(dict2, dict1, 'key1')
         self.assertDictEqual(dict1, dict2)
 
+    @mock.patch('time.time', mock.MagicMock(return_value=0))
     def test_generate_cumulus_output(self):
         test_dict = {
             's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
@@ -44,7 +46,7 @@ class TestDiscoverGranules(unittest.TestCase):
             's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
                 'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
 
-        ret_list = self.dg.generate_cumulus_output_new(test_dict)
+        ret_list = self.dg.generate_cumulus_output(test_dict)
 
         expected_entries = [
             {
@@ -55,6 +57,10 @@ class TestDiscoverGranules(unittest.TestCase):
                     {
                         'name': 'LA_NALMA_firetower_211130_000000.dat',
                         'path': 'lma/nalma/raw/short_test',
+                        'size': 4553538,
+                        'time': 0,
+                        'url_path': 'nalmaraw__1',
+                        'bucket': 'sharedsbx-private',
                         'type': ''
                     }
                 ]
@@ -67,6 +73,10 @@ class TestDiscoverGranules(unittest.TestCase):
                     {
                         'name': 'LA_NALMA_firetower_211130_001000.dat',
                         'path': 'lma/nalma/raw/short_test',
+                        'size': 4706838,
+                        'time': 0,
+                        'url_path': 'nalmaraw__1',
+                        'bucket': 'sharedsbx-private',
                         'type': ''
                     }
                 ]
@@ -83,10 +93,10 @@ class TestDiscoverGranules(unittest.TestCase):
         assert self.dg.lzards_output_generator.called
 
     def test_generate_lambda_output_cumulus_called(self):
-        self.dg.generate_cumulus_output_new = MagicMock()
+        self.dg.generate_cumulus_output = MagicMock()
         self.dg.config['workflow_name'] = 'DiscoverGranules'
         self.dg.generate_lambda_output({})
-        assert self.dg.generate_cumulus_output_new.called
+        assert self.dg.generate_cumulus_output.called
 
     def test_generate_lzards_output(self):
         test_dict = {
