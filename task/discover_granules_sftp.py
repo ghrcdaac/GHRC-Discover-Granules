@@ -8,6 +8,25 @@ from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
 
+def get_private_key(private_key):
+    """
+    Downloads a private key from s3 and returns a paramiko RSAKey for authenticating.
+    :param private_key: The filename of the key in s3
+    :return pkey: Initialize paramiko RSAKey
+    """
+    client = boto3.client('s3')
+    client.download_file(
+        Bucket=os.getenv('system_bucket'),
+        Key=f'{os.getenv("stackName")}/crypto/{private_key}',
+        Filename=f'/tmp/{private_key}'
+    )
+    with open(f'/tmp/{private_key}', 'r+') as data:
+        pkey = paramiko.rsakey.RSAKey.from_private_key(file_obj=data)
+    os.remove('/tmp/test')
+
+    return pkey
+
+
 def create_ssh_sftp_config(**kwargs):
     """
     Create a mapping between the cumulus provider fields and the paramiko connect(...) parameter names.
@@ -17,12 +36,15 @@ def create_ssh_sftp_config(**kwargs):
     https://docs.paramiko.org/en/stable/api/client.html
     :return sftp_config: A dictionary with provided configuration parameters
     """
+    encrypted = kwargs.get("encrypted", False)
+    username = kwargs.get('username')
+    password = kwargs.get('password')
     sftp_config = {
         'hostname': kwargs.get('host', '127.0.0.1'),
         'port': kwargs.get('port', 22),
-        'username': kms_decrypt_ciphertext(kwargs.get('username')),
-        'password': kms_decrypt_ciphertext(kwargs.get('password')),
-        'pKey': kwargs.get('private_key'),
+        'username': kms_decrypt_ciphertext(username) if encrypted else username,
+        'password': kms_decrypt_ciphertext(password) if encrypted else password,
+        'pkey': get_private_key(kwargs.get("privateKey")) if 'privateKey' in kwargs else None,
         'key_filename': kwargs.get('key_filename')
     }
 
