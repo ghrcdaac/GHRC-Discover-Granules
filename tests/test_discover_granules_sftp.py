@@ -169,6 +169,11 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(t.decode(), res)
         pass
 
+    @patch('paramiko.rsakey.RSAKey.from_private_key')
+    @patch('boto3.client')
+    def test_get_private_key(self, mock_client, mock_rsa):
+        sftp.get_private_key('fake_key')
+
 
 if __name__ == "__main__":
     unittest.main()

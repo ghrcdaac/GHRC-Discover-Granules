@@ -23,9 +23,9 @@ def get_private_key(private_key):
                          Key=f'{os.getenv("stackName")}/crypto/{private_key}',
                          Filename=f'{tmp_dir}test')
 
-    with open(f'{tmp_dir}test', 'r+', encoding='utf-8') as data:
+    with open(f'{tmp_dir}/test', 'w+', encoding='utf-8') as data:
         pkey = paramiko.rsakey.RSAKey.from_private_key(file_obj=data)
-    os.remove(f'{tmp_dir}test')
+    os.remove(f'{tmp_dir}/test')
 
     return pkey
 
