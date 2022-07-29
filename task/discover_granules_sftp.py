@@ -1,5 +1,7 @@
 import base64
 import os
+import tempfile
+
 import boto3
 
 import paramiko
@@ -15,7 +17,7 @@ def get_private_key(private_key):
     :return pkey: Initialize paramiko RSAKey
     """
     client = boto3.client('s3')
-    tmp_dir = '/tmp/key/'
+    tmp_dir = tempfile.gettempdir()
     os.makedirs(tmp_dir, mode=0o077, exist_ok=True)
     client.download_file(Bucket=os.getenv('system_bucket'),
                          Key=f'{os.getenv("stackName")}/crypto/{private_key}',
