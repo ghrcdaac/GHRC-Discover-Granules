@@ -248,20 +248,4 @@ class DiscoverGranulesBase(ABC):
 
 
 if __name__ == '__main__':
-    # f1 = '20220111135009-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02.0-fv03.0.nc'
-    # f2 = '20220111135009-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02.0-fv03.0.nc.md5'
-    # res1 = re.match(r'^([0-9]{14}-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02\.0-fv03\.0)((\.nc)|(\.nc\.md5)|(\.cmr\.json)|(\.nc\.dmrpp))?$', f1)
-    # res2 = re.match(r'^([0-9]{14}-NAVO-L2P_GHRSST-SST1m-VIIRS_NPP-v02\.0-fv03\.0)((\.nc)|(\.nc\.md5)|(\.cmr\.json)|(\.nc\.dmrpp))?$', f2)
-    #
-    # f3 = 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat'
-    # res3 = re.search('^.*_NALMA_.*(\\.dat)$', f3)
-    # print(res3.group())
-    test = {
-        'a': 'a_value',
-        'lst': [1]
-    }
-
-    test.get('lst').append(2)
-
-    print(list(test.values()))
     pass
