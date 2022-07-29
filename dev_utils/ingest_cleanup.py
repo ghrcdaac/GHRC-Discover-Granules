@@ -6,6 +6,7 @@ import boto3
 This script is only intended to be used by developers as a way to quickly cleanup ingest workflow executions. The ARN
 is hardcoded but should only ever have to be updated if the SBX stack gets redeployed. 
 """
+boto3.setup_default_session(profile_name='<ADD_PROFILE_HERE>')
 
 
 def main():
@@ -13,7 +14,7 @@ def main():
 
     tasks_to_kill = []
     args = {
-        'stateMachineArn': 'arn:aws:states:us-west-2:322322076095:stateMachine:sharedsbx-IngestGranule',
+        'stateMachineArn': 'arn:aws:states:us-west-2:<ADD_ACCOUNT_NUMBER_HERE>:stateMachine:sharedsbx-IngestGranule',
         'statusFilter': 'RUNNING'
     }
 
