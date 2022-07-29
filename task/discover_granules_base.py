@@ -1,4 +1,5 @@
 import os
+import time
 from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
@@ -22,6 +23,7 @@ class DiscoverGranulesBase(ABC):
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        self.buckets = self.config.get('buckets')
         self.meta = self.collection.get('meta')
         self.discover_tf = self.meta.get('discover_tf')
         self.host = self.provider.get('host')
@@ -74,39 +76,81 @@ class DiscoverGranulesBase(ABC):
             output_lst = self.lzards_output_generator(ret_dict)
             rdg_logger.info('LZARDS output generated')
         else:
-            output_lst = self.generate_cumulus_output_new(ret_dict)
+            output_lst = self.generate_cumulus_output(ret_dict)
             rdg_logger.info('Cumulus output generated')
 
         return output_lst
 
-    def generate_cumulus_output_new(self, ret_dict):
+    def get_bucket_name(self, bucket_type):
+        bucket_name = ''
+        for _, bv in self.buckets.items():
+            if bv.get('type') == bucket_type:
+                bucket_name = bv.get('name')
+
+        return bucket_name
+
+    def get_file_description(self, filename):
+        file_desc = {}
+        for file_def in self.collection.get('files'):
+            if re.search(file_def.get('regex'), filename):
+                file_desc = file_def
+
+        return file_desc
+
+    def generate_cumulus_output(self, ret_dict):
         """
         Generates necessary output for the ingest workflow.
         :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
         :return List of dictionaries that follow this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
-        ret_lst = []
-        for k in ret_dict:
-            strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+        temp_dict = {}
+        gid_regex = self.collection.get('granuleId')
+        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
+
+        for k, v in ret_dict.items():
             file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
             filename = file_path_name[-1]
-            ret_lst.append(
-                {
-                    'granuleId': filename,
-                    'dataType': self.collection.get('name', ''),
-                    'version': self.collection.get('version', ''),
-                    'files': [
-                        {
-                            'name': filename,
-                            'path': file_path_name[0],
-                            'type': '',
-                        }
-                    ]
-                }
+
+            file_def = self.get_file_description(filename)
+            file_type = file_def.get('type', '')
+            bucket_type = file_def.get('bucket', '')
+
+            granule_id = ''
+            if re.search(gid_regex, filename):
+                granule_id = filename
+            else:
+                res = re.search(self.collection.get('granuleIdExtraction'), filename)
+                granule_id = res.group(1)
+
+            if granule_id not in temp_dict:
+                temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
+
+            temp_dict[granule_id].get('files').append(
+                self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'),
+                                           self.get_bucket_name(bucket_type), file_type)
             )
 
-        return ret_lst
+        return list(temp_dict.values())
+
+    def generate_cumulus_granule(self, granule_id):
+        return {
+            'granuleId': granule_id,
+            'dataType': self.collection.get('name', ''),
+            'version': self.collection.get('version', ''),
+            'files': []
+        }
+
+    def generate_cumulus_file(self, filename, path, size, bucket_name, file_type):
+        return {
+            'name': filename,
+            'path': path,
+            'size': size,
+            'time': round(time.time() * 1000),
+            'url_path': self.collection.get('url_path'),
+            'bucket': bucket_name,
+            'type': file_type,
+        }
 
     def create_file_mapping(self):
         """
