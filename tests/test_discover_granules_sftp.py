@@ -167,7 +167,14 @@ class TestDiscoverGranules(unittest.TestCase):
         kms_client = FakeKms(t)
         res = sftp.kms_decrypt_ciphertext(t, kms_client)
         self.assertEqual(t.decode(), res)
-        pass
+
+    @patch('boto3.client')
+    def test_kms_decrypt_ciphertext_2(self, mock_client):
+        t = b'test_text'
+        mock_client.side_effect = [FakeKms(t)]
+        os.environ['AWS_DECRYPT_KEY_ARN'] = 'fake_arn'
+        res = sftp.kms_decrypt_ciphertext(t)
+        self.assertEqual(t.decode(), res)
 
     @patch('paramiko.rsakey.RSAKey.from_private_key')
     @patch('boto3.client')
