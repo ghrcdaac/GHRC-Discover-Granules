@@ -15,14 +15,15 @@ def get_private_key(private_key):
     :return pkey: Initialize paramiko RSAKey
     """
     client = boto3.client('s3')
-    client.download_file(
-        Bucket=os.getenv('system_bucket'),
-        Key=f'{os.getenv("stackName")}/crypto/{private_key}',
-        Filename=f'/tmp/{private_key}'
-    )
-    with open(f'/tmp/{private_key}', 'r+') as data:
+    tmp_dir = '/tmp/key/'
+    os.makedirs(tmp_dir, exist_ok=True)
+    client.download_file(Bucket=os.getenv('system_bucket'),
+                         Key=f'{os.getenv("stackName")}/crypto/{private_key}',
+                         Filename=f'{tmp_dir}test')
+
+    with open(f'{tmp_dir}test', 'r+') as data:
         pkey = paramiko.rsakey.RSAKey.from_private_key(file_obj=data)
-    os.remove('/tmp/test')
+    os.remove(f'{tmp_dir}test')
 
     return pkey
 

@@ -4,8 +4,10 @@ import re
 import unittest
 from unittest.mock import MagicMock, patch
 
-from task.discover_granules_sftp import DiscoverGranulesSFTP, kms_decrypt_ciphertext, \
-    create_ssh_sftp_config, setup_ssh_sftp_client
+# from task.discover_granules_sftp import DiscoverGranulesSFTP, kms_decrypt_ciphertext, \
+#     create_ssh_sftp_config, setup_ssh_sftp_client
+
+import task.discover_granules_sftp as sftp
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -68,7 +70,7 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch('task.discover_granules_sftp.create_ssh_sftp_config')
     @patch('task.discover_granules_sftp.setup_ssh_sftp_client')
     def test_discover_granules(self, mock_sftp_setup, mock_sftp_config):
-        dg_sftp = DiscoverGranulesSFTP(self.get_sample_event('sftp'))
+        dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'))
         dg_sftp.discover = MagicMock()
         dg_sftp.discover_granules()
         self.assertEqual(dg_sftp.discover.call_count, 1)
@@ -78,7 +80,7 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_discover_granules_sftp(self):
         event = self.get_sample_event('sftp')
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
-        dg_sftp = DiscoverGranulesSFTP(event)
+        dg_sftp = sftp.DiscoverGranulesSFTP(event)
         res = dg_sftp.discover(sftp_test_client)
         expected = {
             '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
@@ -93,7 +95,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        dg_sftp = DiscoverGranulesSFTP(event)
+        dg_sftp = sftp.DiscoverGranulesSFTP(event)
         res = dg_sftp.discover(sftp_test_client)
         expected = {}
 
@@ -105,7 +107,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        dg_sftp = DiscoverGranulesSFTP(event)
+        dg_sftp = sftp.DiscoverGranulesSFTP(event)
         res = dg_sftp.discover(sftp_test_client)
         expected = {}
 
@@ -113,24 +115,27 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch('paramiko.SSHClient')
     def test_setup_ssh_sftp_client(self, mock_paramiko):
-        sftp_client = setup_ssh_sftp_client()
+        sftp_client = sftp.setup_ssh_sftp_client()
         self.assertIsNot(sftp_client, None)
 
+    @patch('task.discover_granules_sftp.get_private_key')
     @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
-    def test_create_sftp_config(self, mock_decrypt):
+    def test_create_sftp_config(self, mock_decrypt, mock_get_pkey):
         uname = 'username'
         pword = 'password'
+        mock_get_pkey.side_effect = ['privateKey']
         mock_decrypt.side_effect = [uname, pword]
+
         config_params = {
             'host': 'host',
             'port': 22,
             'username': uname,
             'password': pword,
-            'private_key': 'private_key',
+            'privateKey': 'privateKey',
             'key_filename': 'key_filename'
         }
 
-        res = create_ssh_sftp_config(**config_params)
+        res = sftp.create_ssh_sftp_config(**config_params)
         config_values = config_params.values()
         response_values = res.values()
         for config_value, response_value in zip(config_values, response_values):
@@ -150,7 +155,7 @@ class TestDiscoverGranules(unittest.TestCase):
             'key_filename': None
         }
 
-        res = create_ssh_sftp_config(**config_params)
+        res = sftp.create_ssh_sftp_config(**config_params)
         config_values = config_params.values()
         response_values = res.values()
         for config_value, response_value in zip(config_values, response_values):
@@ -160,7 +165,7 @@ class TestDiscoverGranules(unittest.TestCase):
         os.environ['AWS_DECRYPT_KEY_ARN'] = 'fake_arn'
         t = b'test_text'
         kms_client = FakeKms(t)
-        res = kms_decrypt_ciphertext(t, kms_client)
+        res = sftp.kms_decrypt_ciphertext(t, kms_client)
         self.assertEqual(t.decode(), res)
         pass
 

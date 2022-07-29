@@ -83,7 +83,7 @@ class DiscoverGranulesBase(ABC):
 
     def get_bucket_name(self, bucket_type):
         bucket_name = ''
-        for bk, bv in self.buckets.items():
+        for _, bv in self.buckets.items():
             if bv.get('type') == bucket_type:
                 bucket_name = bv.get('name')
 
