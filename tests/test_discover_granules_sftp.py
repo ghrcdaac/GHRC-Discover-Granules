@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -179,7 +180,11 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch('paramiko.rsakey.RSAKey.from_private_key')
     @patch('boto3.client')
     def test_get_private_key(self, mock_client, mock_rsa):
-        sftp.get_private_key('fake_key')
+        temp_file = os.getcwd()
+        fake_file = f'{temp_file}/fake_key'
+        with open(fake_file, 'w+', encoding='utf-8') as _:
+            pass
+        sftp.get_private_key('fake_key', temp_file)
 
 
 if __name__ == "__main__":
