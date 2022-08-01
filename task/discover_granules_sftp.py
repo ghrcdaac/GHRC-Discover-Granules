@@ -18,14 +18,14 @@ def get_private_key(private_key):
     """
     client = boto3.client('s3')
     tmp_dir = tempfile.gettempdir()
-    os.makedirs(tmp_dir, mode=0o077, exist_ok=True)
+    tmp_filename = f'{tmp_dir}/{private_key}'
     client.download_file(Bucket=os.getenv('system_bucket'),
                          Key=f'{os.getenv("stackName")}/crypto/{private_key}',
-                         Filename=f'{tmp_dir}test')
+                         Filename=tmp_filename)
 
-    with open(f'{tmp_dir}/test', 'w+', encoding='utf-8') as data:
+    with open(tmp_filename, 'r+', encoding='utf-8') as data:
         pkey = paramiko.rsakey.RSAKey.from_private_key(file_obj=data)
-    os.remove(f'{tmp_dir}/test')
+    os.remove(tmp_filename)
 
     return pkey
 
