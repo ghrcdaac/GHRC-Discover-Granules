@@ -14,7 +14,7 @@ def main():
 
     tasks_to_kill = []
     args = {
-        'stateMachineArn': 'arn:aws:states:us-west-2:<ADD_ACCOUNT_NUMBER_HERE>:stateMachine:sharedsbx-IngestGranule',
+        'stateMachineArn': 'arn:aws:states:us-west-2:<ADD_ACCOUNT_NUMBER_HERE>:stateMachine:<ADD_STACK_PREFIX_HERE>-IngestGranule',
         'statusFilter': 'RUNNING'
     }
 
