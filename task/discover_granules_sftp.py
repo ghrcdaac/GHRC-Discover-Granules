@@ -10,14 +10,15 @@ from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
 
-def get_private_key(private_key):
+def get_private_key(private_key, local_dir=None):
     """
     Downloads a private key from s3 and returns a paramiko RSAKey for authenticating.
     :param private_key: The filename of the key in s3
+    :param local_dir: Optional parameter to specific location to save key file
     :return pkey: Initialize paramiko RSAKey
     """
     client = boto3.client('s3')
-    tmp_dir = tempfile.gettempdir()
+    tmp_dir = local_dir if local_dir else tempfile.gettempdir()
     tmp_filename = f'{tmp_dir}/{private_key}'
     client.download_file(Bucket=os.getenv('system_bucket'),
                          Key=f'{os.getenv("stackName")}/crypto/{private_key}',
