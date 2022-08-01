@@ -176,9 +176,13 @@ class TestDiscoverGranules(unittest.TestCase):
         res = sftp.kms_decrypt_ciphertext(t)
         self.assertEqual(t.decode(), res)
 
+    @patch('tempfile.gettempdir')
     @patch('paramiko.rsakey.RSAKey.from_private_key')
     @patch('boto3.client')
-    def test_get_private_key(self, mock_client, mock_rsa):
+    def test_get_private_key(self, mock_client, mock_rsa, mock_temp_dir):
+        mock_temp_dir.side_effect = ['/tmp']
+        fake_file = '/tmp/fake_key'
+        open(fake_file, 'w+', encoding='utf-8')
         sftp.get_private_key('fake_key')
 
 
