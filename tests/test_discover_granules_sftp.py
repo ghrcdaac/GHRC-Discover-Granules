@@ -186,6 +186,20 @@ class TestDiscoverGranules(unittest.TestCase):
             pass
         sftp.get_private_key('fake_key', temp_file)
 
+    @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
+    def test_decrypt_credential_none(self, mock_kms):
+        username = None
+        mock_kms.side_effect = [username]
+        sftp.decrypt_credential(username, True)
+        self.assertEqual(mock_kms.call_count, 0)
+
+    @patch('task.discover_granules_sftp.kms_decrypt_ciphertext')
+    def test_decrypt_credential(self, mock_kms):
+        username = 'something'
+        mock_kms.side_effect = [username]
+        sftp.decrypt_credential(username, True)
+        self.assertEqual(mock_kms.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
