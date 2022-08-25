@@ -31,6 +31,20 @@ def get_private_key(private_key, local_dir=None):
     return pkey
 
 
+def decrypt_credential(credential, encrypted):
+    """
+    Handles decrypting username and password credentials
+    :param credential: Expected to be the username or password
+    :param encrypted: Whether or not the value is encrypted
+    :return The
+    """
+    ret = credential
+    if encrypted and credential:
+        ret = kms_decrypt_ciphertext(credential)
+
+    return ret
+
+
 def create_ssh_sftp_config(**kwargs):
     """
     Create a mapping between the cumulus provider fields and the paramiko connect(...) parameter names.
@@ -41,13 +55,11 @@ def create_ssh_sftp_config(**kwargs):
     :return sftp_config: A dictionary with provided configuration parameters
     """
     encrypted = kwargs.get("encrypted", False)
-    username = kwargs.get('username')
-    password = kwargs.get('password')
     sftp_config = {
         'hostname': kwargs.get('host', '127.0.0.1'),
         'port': kwargs.get('port', 22),
-        'username': kms_decrypt_ciphertext(username) if encrypted else username,
-        'password': kms_decrypt_ciphertext(password) if encrypted else password,
+        'username': decrypt_credential(kwargs.get('username'), encrypted),
+        'password': decrypt_credential(kwargs.get('password'), encrypted),
         'pkey': get_private_key(kwargs.get("privateKey")) if 'privateKey' in kwargs else None,
         'key_filename': kwargs.get('key_filename')
     }
