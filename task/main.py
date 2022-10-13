@@ -1,4 +1,7 @@
 import os
+
+import psutil
+
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -36,6 +39,9 @@ def main(event):
     output = {}
     if dg_client.input:
         dg_client.clean_database()
+    elif dg_client.discover_tf.get('batch_request'):
+        # Fetch a batch of granules from the database sorted by
+        pass
     else:
         dg_dict = dg_client.discover_granules()
         rdg_logger.info(f'Discovered {len(dg_dict)} granules.')
@@ -51,8 +57,28 @@ def main(event):
             dg_client.provider['id'] = 'private_bucket'
             dg_client.provider['host'] = f'{os.getenv("stackName")}-private'
 
-    return {'granules': output}
+    a = {'granules': output, 'batch_size': len(output)}
+    rdg_logger.info(f'returning: {a}')
+
+    return {
+        'granules': output,
+        'batch_size': len(output),
+        'queued_granules_count': len(output),
+        'discovered_granules_count': len(output)
+    }
+
+
+def test():
+    t = {}
+    for x in range(5000000):
+        t[f'a_{x}'] = {'value': x, 'and_something_else': x}
+
+    process = psutil.Process(os.getpid())
+    print(process.memory_info().rss / 1024 ** 2)  # in bytes
+    print(len(t))
+    return t
 
 
 if __name__ == '__main__':
+    test()
     pass

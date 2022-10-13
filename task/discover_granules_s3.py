@@ -100,7 +100,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
-                    self.populate_dict(ret_dict, key, etag, last_modified, size)
+                    print(f'key: {key}')
+                    granule_id = self.granule_id_extraction
+                    self.populate_dict(ret_dict, key, etag, granule_id, last_modified, size)
 
         return ret_dict
 

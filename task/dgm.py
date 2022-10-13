@@ -1,7 +1,11 @@
-from peewee import CharField, Model, chunked, SqliteDatabase
+import logging
+
+from peewee import CharField, Model, chunked
+from playhouse.apsw_ext import APSWDatabase
+from playhouse.migrate import SqliteMigrator, migrate
 
 SQLITE_VAR_LIMIT = 999
-db = SqliteDatabase(None)
+db = APSWDatabase(None, vfs='unix-excl')
 
 
 def initialize_db(db_file_path):
@@ -9,6 +13,15 @@ def initialize_db(db_file_path):
         'journal_mode': 'wal',
         'cache_size': -1 * 64000})
     db.create_tables([Granule], safe=True)
+
+    granule_id = CharField()
+    # if granule_id not in db.get_columns(Granule):
+    #     logging.info(f'Databse has not been migrated. Adding column {granule_id}')
+    #     migrator = SqliteMigrator(db)
+    #     granule_id = CharField()
+    #     migrate(
+    #         migrator.add_column('Granule', 'granule_id', granule_id)
+    #     )
     return db
 
 
@@ -17,6 +30,7 @@ class Granule(Model):
     Model representing a granule and the associated metadata
     """
     name = CharField(primary_key=True)
+    granule_id = CharField()
     etag = CharField()
     last_modified = CharField()
 
@@ -31,9 +45,10 @@ class Granule(Model):
         :return ret_lst: List of granule names that existed in the database
         """
         ret_lst = []
-        fields = [Granule.name, Granule.etag, Granule.last_modified]
+        fields = [Granule.name, Granule.granule_id, Granule.etag, Granule.last_modified]
         for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
             names = set()
+            granule_ids = set()
             etags = set()
             last_mods = set()
 
@@ -101,12 +116,11 @@ class Granule(Model):
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
-        data = [(k, v['ETag'], v['Last-Modified']) for k, v in granule_dict.items()]
-        fields = [Granule.name, Granule.etag, Granule.last_modified]
+        data = [(k, v['ETag'], v['GranuleId'], v['Last-Modified']) for k, v in granule_dict.items()]
+        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.last_modified]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                num = Granule.insert_many(key_batch, fields=[Granule.name, Granule.etag, Granule.last_modified])\
-                    .on_conflict_replace().execute()
+                num = Granule.insert_many(key_batch, fields=fields).on_conflict_replace().execute()
                 records_inserted += num
 
         return records_inserted

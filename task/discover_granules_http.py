@@ -43,10 +43,12 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
             if (etag is not None or last_modified is not None) and (check_reg_ex(self.file_reg_ex, url_segment)):
                 rdg_logger.info(f'Discovered granule: {path}')
+                print(f'url_segment: {url_segment}')
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
-                    self.populate_dict(granule_dict, path, etag, str(parse(last_modified).timestamp()), 0)
+                    # self.granuleIdExtraction
+                    self.populate_dict(granule_dict, path, etag, 'a', str(parse(last_modified).timestamp()), 0)
             elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:

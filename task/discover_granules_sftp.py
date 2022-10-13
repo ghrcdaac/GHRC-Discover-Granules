@@ -1,5 +1,6 @@
 import base64
 import os
+import re
 import tempfile
 
 import boto3
@@ -119,8 +120,14 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
                 directory_list.append(dir_file)
             elif check_reg_ex(self.file_reg_ex, str(dir_file)):
+                reg_match = re.match(self.granule_id_extraction, str(dir_file))
+                if reg_match is not None:
+                    granule_id = re.match(self.granule_id_extraction, str(dir_file)).group(1)
+                else:
+                    raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
+                                     f'did not match the file name.')
                 self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
-                                   last_mod=file_stat.st_mtime, size=file_stat.st_size)
+                                   granule_id=granule_id, last_mod=file_stat.st_mtime, size=file_stat.st_size)
             else:
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')

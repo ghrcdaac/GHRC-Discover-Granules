@@ -24,16 +24,24 @@ class TestDiscoverGranules(unittest.TestCase):
         key = 'key'
         etag = 'ETag'
         last_mod = 'Last-Modified'
+        granule_id = 'GranuleId'
         size = 'Size'
         t_dict = {}
-        self.dg.populate_dict(target_dict=t_dict, key=key, etag=etag, last_mod=last_mod, size=size)
+        self.dg.populate_dict(
+            target_dict=t_dict,
+            key=key, etag=etag,
+            granule_id=granule_id,
+            last_mod=last_mod,
+            size=size
+        )
         self.assertIn(key, t_dict)
         self.assertIn(etag, t_dict['key'])
+        self.assertIn(granule_id, t_dict['key'])
         self.assertIn(last_mod, t_dict['key'])
         self.assertIn(size, t_dict['key'])
 
     def test_update_etag_lm(self):
-        dict1 = {'key1': {'ETag': 'etag1', 'Last-Modified': 'lm1', 'Size': 's1'}}
+        dict1 = {'key1': {'ETag': 'etag1', 'GranuleId': 'granule_id1', 'Last-Modified': 'lm1', 'Size': 's1'}}
         dict2 = {}
         self.dg.update_etag_lm(dict2, dict1, 'key1')
         self.assertDictEqual(dict1, dict2)

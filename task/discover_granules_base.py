@@ -23,6 +23,7 @@ class DiscoverGranulesBase(ABC):
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        self.granule_id_extraction = self.collection.get('granuleIdExtraction')
         self.buckets = self.config.get('buckets')
         self.meta = self.collection.get('meta')
         self.discover_tf = self.meta.get('discover_tf')
@@ -208,7 +209,7 @@ class DiscoverGranulesBase(ABC):
         return ret_lst
 
     @staticmethod
-    def populate_dict(target_dict, key, etag, last_mod, size):
+    def populate_dict(target_dict, key, etag, granule_id, last_mod, size):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
         Clarifying Note: This function works by exploiting the mutability of dictionaries
@@ -220,6 +221,7 @@ class DiscoverGranulesBase(ABC):
         """
         target_dict[key] = {
             'ETag': etag,
+            'GranuleId': granule_id,
             'Last-Modified': str(last_mod),
             'Size': size
         }
@@ -235,6 +237,7 @@ class DiscoverGranulesBase(ABC):
         """
         dict1[key] = {
             'ETag': dict2.get(key).get('ETag'),
+            'GranuleId': dict2.get(key).get('GranuleId'),
             'Last-Modified': dict2.get(key).get('Last-Modified'),
             'Size': dict2.get(key).get('Size'),
         }
