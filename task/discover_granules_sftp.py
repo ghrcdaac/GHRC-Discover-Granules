@@ -7,6 +7,7 @@ import boto3
 
 import paramiko
 
+from task.dgm import safe_call, SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -126,8 +127,14 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 else:
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
-                self.populate_dict(granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
-                                   granule_id=granule_id, last_mod=file_stat.st_mtime, size=file_stat.st_size)
+                self.populate_dict(
+                    granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
+                    granule_id=granule_id, collection_id=self.collection_id,
+                    last_mod=file_stat.st_mtime, size=file_stat.st_size
+                )
+                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+                    granule_dict.clear()
             else:
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
@@ -140,7 +147,14 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 granule_dict.update(
                     self.discover(sftp_client)
                 )
+                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+                    granule_dict.clear()
         sftp_client.chdir('../')
+
+        if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+            safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+            granule_dict.clear()
         return granule_dict
 
 

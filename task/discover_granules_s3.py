@@ -2,6 +2,8 @@ import concurrent.futures
 import os
 
 import boto3
+
+from task.dgm import initialize_db, Granule, SQLITE_VAR_LIMIT, safe_call
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -102,7 +104,14 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     size = s3_object['Size']
                     print(f'key: {key}')
                     granule_id = self.granule_id_extraction
-                    self.populate_dict(ret_dict, key, etag, granule_id, last_modified, size)
+                    self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
+                    if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                        safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": ret_dict})
+                        ret_dict.clear()
+
+        if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+            safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": ret_dict})
+            ret_dict.clear()
 
         return ret_dict
 
@@ -142,4 +151,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
 
 if __name__ == '__main__':
+    a = {}
+    if a:
+        print('hey')
     pass

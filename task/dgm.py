@@ -1,11 +1,18 @@
+import datetime
 import logging
+from typing import Callable
 
-from peewee import CharField, Model, chunked
-from playhouse.apsw_ext import APSWDatabase
+from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, BooleanField, chunked
 from playhouse.migrate import SqliteMigrator, migrate
 
 SQLITE_VAR_LIMIT = 999
 db = APSWDatabase(None, vfs='unix-excl')
+
+
+def safe_call(db_file_path, function: Callable, **kwargs):
+    with initialize_db(db_file_path):
+        ret = function(Granule(), **kwargs)
+    return ret
 
 
 def initialize_db(db_file_path):
@@ -31,21 +38,25 @@ class Granule(Model):
     """
     name = CharField(primary_key=True)
     granule_id = CharField()
+    collection_id = CharField()
+    queued = BooleanField()
     etag = CharField()
     last_modified = CharField()
+    discovered_date = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         database = db
 
     @staticmethod
-    def select_all(granule_dict):
+    def select_all(granule_dict, **kwargs):
         """
         Selects all records from the database that are an exact match for all three fields
         :param granule_dict: Dictionary containing granules.
         :return ret_lst: List of granule names that existed in the database
         """
         ret_lst = []
-        fields = [Granule.name, Granule.granule_id, Granule.etag, Granule.last_modified]
+
+        fields = [Granule.name, Granule.granule_id, Granule.collection_id, Granule.queued, Granule.etag, Granule.last_modified]
         for key_batch in chunked(granule_dict, SQLITE_VAR_LIMIT // len(fields)):
             names = set()
             granule_ids = set()
@@ -54,6 +65,7 @@ class Granule(Model):
 
             for key in key_batch:
                 names.add(key)
+                granule_ids.add((granule_dict[key]["GranuleId"]))
                 etags.add(granule_dict[key]["ETag"])
                 last_mods.add(granule_dict[key]["Last-Modified"])
 
@@ -65,7 +77,7 @@ class Granule(Model):
 
         return ret_lst
 
-    def db_skip(self, granule_dict):
+    def db_skip(self, granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict unless they already exist
         :param granule_dict: Dictionary containing granules.
@@ -74,14 +86,14 @@ class Granule(Model):
             granule_dict.pop(name)
         return self.__insert_many(granule_dict)
 
-    def db_replace(self, granule_dict):
+    def db_replace(self, granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         :param granule_dict: Dictionary containing granules.
         """
         return self.__insert_many(granule_dict)
 
-    def db_error(self, granule_dict):
+    def db_error(self, granule_dict, **kwargs):
         """
         Tries to insert all the granules in the granule_dict erroring if there are duplicates
         :param granule_dict: Dictionary containing granules
@@ -98,7 +110,7 @@ class Granule(Model):
         return self.__insert_many(granule_dict)
 
     @staticmethod
-    def delete_granules_by_names(granule_names):
+    def delete_granules_by_names(granule_names, **kwargs):
         """
         Removes all granule records from the database if the name is found in granule_names.
         :return del_count: The number of deleted granules
@@ -110,14 +122,27 @@ class Granule(Model):
         return del_count
 
     @staticmethod
-    def __insert_many(granule_dict):
+    def fetch_batch(batch_size=1000, **kwargs):
+        select_granule_ids = Granule.select().distinct(Granule.granule_id)\
+            .order_by(Granule.discovered_date)\
+            .limit(batch_size)\
+            .where(Granule.queued is False)
+
+        batch_results = Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute()
+
+        for result in batch_results:
+            print(f'batch entry: {result}')
+        return batch_results
+
+    @staticmethod
+    def __insert_many(granule_dict, **kwargs):
         """
         Helper function to separate the insert many logic that is reused between queries
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
-        data = [(k, v['ETag'], v['GranuleId'], v['Last-Modified']) for k, v in granule_dict.items()]
-        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.last_modified]
+        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], False, v['Last-Modified']) for k, v in granule_dict.items()]
+        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.queued, Granule.last_modified]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
                 num = Granule.insert_many(key_batch, fields=fields).on_conflict_replace().execute()

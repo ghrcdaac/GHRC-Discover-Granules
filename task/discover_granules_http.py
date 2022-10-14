@@ -1,7 +1,11 @@
+import re
+
 import requests
 import urllib3
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
+
+from task.dgm import SQLITE_VAR_LIMIT, safe_call
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -48,7 +52,15 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
                     # self.granuleIdExtraction
-                    self.populate_dict(granule_dict, path, etag, 'a', str(parse(last_modified).timestamp()), 0)
+                    granule_id = re.match(self.granule_id_extraction, path.rsplit(path, maxsplit=1)[-1])
+                    self.populate_dict(
+                        granule_dict, path, etag,
+                        granule_id, self.collection_id,
+                        str(parse(last_modified).timestamp()), 0
+                    )
+                    if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                        safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+                        granule_dict.clear()
             elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
             else:
@@ -62,6 +74,9 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             for directory in directory_list:
                 self.url_path = directory
                 granule_dict.update(self.discover(session))
+                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+                    granule_dict.clear()
 
         return granule_dict
 

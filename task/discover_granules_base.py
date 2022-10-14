@@ -12,6 +12,13 @@ def check_reg_ex(regex, target):
     return regex is None or re.search(regex, target) is not None
 
 
+class TempGranule:
+    def __init__(self):
+        self.granule_id = ''
+        self.collection_id = ''
+        self.source = ''
+
+
 class DiscoverGranulesBase(ABC):
     """
     Base class for discovering granules
@@ -23,6 +30,7 @@ class DiscoverGranulesBase(ABC):
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        self.collection_id = f'{self.collection.get("name")}___{self.collection.get("version")}'
         self.granule_id_extraction = self.collection.get('granuleIdExtraction')
         self.buckets = self.config.get('buckets')
         self.meta = self.collection.get('meta')
@@ -35,6 +43,13 @@ class DiscoverGranulesBase(ABC):
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+
+        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
+        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
+        if duplicates == 'replace' and force_replace == 'false':
+            duplicates = 'skip'
+        self.duplicate_handling = getattr(Granule, f'db_{duplicates}')
         super().__init__()
 
     def check_granule_updates_db(self, granule_dict: {}):
@@ -209,7 +224,7 @@ class DiscoverGranulesBase(ABC):
         return ret_lst
 
     @staticmethod
-    def populate_dict(target_dict, key, etag, granule_id, last_mod, size):
+    def populate_dict(target_dict, key, etag, granule_id, collection_id, last_mod, size):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
         Clarifying Note: This function works by exploiting the mutability of dictionaries
@@ -222,6 +237,7 @@ class DiscoverGranulesBase(ABC):
         target_dict[key] = {
             'ETag': etag,
             'GranuleId': granule_id,
+            'CollectionId': collection_id,
             'Last-Modified': str(last_mod),
             'Size': size
         }
@@ -238,6 +254,7 @@ class DiscoverGranulesBase(ABC):
         dict1[key] = {
             'ETag': dict2.get(key).get('ETag'),
             'GranuleId': dict2.get(key).get('GranuleId'),
+            'CollectionId': dict2.get(key).get('CollectionId'),
             'Last-Modified': dict2.get(key).get('Last-Modified'),
             'Size': dict2.get(key).get('Size'),
         }
