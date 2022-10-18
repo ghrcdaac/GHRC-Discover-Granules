@@ -40,37 +40,21 @@ def main(event):
     output = {}
     if dg_client.input == 3:
         dg_client.clean_database()
-    elif dg_client.discover_tf.get('discovered_granules', 0) > 0:
-        rdg_logger.info(f'Handling batch...')
+    else:
+        if dg_client.discover_tf.get('discovered_granules_count', 0) == 0:
+            discovered_granules_count = dg_client.discover_granules()
+        else:
+            discovered_granules_count = dg_client.discover_tf.get('discovered_granules_count', 0)
+
         # Fetch a batch of granules from the database sorted by
         with initialize_db(dg_client.db_file_path):
             batch = getattr(Granule, f'fetch_batch')(Granule(), collection_id=dg_client.collection_id, batch_size=dg_client.discover_tf.get('batch_size_max'), **{'logger': rdg_logger})
         rdg_logger.error(f'batch_size: {len(batch)}')
-        discovered_granules_count = len(batch)
         batch_dict = {}
         for granule in batch:
             dg_client.populate_dict(batch_dict, granule.name, granule.etag, granule.granule_id, granule.collection_id,
                                     granule.last_modified, granule.size)
         output = dg_client.generate_lambda_output(batch_dict)
-        pass
-    else:
-        discovered_granules_count = dg_client.discover_granules()
-        rdg_logger.info(f'discovered_granules_count: {discovered_granules_count}')
-        # if discovered_granules_count:
-        #     # safe_call(dg_client.db_file_path, dg_client.duplicate_handling, **{'granule_dict': granule_dict, 'logger': rdg_logger, 'collection_id': dg_client.collection_id})
-        #     with initialize_db(dg_client.db_file_path):
-        #         getattr(Granule, f'db_{dg_client.duplicates}')(Granule(), granule_dict)
-        #     granule_dict.clear()
-
-        with initialize_db(dg_client.db_file_path):
-            batch = getattr(Granule, f'fetch_batch')(Granule(), collection_id=dg_client.collection_id, batch_size=dg_client.discover_tf.get('batch_size_max'), **{'logger': rdg_logger})
-        rdg_logger.error(f'batch_size: {len(batch)}')
-        batch_dict = {}
-        for granule in batch:
-            dg_client.populate_dict(batch_dict, granule.name, granule.etag, granule.granule_id, granule.collection_id,
-                                    granule.last_modified, granule.size)
-        output = dg_client.generate_lambda_output(batch_dict)
-        # rdg_logger.info(f'Returning cumulus output for {len(output)} {dg_client.collection.get("name")} granules.')
 
         # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules
         # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
@@ -83,25 +67,7 @@ def main(event):
     a = {'granules': output, 'batch_size': len(output), 'discovered_granules_count': discovered_granules_count, 'queued_granules_count': qgc}
     rdg_logger.info(f'returning: {a}')
     return a
-    # return {
-    #     'granules': output,
-    #     'batch_size': len(output),
-    #     'queued_granules_count': len(output),
-    #     'discovered_granules_count': len(output)
-    # }
-
-
-def test():
-    t = {}
-    for x in range(5000000):
-        t[f'a_{x}'] = {'value': x, 'and_something_else': x}
-
-    process = psutil.Process(os.getpid())
-    print(process.memory_info().rss / 1024 ** 2)  # in bytes
-    print(len(t))
-    return t
 
 
 if __name__ == '__main__':
-    test()
     pass
