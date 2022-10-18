@@ -2,7 +2,7 @@ import datetime
 import logging
 from typing import Callable
 
-from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, BooleanField, chunked
+from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, BooleanField, chunked, Check, IntegerField
 from playhouse.migrate import SqliteMigrator, migrate
 
 SQLITE_VAR_LIMIT = 999
@@ -10,6 +10,7 @@ db = APSWDatabase(None, vfs='unix-excl')
 
 
 def safe_call(db_file_path, function: Callable, **kwargs):
+    kwargs.get('logger').error(f'kwargs: {kwargs}')
     with initialize_db(db_file_path):
         ret = function(Granule(), **kwargs)
     return ret
@@ -21,13 +22,17 @@ def initialize_db(db_file_path):
         'cache_size': -1 * 64000})
     db.create_tables([Granule], safe=True)
 
-    granule_id = CharField()
+    # granule_id = CharField()
+    # collection_id = CharField()
+    # discovered_date = DateTimeField(default=datetime.datetime.now)
     # if granule_id not in db.get_columns(Granule):
-    #     logging.info(f'Databse has not been migrated. Adding column {granule_id}')
+    #     # migrate_tables(db)
+    #     logging.info(f'Databse has not been migrated. Adding columns: {granule_id}, {collection_id}, {discovered_date}')
     #     migrator = SqliteMigrator(db)
-    #     granule_id = CharField()
     #     migrate(
-    #         migrator.add_column('Granule', 'granule_id', granule_id)
+    #         migrator.add_column('Granule', 'granule_id', granule_id),
+    #         migrator.add_column('Granule', 'collection_id', collection_id),
+    #         migrator.add_column('Granule', 'discover_date', discovered_date)
     #     )
     return db
 
@@ -39,10 +44,11 @@ class Granule(Model):
     name = CharField(primary_key=True)
     granule_id = CharField()
     collection_id = CharField()
-    queued = BooleanField()
+    status = CharField()
     etag = CharField()
     last_modified = CharField()
     discovered_date = DateTimeField(default=datetime.datetime.now)
+    size = IntegerField()
 
     class Meta:
         database = db
@@ -121,14 +127,31 @@ class Granule(Model):
             del_count += delete
         return del_count
 
-    @staticmethod
-    def fetch_batch(batch_size=1000, **kwargs):
-        select_granule_ids = Granule.select().distinct(Granule.granule_id)\
-            .order_by(Granule.discovered_date)\
-            .limit(batch_size)\
-            .where(Granule.queued is False)
+    def fetch_batch(self, collection_id, batch_size=1000, **kwargs):
+        kwargs.get('logger').error(f'batch collection_id: {collection_id}')
+        # Select a <batch_size> unique granuleIds
+        # select_granule_ids = Granule.select().distinct(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(Granule.status == 'discovered' and Granule.collection_id == collection_id).execute()
 
+
+        # select_granule_ids = (Granule.select(Granule.granule_id).distinct().order_by(Granule.discovered_date).limit(batch_size).where(
+        #     (Granule.status == 'discovered') &
+        #     (Granule.collection_id == collection_id)))
+        # select_granule_ids = (
+        select_granule_ids = (Granule.select(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(
+            (Granule.status == 'discovered') &
+            (Granule.collection_id == collection_id)))
+        # select_granule_ids = Granule.select(Granule.granule_id).distinct()\
+        #     .order_by(Granule.discovered_date).limit(
+        #     batch_size).where(
+        #     (Granule.status == 'discovered') &
+        #     (Granule.collection_id == collection_id)
+        # ).execute()
+        for granule_id in select_granule_ids:
+            kwargs.get('logger').info(f'select_granule_ids: {granule_id.granule_id}')
+        # Select all files related to the granuleIds. This could be larger than the batch size.
         batch_results = Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute()
+        # batch_results = Granule.update(Granule.status == 'queued').where(Granule.granule_id.in_(select_granule_ids))\
+        #     .returning(Granule).execute()
 
         for result in batch_results:
             print(f'batch entry: {result}')
@@ -141,8 +164,8 @@ class Granule(Model):
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
-        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], False, v['Last-Modified']) for k, v in granule_dict.items()]
-        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.queued, Granule.last_modified]
+        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size']) for k, v in granule_dict.items()]
+        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.status, Granule.last_modified, Granule.size]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
                 num = Granule.insert_many(key_batch, fields=fields).on_conflict_replace().execute()
@@ -151,5 +174,14 @@ class Granule(Model):
         return records_inserted
 
 
+class Temp:
+    def a_method(self, param1, **kwargs):
+        pass
+def caller(callable, **kwargs):
+    callable(Temp(), **kwargs)
+
 if __name__ == '__main__':
+    at = Temp()
+
+    caller()
     pass

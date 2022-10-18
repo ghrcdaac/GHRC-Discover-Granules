@@ -67,6 +67,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 rdg_logger.warning(f'Notice: {path} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
 
+        # If any granules were discovered at this level write them to the database
+        if len(granule_dict) > 0:
+            safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
+            granule_dict.clear()
         # Make 3 as the maximum depth
         self.depth = min(abs(self.depth), 3)
         if self.depth > 0:
@@ -74,9 +78,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             for directory in directory_list:
                 self.url_path = directory
                 granule_dict.update(self.discover(session))
-                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
-                    granule_dict.clear()
 
         return granule_dict
 

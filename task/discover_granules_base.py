@@ -49,7 +49,8 @@ class DiscoverGranulesBase(ABC):
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
-        self.duplicate_handling = getattr(Granule, f'db_{duplicates}')
+        self.duplicates = duplicates
+        # self.duplicate_handling = getattr(Granule, f'db_{duplicates}')
         super().__init__()
 
     def check_granule_updates_db(self, granule_dict: {}):

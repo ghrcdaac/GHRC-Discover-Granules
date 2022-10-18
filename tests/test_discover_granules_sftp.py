@@ -84,12 +84,13 @@ class TestDiscoverGranules(unittest.TestCase):
         dg_sftp = sftp.DiscoverGranulesSFTP(event)
         res = dg_sftp.discover(sftp_test_client)
         expected = {
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {'ETag': 'N/A', "GranuleId": "file_0", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {'ETag': 'N/A', "GranuleId": "file_1", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_2': {'ETag': 'N/A', "GranuleId": "file_2", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1}
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {
+                'ETag': 'N/A', "GranuleId": "file_0", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {
+                'ETag': 'N/A', "GranuleId": "file_1", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_2': {
+                'ETag': 'N/A', "GranuleId": "file_2", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1}
         }
-        print(res)
-        print(expected)
         self.assertEqual(res, expected)
 
     @patch.object(re, 'search')
