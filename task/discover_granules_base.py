@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from abc import ABC, abstractmethod
 import re
@@ -42,7 +43,15 @@ class DiscoverGranulesBase(ABC):
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+        db_path_prefix = os.getenv("efs_path", None)
+        print(f'db_prefix: {db_path_prefix}')
+        if not db_path_prefix:
+            print('in if')
+            self.temp_dir = mkdtemp()
+            db_path_prefix = self.temp_dir
+            print(db_path_prefix)
+        self.db_file_path = f'{db_path_prefix}/{db_filename}'
+        print(f'db_file_path: {self.db_file_path}')
 
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
@@ -52,6 +61,9 @@ class DiscoverGranulesBase(ABC):
         self.duplicates = duplicates
         # self.duplicate_handling = getattr(Granule, f'db_{duplicates}')
         super().__init__()
+
+    def __del__(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def check_granule_updates_db(self, granule_dict: {}):
         """

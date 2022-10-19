@@ -61,7 +61,7 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
         ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(len(ret_dict), 2)
+        self.assertEqual(ret_dict, 2)
 
     def test_discover_granules_s3_file_regex(self):
         self.dg.file_reg_ex = 'key1.txt'
@@ -86,7 +86,7 @@ class TestDiscoverGranules(unittest.TestCase):
         ]
 
         ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(len(ret_dict), 1)
+        self.assertEqual(ret_dict, 1)
 
     def test_discover_granules_s3_dir_regex(self):
         self.dg.file_reg_ex = None
@@ -111,7 +111,7 @@ class TestDiscoverGranules(unittest.TestCase):
         ]
 
         ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(len(ret_dict), 1)
+        self.assertEqual(ret_dict, 1)
 
     @patch('task.discover_granules_s3.get_s3_client')
     @patch('task.discover_granules_s3.get_s3_client_with_keys')
@@ -121,6 +121,7 @@ class TestDiscoverGranules(unittest.TestCase):
         os.environ['efs_path'] = 'tmp'
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
         self.dg.move_granule(t)
+        del os.environ['efs_path']
 
     @patch('os.remove')
     @patch('task.discover_granules_s3.get_s3_client')
@@ -133,6 +134,7 @@ class TestDiscoverGranules(unittest.TestCase):
         t = 's3://some_provider/at/a/path/that/is/fake.txt'
         self.dg.move_granule(t)
         self.assertRaises(FileNotFoundError)
+        del os.environ['efs_path']
 
     def test_move_granule_wrapper(self):
         test_dict = {

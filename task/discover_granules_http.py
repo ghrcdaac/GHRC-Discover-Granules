@@ -54,12 +54,19 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 if isinstance(head_resp.get('Last-Modified'), str):
                     # self.granuleIdExtraction
                     res = re.search(self.granule_id_extraction, url_segment)
-                    granule_id = res.group(1)
-                    self.populate_dict(
-                        ret_dict, path, etag,
-                        granule_id, self.collection_id,
-                        str(parse(last_modified).timestamp()), 0
-                    )
+                    try:
+                        granule_id = res.group(1)
+                        self.populate_dict(
+                            ret_dict, path, etag,
+                            granule_id, self.collection_id,
+                            str(parse(last_modified).timestamp()), 0
+                        )
+                        rdg_logger.info(f'{url_segment} matched the granuleIdExtraction')
+                    except AttributeError as e:
+                        rdg_logger.warning(f'The collection\'s granuleIdExtraction did not match the filename.')
+                        rdg_logger.warning(f'granuleIdExtraction: {self.granule_id_extraction}')
+                        rdg_logger.warning(f'filename: {url_segment}')
+
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
                         discovered_granules_count += safe_call(
                             self.db_file_path,

@@ -105,6 +105,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
                     print(f'key: {key}')
+                    print(f'filename: {filename}')
+                    print(f'granule_id_extraction: {self.granule_id_extraction}')
                     res = re.search(self.granule_id_extraction, filename)
                     try:
                         granule_id = res.group(1)

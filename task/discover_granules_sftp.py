@@ -7,7 +7,7 @@ import boto3
 
 import paramiko
 
-from task.dgm import safe_call, SQLITE_VAR_LIMIT
+from task.dgm import safe_call, SQLITE_VAR_LIMIT, Granule
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -106,12 +106,13 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         self.depth = self.discover_tf.get('depth')
 
     def discover_granules(self):
+        ret_dict = {}
         sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
-        return self.discover(sftp_client)
+        return self.discover(sftp_client, ret_dict)
 
-    def discover(self, sftp_client):
+    def discover(self, sftp_client, ret_dict):
+        discovered_granules_count = 0
         directory_list = []
-        granule_dict = {}
         rdg_logger.info(f'Exploring path {self.path} depth {self.depth}')
         sftp_client.chdir(self.path)
 
@@ -128,13 +129,18 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
                 self.populate_dict(
-                    granule_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
+                    ret_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
                     granule_id=granule_id, collection_id=self.collection_id,
                     last_mod=file_stat.st_mtime, size=file_stat.st_size
                 )
-                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
-                    granule_dict.clear()
+                if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    print(f'what: {self.db_file_path}')
+                    discovered_granules_count += safe_call(
+                        self.db_file_path,
+                        getattr(Granule, f'db_{self.duplicates}'),
+                        **{"granule_dict": ret_dict, 'logger': rdg_logger}
+                    )
+                    ret_dict.clear()
             else:
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
@@ -144,18 +150,19 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             self.depth -= 1
             for directory in directory_list:
                 self.path = directory
-                granule_dict.update(
-                    self.discover(sftp_client)
-                )
-                if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                    safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
-                    granule_dict.clear()
+                discovered_granules_count += self.discover(sftp_client, ret_dict)
+
         sftp_client.chdir('../')
 
-        if len(granule_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-            safe_call(self.db_file_path, self.duplicate_handling, **{"granule_dict": granule_dict})
-            granule_dict.clear()
-        return granule_dict
+        if len(ret_dict) > 0:
+            print(f'what2: {self.db_file_path}')
+            discovered_granules_count += safe_call(
+                self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                **{"granule_dict": ret_dict, 'logger': rdg_logger}
+            )
+            ret_dict.clear()
+
+        return discovered_granules_count
 
 
 if __name__ == "__main__":
