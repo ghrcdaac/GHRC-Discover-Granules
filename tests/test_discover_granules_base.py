@@ -64,40 +64,26 @@ class TestDiscoverGranules(unittest.TestCase):
 
         ret_list = self.dg.generate_cumulus_output(test_dict)
 
-        expected_entries = [
-            {
-                'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'name': 'LA_NALMA_firetower_211130_000000.dat',
-                        'path': 'lma/nalma/raw/short_test',
-                        'size': 4553538,
-                        'time': 0,
-                        'url_path': 'nalmaraw__1',
-                        'bucket': 'sharedsbx-private',
-                        'type': ''
-                    }
-                ]
-            },
-            {
-                'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'name': 'LA_NALMA_firetower_211130_001000.dat',
-                        'path': 'lma/nalma/raw/short_test',
-                        'size': 4706838,
-                        'time': 0,
-                        'url_path': 'nalmaraw__1',
-                        'bucket': 'sharedsbx-private',
-                        'type': ''
-                    }
-                ]
-            }
-        ]
+        expected_entries = []
+        for k, v in test_dict:
+            expected_entries.append(
+                {
+                    'granuleId': str(k).rsplit('/', maxsplit=1),
+                    'dataType': 'nalmaraw',
+                    'version': '1',
+                    'files': [
+                        {
+                            'name': str(k).rsplit('/', maxsplit=1),
+                            'path': 'lma/nalma/raw/short_test',
+                            'size': v.get('Size'),
+                            'time': 0,
+                            'url_path': 'nalmaraw__1',
+                            'bucket': 'sharedsbx-private',
+                            'type': ''
+                        }
+                    ]
+                }
+            )
 
         for val in expected_entries:
             self.assertIn(val, ret_list)
