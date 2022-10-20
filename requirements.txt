@@ -1,3 +1,4 @@
+apsw==3.39.4.0
 attrs==21.4.0
 bcrypt==3.2.2
 beautifulsoup4==4.10.0

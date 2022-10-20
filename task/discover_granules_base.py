@@ -23,6 +23,8 @@ class DiscoverGranulesBase(ABC):
         self.config = event.get('config')
         self.provider = self.config.get('provider')
         self.collection = self.config.get('collection')
+        self.collection_id = f'{self.collection.get("name")}___{self.collection.get("version")}'
+        self.granule_id_extraction = self.collection.get('granuleIdExtraction')
         self.buckets = self.config.get('buckets')
         self.meta = self.collection.get('meta')
         self.discover_tf = self.meta.get('discover_tf')
@@ -34,25 +36,14 @@ class DiscoverGranulesBase(ABC):
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
-        super().__init__()
 
-    def check_granule_updates_db(self, granule_dict: {}):
-        """
-        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
-        error, replace, or skip
-        :param granule_dict: Dictionary of granules to check
-        :return Dictionary of granules that were new or updated
-        """
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
-
-        with initialize_db(self.db_file_path):
-            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
-
-        rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
+        self.duplicates = duplicates
+        super().__init__()
 
     def clean_database(self):
         """
@@ -127,8 +118,10 @@ class DiscoverGranulesBase(ABC):
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
 
             temp_dict[granule_id].get('files').append(
-                self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'),
-                                           self.get_bucket_name(bucket_type), file_type)
+                self.generate_cumulus_file(
+                    filename, file_path_name[0], v.get('Size'),
+                    self.get_bucket_name(bucket_type), file_type
+                )
             )
 
         return list(temp_dict.values())
@@ -208,7 +201,7 @@ class DiscoverGranulesBase(ABC):
         return ret_lst
 
     @staticmethod
-    def populate_dict(target_dict, key, etag, last_mod, size):
+    def populate_dict(target_dict, key, etag, granule_id, collection_id, last_mod, size):
         """
         Helper function to populate a dictionary with ETag and Last-Modified fields.
         Clarifying Note: This function works by exploiting the mutability of dictionaries
@@ -220,6 +213,8 @@ class DiscoverGranulesBase(ABC):
         """
         target_dict[key] = {
             'ETag': etag,
+            'GranuleId': granule_id,
+            'CollectionId': collection_id,
             'Last-Modified': str(last_mod),
             'Size': size
         }
@@ -235,6 +230,8 @@ class DiscoverGranulesBase(ABC):
         """
         dict1[key] = {
             'ETag': dict2.get(key).get('ETag'),
+            'GranuleId': dict2.get(key).get('GranuleId'),
+            'CollectionId': dict2.get(key).get('CollectionId'),
             'Last-Modified': dict2.get(key).get('Last-Modified'),
             'Size': dict2.get(key).get('Size'),
         }

@@ -24,16 +24,32 @@ class TestDiscoverGranules(unittest.TestCase):
         key = 'key'
         etag = 'ETag'
         last_mod = 'Last-Modified'
+        granule_id = 'GranuleId'
+        collection_id = 'CollectionId'
         size = 'Size'
         t_dict = {}
-        self.dg.populate_dict(target_dict=t_dict, key=key, etag=etag, last_mod=last_mod, size=size)
+        self.dg.populate_dict(
+            target_dict=t_dict,
+            key=key, etag=etag,
+            granule_id=granule_id,
+            collection_id=collection_id,
+            last_mod=last_mod,
+            size=size
+        )
         self.assertIn(key, t_dict)
         self.assertIn(etag, t_dict['key'])
+        self.assertIn(granule_id, t_dict['key'])
         self.assertIn(last_mod, t_dict['key'])
         self.assertIn(size, t_dict['key'])
 
     def test_update_etag_lm(self):
-        dict1 = {'key1': {'ETag': 'etag1', 'Last-Modified': 'lm1', 'Size': 's1'}}
+        dict1 = {
+            'key1': {
+                'ETag': 'etag1', 'GranuleId': 'granule_id1',
+                'CollectionId': 'collection_id1',
+                'Last-Modified': 'lm1', 'Size': 's1'
+            }
+        }
         dict2 = {}
         self.dg.update_etag_lm(dict2, dict1, 'key1')
         self.assertDictEqual(dict1, dict2)
@@ -48,40 +64,26 @@ class TestDiscoverGranules(unittest.TestCase):
 
         ret_list = self.dg.generate_cumulus_output(test_dict)
 
-        expected_entries = [
-            {
-                'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'name': 'LA_NALMA_firetower_211130_000000.dat',
-                        'path': 'lma/nalma/raw/short_test',
-                        'size': 4553538,
-                        'time': 0,
-                        'url_path': 'nalmaraw__1',
-                        'bucket': 'sharedsbx-private',
-                        'type': ''
-                    }
-                ]
-            },
-            {
-                'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'name': 'LA_NALMA_firetower_211130_001000.dat',
-                        'path': 'lma/nalma/raw/short_test',
-                        'size': 4706838,
-                        'time': 0,
-                        'url_path': 'nalmaraw__1',
-                        'bucket': 'sharedsbx-private',
-                        'type': ''
-                    }
-                ]
-            }
-        ]
+        expected_entries = []
+        for k, v in test_dict.items():
+            expected_entries.append(
+                {
+                    'granuleId': str(k).rsplit('/', maxsplit=1)[-1],
+                    'dataType': 'nalmaraw',
+                    'version': '1',
+                    'files': [
+                        {
+                            'name': str(k).rsplit('/', maxsplit=1)[-1],
+                            'path': 'lma/nalma/raw/short_test',
+                            'size': v.get('Size'),
+                            'time': 0,
+                            'url_path': 'nalmaraw__1',
+                            'bucket': 'sharedsbx-private',
+                            'type': ''
+                        }
+                    ]
+                }
+            )
 
         for val in expected_entries:
             self.assertIn(val, ret_list)

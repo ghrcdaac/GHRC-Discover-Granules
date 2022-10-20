@@ -25,4 +25,5 @@ def handler(event, context):
     result = []
     if run_cumulus_task:
         result = run_cumulus_task(lambda_handler, event, context)
+        rdg_logger.info(f'result: {result}')
     return result

@@ -1,7 +1,10 @@
 import concurrent.futures
 import os
+import re
 
 import boto3
+
+from task.dgm import Granule, SQLITE_VAR_LIMIT, safe_call
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -89,20 +92,45 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
            ...
         }
         """
+        discovered_granules_count = 0
         ret_dict = {}
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
-                file_name = sections[1]
-                if check_reg_ex(self.file_reg_ex, file_name) and check_reg_ex(self.dir_reg_ex, key_dir):
+                url_segment = sections[1]
+                if check_reg_ex(self.file_reg_ex, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
-                    self.populate_dict(ret_dict, key, etag, last_modified, size)
+                    print(f'key: {key}')
+                    print(f'filename: {url_segment}')
+                    print(f'granule_id_extraction: {self.granule_id_extraction}')
+                    reg_res = re.search(self.granule_id_extraction, url_segment)
+                    try:
+                        granule_id = reg_res.group(1)
+                        self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
+                    except AttributeError as e:
+                        rdg_logger.warning(
+                            f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
+                            f' did not match the filename {url_segment}: {e}'
+                        )
 
-        return ret_dict
+                    if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                        discovered_granules_count += safe_call(
+                            self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                            **{"granule_dict": ret_dict, 'logger': rdg_logger}
+                        )
+                        ret_dict.clear()
+
+        if len(ret_dict) > 0:
+            discovered_granules_count += safe_call(
+                self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                **{"granule_dict": ret_dict, 'logger': rdg_logger}
+            )
+
+        return discovered_granules_count
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """

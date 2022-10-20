@@ -1,12 +1,8 @@
 import json
 import os
 import re
-import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
-
-# from task.discover_granules_sftp import DiscoverGranulesSFTP, kms_decrypt_ciphertext, \
-#     create_ssh_sftp_config, setup_ssh_sftp_client
 
 import task.discover_granules_sftp as sftp
 
@@ -60,6 +56,9 @@ class FakeKms:
 
 
 class TestDiscoverGranules(unittest.TestCase):
+
+    def setUp(self, temp=None) -> None:
+        self.dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'))
     """
     will test discover granules
     """
@@ -71,36 +70,37 @@ class TestDiscoverGranules(unittest.TestCase):
     @patch('task.discover_granules_sftp.create_ssh_sftp_config')
     @patch('task.discover_granules_sftp.setup_ssh_sftp_client')
     def test_discover_granules(self, mock_sftp_setup, mock_sftp_config):
-        dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'))
-        dg_sftp.discover = MagicMock()
-        dg_sftp.discover_granules()
-        self.assertEqual(dg_sftp.discover.call_count, 1)
+        # dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'))
+        self.dg_sftp.discover = MagicMock()
+        self.dg_sftp.discover_granules()
+        self.assertEqual(self.dg_sftp.discover.call_count, 1)
         self.assertEqual(mock_sftp_setup.call_count, 1)
         self.assertEqual(mock_sftp_config.call_count, 1)
 
     def test_discover_granules_sftp(self):
         event = self.get_sample_event('sftp')
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
-        dg_sftp = sftp.DiscoverGranulesSFTP(event)
-        res = dg_sftp.discover(sftp_test_client)
-        expected = {
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1},
-            '/ssmi/f16/bmaps_v07/y2021/m03/file_2': {'ETag': 'N/A', 'Last-Modified': '1', 'Size': 1}
-        }
 
-        self.assertEqual(res, expected)
+        res_count = self.dg_sftp.discover(sftp_test_client, {})
+        expected = {
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {
+                'ETag': 'N/A', "GranuleId": "file_0", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_1': {
+                'ETag': 'N/A', "GranuleId": "file_1", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
+            '/ssmi/f16/bmaps_v07/y2021/m03/file_2': {
+                'ETag': 'N/A', "GranuleId": "file_2", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1}
+        }
+        self.assertEqual(res_count, 3)
 
     @patch.object(re, 'search')
     def test_discover_granules_sftp_recursion(self, re_test):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        dg_sftp = sftp.DiscoverGranulesSFTP(event)
-        res = dg_sftp.discover(sftp_test_client)
-        expected = {}
+        # dg_sftp = sftp.DiscoverGranulesSFTP(event)
+        res_count = self.dg_sftp.discover(sftp_test_client, {})
 
-        self.assertEqual(res, expected)
+        self.assertEqual(res_count, 0)
 
     @patch.object(re, 'search')
     def test_discover_granules_sftp_no_reg_ex_match(self, re_test):
@@ -108,11 +108,10 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        dg_sftp = sftp.DiscoverGranulesSFTP(event)
-        res = dg_sftp.discover(sftp_test_client)
-        expected = {}
+        # dg_sftp = sftp.DiscoverGranulesSFTP(event)
+        res_count = self.dg_sftp.discover(sftp_test_client, {})
 
-        self.assertEqual(res, expected)
+        self.assertEqual(res_count, 0)
 
     @patch('paramiko.SSHClient')
     def test_setup_ssh_sftp_client(self, mock_paramiko):

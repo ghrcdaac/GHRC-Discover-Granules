@@ -15,7 +15,7 @@
     "provider_path": "/ssmi/f16/bmaps_v07/y2021/m03/",
     "collection": {
       "process": "rss",
-      "granuleIdExtraction": ".*",
+      "granuleIdExtraction": "(file_\\d)",
       "version": "7",
       "dataType": "rssmif16d",
       "meta": {
