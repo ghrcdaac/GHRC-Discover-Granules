@@ -52,7 +52,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
-                    # self.granuleIdExtraction
                     res = re.search(self.granule_id_extraction, url_segment)
                     try:
                         granule_id = res.group(1)

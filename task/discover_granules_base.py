@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 from abc import ABC, abstractmethod
 import re
@@ -11,13 +10,6 @@ from task.logger import rdg_logger
 
 def check_reg_ex(regex, target):
     return regex is None or re.search(regex, target) is not None
-
-
-class TempGranule:
-    def __init__(self):
-        self.granule_id = ''
-        self.collection_id = ''
-        self.source = ''
 
 
 class DiscoverGranulesBase(ABC):
@@ -43,15 +35,7 @@ class DiscoverGranulesBase(ABC):
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        db_path_prefix = os.getenv("efs_path", None)
-        print(f'db_prefix: {db_path_prefix}')
-        if not db_path_prefix:
-            print('in if')
-            self.temp_dir = mkdtemp()
-            db_path_prefix = self.temp_dir
-            print(db_path_prefix)
-        self.db_file_path = f'{db_path_prefix}/{db_filename}'
-        print(f'db_file_path: {self.db_file_path}')
+        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
 
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
@@ -59,29 +43,7 @@ class DiscoverGranulesBase(ABC):
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
         self.duplicates = duplicates
-        # self.duplicate_handling = getattr(Granule, f'db_{duplicates}')
         super().__init__()
-
-    def __del__(self):
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def check_granule_updates_db(self, granule_dict: {}):
-        """
-        Checks stored granules and updates the datetime and ETag if updated. Expected values for duplicateHandling are
-        error, replace, or skip
-        :param granule_dict: Dictionary of granules to check
-        :return Dictionary of granules that were new or updated
-        """
-        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
-        # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
-        if duplicates == 'replace' and force_replace == 'false':
-            duplicates = 'skip'
-
-        with initialize_db(self.db_file_path):
-            getattr(Granule, f'db_{duplicates}')(Granule(), granule_dict)
-
-        rdg_logger.info(f'{len(granule_dict)} granules remain after {duplicates} update processing.')
 
     def clean_database(self):
         """
@@ -156,8 +118,10 @@ class DiscoverGranulesBase(ABC):
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
 
             temp_dict[granule_id].get('files').append(
-                self.generate_cumulus_file(filename, file_path_name[0], v.get('Size'),
-                                           self.get_bucket_name(bucket_type), file_type)
+                self.generate_cumulus_file(
+                    filename, file_path_name[0], v.get('Size'),
+                    self.get_bucket_name(bucket_type), file_type
+                )
             )
 
         return list(temp_dict.values())

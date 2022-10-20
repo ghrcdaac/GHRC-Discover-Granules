@@ -14,9 +14,14 @@ def safe_call(db_file_path, function: Callable, **kwargs):
 
 
 def initialize_db(db_file_path):
-    db.init(db_file_path, timeout=60, pragmas={
-        'journal_mode': 'wal',
-        'cache_size': -1 * 64000})
+    db.init(
+        db_file_path,
+        timeout=60,
+        pragmas={
+            'journal_mode': 'wal',
+            'cache_size': -1 * 64000
+        }
+    )
     db.create_tables([Granule], safe=True)
 
     return db
@@ -77,14 +82,17 @@ class Granule(Model):
         return del_count
 
     def fetch_batch(self, collection_id, batch_size=1000, **kwargs):
-        select_granule_ids = (Granule.select(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(
-            (Granule.status == 'discovered') &
-            (Granule.collection_id == collection_id)))
+        select_granule_ids = (
+            Granule.select(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(
+                (Granule.status == 'discovered') &
+                (Granule.collection_id == collection_id))
+        )
 
-        batch_results = Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute()
+        batch_results = list(Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute())
         _ = Granule.update(status='queued').where(Granule.granule_id.in_(select_granule_ids)).execute()
 
         return batch_results
+
 
     @staticmethod
     def __insert_many(granule_dict, conflict_resolution, **kwargs):
@@ -93,8 +101,10 @@ class Granule(Model):
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
-        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size']) for k, v in granule_dict.items()]
-        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.status, Granule.last_modified, Granule.size]
+        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size']) for k, v
+                in granule_dict.items()]
+        fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.status,
+                  Granule.last_modified, Granule.size]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
                 num = Granule.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
