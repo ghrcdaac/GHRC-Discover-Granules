@@ -105,7 +105,9 @@ class TestDGM(unittest.TestCase):
     def test_db_insert_many(self):
         discovered_granules = {"granule_a": {"ETag": "tag1_a", "GranuleId": "granule_id1", "CollectionId": "collection_id1", "Last-Modified": "modified_a", "Size": 1},
                                "granule_b": {"ETag": "tag1_b", "GranuleId": "granule_id2", "CollectionId": "collection_id1", "Last-Modified": "modified_b", "Size": 1}}
-        count = self.model._Granule__insert_many(discovered_granules, **{'conflict_resolution': {'action': 'ignore'}})
+        count = self.model._Granule__insert_many(
+            discovered_granules, **{'conflict_resolution': {'action': 'ignore'}}
+        )  # pylint: disable=W0212
         self.assertEqual(count, 2)
 
 
