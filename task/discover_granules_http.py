@@ -62,9 +62,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                         )
                         rdg_logger.info(f'{url_segment} matched the granuleIdExtraction')
                     except AttributeError as e:
-                        rdg_logger.warning(f'The collection\'s granuleIdExtraction did not match the filename.')
-                        rdg_logger.warning(f'granuleIdExtraction: {self.granule_id_extraction}')
-                        rdg_logger.warning(f'filename: {url_segment}')
+                        rdg_logger.warning(
+                            f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
+                            f' did not match the filename {url_segment}: {e}'
+                        )
 
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
                         discovered_granules_count += safe_call(

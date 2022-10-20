@@ -99,30 +99,36 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
-                filename = sections[1]
-                if check_reg_ex(self.file_reg_ex, filename) and check_reg_ex(self.dir_reg_ex, key_dir):
+                url_segment = sections[1]
+                if check_reg_ex(self.file_reg_ex, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
                     print(f'key: {key}')
-                    print(f'filename: {filename}')
+                    print(f'filename: {url_segment}')
                     print(f'granule_id_extraction: {self.granule_id_extraction}')
-                    res = re.search(self.granule_id_extraction, filename)
+                    reg_res = re.search(self.granule_id_extraction, url_segment)
                     try:
-                        granule_id = res.group(1)
+                        granule_id = reg_res.group(1)
                         self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
                     except AttributeError as e:
-                        rdg_logger.warning(f'The collection\'s granuleIdExtraction did not match the filename.')
-                        rdg_logger.warning(f'granuleIdExtraction: {self.granule_id_extraction}')
-                        rdg_logger.warning(f'filename: {filename}')
+                        rdg_logger.warning(
+                            f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
+                            f' did not match the filename {url_segment}: {e}'
+                        )
 
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                        discovered_granules_count += safe_call(self.db_file_path, getattr(Granule, f'db_{self.duplicates}'), **{"granule_dict": ret_dict, 'logger': rdg_logger})
+                        discovered_granules_count += safe_call(
+                            self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                            **{"granule_dict": ret_dict, 'logger': rdg_logger}
+                        )
                         ret_dict.clear()
 
         if len(ret_dict) > 0:
-            discovered_granules_count += safe_call(self.db_file_path, getattr(Granule, f'db_{self.duplicates}'), **{"granule_dict": ret_dict, 'logger': rdg_logger})
-            # ret_dict.clear()
+            discovered_granules_count += safe_call(
+                self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                **{"granule_dict": ret_dict, 'logger': rdg_logger}
+            )
 
         return discovered_granules_count
 
