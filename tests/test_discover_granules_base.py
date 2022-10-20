@@ -65,15 +65,15 @@ class TestDiscoverGranules(unittest.TestCase):
         ret_list = self.dg.generate_cumulus_output(test_dict)
 
         expected_entries = []
-        for k, v in test_dict:
+        for k, v in test_dict.items():
             expected_entries.append(
                 {
-                    'granuleId': str(k).rsplit('/', maxsplit=1),
+                    'granuleId': str(k).rsplit('/', maxsplit=1)[-1],
                     'dataType': 'nalmaraw',
                     'version': '1',
                     'files': [
                         {
-                            'name': str(k).rsplit('/', maxsplit=1),
+                            'name': str(k).rsplit('/', maxsplit=1)[-1],
                             'path': 'lma/nalma/raw/short_test',
                             'size': v.get('Size'),
                             'time': 0,
