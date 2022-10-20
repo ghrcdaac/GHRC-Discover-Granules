@@ -108,7 +108,7 @@ class TestDGM(unittest.TestCase):
         count = self.model._Granule__insert_many(discovered_granules, **{'conflict_resolution': {'action': 'ignore'}})  # pylint: disable=W0212
         self.assertEqual(count, 2)
 
-    def test_db_skip_update_modified(self):
+    def test_db_fetch_batch(self):
         collection_id = 'collection_id'
         discovered_granules = {
             "granule_a": {"ETag": "tag1_a", "GranuleId": "granule_id1", "CollectionId": 'collection_id',
