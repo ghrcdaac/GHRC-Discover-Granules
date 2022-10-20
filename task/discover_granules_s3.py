@@ -4,7 +4,7 @@ import re
 
 import boto3
 
-from task.dgm import initialize_db, Granule, SQLITE_VAR_LIMIT, safe_call
+from task.dgm import Granule, SQLITE_VAR_LIMIT, safe_call
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -168,9 +168,4 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
 
 if __name__ == '__main__':
-    filename = 'LA_NALMA_firetower_220731_013000.dat'
-    full_path = 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_220731_013000.dat'
-    reg_ex = r'^((.*_NALMA_).*)'
-    res = re.search(reg_ex, filename)
-    print(res.group(1))
     pass

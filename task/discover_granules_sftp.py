@@ -134,7 +134,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     last_mod=file_stat.st_mtime, size=file_stat.st_size
                 )
                 if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                    print(f'what: {self.db_file_path}')
                     discovered_granules_count += safe_call(
                         self.db_file_path,
                         getattr(Granule, f'db_{self.duplicates}'),
@@ -155,7 +154,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         sftp_client.chdir('../')
 
         if len(ret_dict) > 0:
-            print(f'what2: {self.db_file_path}')
             discovered_granules_count += safe_call(
                 self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
                 **{"granule_dict": ret_dict, 'logger': rdg_logger}
