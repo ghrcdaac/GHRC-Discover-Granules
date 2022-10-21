@@ -11,17 +11,18 @@
 |____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
 ```
 # Overview
-The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS
+The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS, SFTP
 and S3 protocols. 
-The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a sqlite
-database file in S3.  
+The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a SQLite
+database file in an EFS mount point that is retrieved from the `efs_path` environment variable. If this is not provided 
+the database will be written to a temporary directory which is not persistent. 
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
 Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
-## Supported Protocols and Limitations
-Currently granules can be discovered via AWS S3, HTTP/HTTPS, and SFTP protocols. There are some limitations such as 
-HTTP/HTTPS not supporting redirects or username and passwords. Additionally, SFTP does not support public/private key
-authentication.
+## Supported Protocols
+ - AWS S3, HTTP/HTTPS, and SFTP 
+## Limitations
+ - HTTP/HTTPS does not support redirects or username + password authentication
 
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
@@ -31,11 +32,14 @@ We are following `v<major>.<minor>.<patch>` versioning convention, where:
 * `<patch>+1` means we fixed a bug and/or added a feature. Breaking changes are not expected.
 
 # 🔨 Pre-requisite 
+## Cumulus
 This module is meant to run within Cumulus stack. 
 If you don't have Cumulus stack deployed yet please consult [this repo](https://github.com/nasa/cumulus) 
-and follow the [documetation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.
-
-The dev stack repo is also needed to deploy and test changes to discover-granules-tf-module: https://gitlab.com/ghrc-cloud/ghrc-tf-deploy
+and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
+## EFS
+It is also a requirement to have an EFS partition in EC2 to store the SQLite database. See the following repo for 
+setting it up: 
+https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip
 
 # How to
 In order to use the recursive discover granules the following block must be added to the collection definition inside 
@@ -48,23 +52,22 @@ of the meta block:
  "file_reg_ex": "",
  "batch_limit": 1000
 }
-```
-Collection definitions can be found in this repo: https://gitlab.com/ghrc-cloud/ghrc-tf-configuration/-/tree/master/collections  
+``` 
 
-depth: How far you want the recursive search to go from the starting URL. The search will look for granules in each level
+ - `depth`: How far you want the recursive search to go from the starting URL. The search will look for granules in each level
 and traverse directories until there are no directories or depth is reached. This value is only applicable to http/https
 providers.  
 Note: The absolute value will be taken of this parameter so negative values are not intended to be used for upward traversal.
 
-force_replace: This can be used to force Discover Granules to rediscover all granules even if previously discovered.
+ - `force_replace`: This can be used to force Discover Granules to rediscover all granules even if previously discovered.
 The duplicateHandling flag being set to replace defaults to "skip" to handle reingesting previously discovered files that 
 have been updated.
 
-dir_reg_ex: Regular expression used to only search directories it matches
+ - `dir_reg_ex`: Regular expression used to only search directories it matches
 
-file_reg_ex: Regular expression used to only discover files it matches
+ - `file_reg_ex`: Regular expression used to only discover files it matches
 
-batch_limit: Used to specify the size of the batches sent to QueueGranules when using the IsDone step in the DIscoverGranules workflow. Will default to 1000 if not provided. If you do not want to use batching provide a number larger than the expect number of granules to discover. This will effectively prevent batching. Note, this could cause memory issues for the DiscoverGranules or QueueGranules lambdas. 
+ - `batch_limit`: Used to specify the size of the batches sent to QueueGranules when using the IsDone step in the DIscoverGranules workflow. Will default to 1000 if not provided. If you do not want to use batching provide a number larger than the expect number of granules to discover. This will effectively prevent batching. Note, this could cause memory issues for the DiscoverGranules or QueueGranules lambdas. 
 
 In order to match against specific granules the granuleIdExtraction value must be used.  
 This is an example of a collection with the added block:
@@ -193,10 +196,9 @@ The following definition is an example of defining the lambda as a step in a AWS
 ```
 
 
-# Results
-The results of a successful run will be stored in S3 as a sqlite database file. The bucket is currently 
-&lt;prefix&gt;-internal/discover-granule/lookup. The location is set in the ghrc-tf/lambdas file in the dev stack repo. 
-The name of the file will be discover_granules.db.  
+# Output
+The module generates output that should match the output for the Cumulus DiscoverGranules 
+lambda: https://github.com/nasa/cumulus/tree/master/tasks/discover-granules   
 Here is a sample excerpt from the database:  
 
 http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
@@ -217,7 +219,7 @@ The step function returns a dictionary of granules that were discovered this run
       "path": "/ssmi/f16/bmaps_v07/y2021/m06/",
       "size": "",
       "time": 1622743794.0,
-      "bucket": "ghrcsbxw-internal",
+      "bucket": "some-bucket",
       "url_path": "rssmif16d__7",
       "type": ""
     }
@@ -263,17 +265,21 @@ As of v2.0.0 this module now supportes batching to the QueueGranules step. In or
       ]
     }
 ```
-The main difference difference between prevous implementations and the batching functionality is that an attempt will be made to discover all granules for a provider and writes this to the SQLite database. Once the discover process is complete the module will fetch records from the database, limited by the batch_limit parameter, and generate the appropriate output for the QueueGranules step. The code internally keeps up with the number of discovered and queued granules and will keep looping between the IsDone step and DiscoverGranules step until all granules have been marked as queued in the SQLite database. 
+The main difference between previous implementations and the batching functionality is that an attempt will be
+made to discover all granules for a provider and writes this to the SQLite database. Once the discovery process is 
+complete the module will fetch records from the database, limited by the batch_limit parameter, and generate the 
+appropriate output for the QueueGranules step. The code internally keeps up with the number of discovered and queued 
+granules and will keep looping between the `IsDone` step and `DiscoverGranules` step until all granules have been marked 
+as queued in the SQLite database. 
 
 # Testing
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
-create a zip and then the dev stack repo can be pointed to this zip file. To do this open ghrc-tf/lambdas.tf in the dev 
-stack repo and change the source of the "discover-granules-tf-module" to point to the zip in your 
-discover-granules-tf-module local repo.   
+create a zip and then the dev stack repo can be pointed to this zip file. Change the source of the 
+"discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.   
 Alternatively you can just directly deploy the updated lambda via the following AWS CLI command:
 ```commandline
 python createPackage.py && aws lambda update-function-code --function-name 
-arn:aws:lambda:us-west-2:123456789101:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
 --publish
 ```
 Notes:
