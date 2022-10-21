@@ -37,7 +37,8 @@ This module is meant to run within Cumulus stack.
 If you don't have Cumulus stack deployed yet please consult [this repo](https://github.com/nasa/cumulus) 
 and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
 ## EFS
-It is also a requirement to have an EFS partition in EC2 to store the SQLite database. See the following repo for 
+It is recommended to set up an EFS partition in EC2 to store the SQLite database. Persistent memory will not be possible
+without doing this but would still be possible to run one off discovery processes. See the following repo for 
 setting it up: 
 https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip
 
