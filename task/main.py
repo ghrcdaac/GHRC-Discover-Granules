@@ -39,10 +39,20 @@ def main(event):
     if dg_client.input == 3:
         dg_client.clean_database()
     else:
-        if dg_client.discover_tf.get('discovered_granules_count', 0) == 0:
+        # If discovered_granules_count is already in the event then this is an ongoing execution
+        # otherwise check if there are already discovered granules that need to be queued
+        discovered_granules_count = dg_client.discover_tf.get(
+            'discovered_granules_count',
+            safe_call(
+                dg_client.db_file_path,
+                getattr(Granule, 'count_discovered'),
+                **{'collection_id': dg_client.collection_id}
+            )
+        )
+
+        # If no granules are found that need to be queued try discovering at the provider location
+        if discovered_granules_count == 0:
             discovered_granules_count = dg_client.discover_granules()
-        else:
-            discovered_granules_count = dg_client.discover_tf.get('discovered_granules_count', 0)
 
         batch = safe_call(
             dg_client.db_file_path,
