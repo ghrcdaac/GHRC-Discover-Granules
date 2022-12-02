@@ -93,6 +93,10 @@ class Granule(Model):
 
         return batch_results
 
+    def count_discovered(self, collection_id):
+        return Granule.select(Granule.granule_id).where(
+            (Granule.status == 'discovered') & (Granule.collection_id == collection_id)
+        ).count()
 
     @staticmethod
     def __insert_many(granule_dict, conflict_resolution, **kwargs):
