@@ -16,7 +16,7 @@ def safe_call(db_file_path, function: Callable, **kwargs):
 def initialize_db(db_file_path):
     db.init(
         db_file_path,
-        timeout=60,
+        timeout=900,
         pragmas={
             'journal_mode': 'wal',
             'cache_size': -1 * 64000
