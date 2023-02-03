@@ -48,7 +48,8 @@ def main(event):
             discovered_granules_count = safe_call(
                 dg_client.db_file_path,
                 getattr(Granule, 'count_discovered'),
-                **{'collection_id': dg_client.collection_id}
+                **{'collection_id': dg_client.collection_id,
+                   'provider_path': dg_client.collection.get('meta').get('provider_path')}
             )
             if discovered_granules_count == 0 or (
                     dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') == 'true'):

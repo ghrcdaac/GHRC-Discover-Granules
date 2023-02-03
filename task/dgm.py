@@ -94,9 +94,11 @@ class Granule(Model):
 
         return batch_results
 
-    def count_discovered(self, collection_id):
+    def count_discovered(self, collection_id, provider_path):
         return Granule.select(Granule.granule_id).where(
-            (Granule.status == 'discovered') & (Granule.collection_id == collection_id)
+            (Granule.status == 'discovered') &
+            (Granule.collection_id == collection_id) &
+            (Granule.name.contains(provider_path))
         ).count()
 
     @staticmethod
