@@ -104,9 +104,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = s3_object['Size']
-                    print(f'key: {key}')
-                    print(f'filename: {url_segment}')
-                    print(f'granule_id_extraction: {self.granule_id_extraction}')
+                    # print(f'key: {key}')
+                    # print(f'filename: {url_segment}')
+                    # print(f'granule_id_extraction: {self.granule_id_extraction}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     try:
                         granule_id = reg_res.group(1)
@@ -149,6 +149,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = get_s3_client()
         if not destination_bucket:
             destination_bucket = f'{os.getenv("stackName")}-private'
+            rdg_logger.info(f'destination bucket: {destination_bucket}')
+            rdg_logger.info(f'key: {bucket_and_key[-1]}')
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)
