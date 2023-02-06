@@ -116,7 +116,7 @@ class TestDGM(unittest.TestCase):
             "granule_b": {"ETag": "tag1_b", "GranuleId": "granule_id2", "CollectionId": 'collection_id',
                           "Last-Modified": "modified_b", "Size": 1}}
         _ = self.model.db_skip(discovered_granules)
-        batch = self.model.fetch_batch(collection_id=collection_id, batch_size=1)
+        batch = self.model.fetch_batch(collection_id=collection_id, provider_path='', batch_size=1)
 
         self.assertEqual(1, len(batch))
 
