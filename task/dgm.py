@@ -1,7 +1,7 @@
 import datetime
 from typing import Callable
 
-from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED, fn
+from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
 
 SQLITE_VAR_LIMIT = 999
 db = APSWDatabase(None, vfs='unix-excl')
