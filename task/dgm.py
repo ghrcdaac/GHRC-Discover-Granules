@@ -81,11 +81,12 @@ class Granule(Model):
             del_count += delete
         return del_count
 
-    def fetch_batch(self, collection_id, batch_size=1000, **kwargs):
+    def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
         select_granule_ids = (
             Granule.select(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(
                 (Granule.status == 'discovered') &
-                (Granule.collection_id == collection_id))
+                (Granule.collection_id == collection_id) &
+                (Granule.name.contains(provider_path)))
         )
 
         batch_results = list(Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute())
@@ -93,9 +94,11 @@ class Granule(Model):
 
         return batch_results
 
-    def count_discovered(self, collection_id):
+    def count_discovered(self, collection_id, provider_path):
         return Granule.select(Granule.granule_id).where(
-            (Granule.status == 'discovered') & (Granule.collection_id == collection_id)
+            (Granule.status == 'discovered') &
+            (Granule.collection_id == collection_id) &
+            (Granule.name.contains(provider_path))
         ).count()
 
     @staticmethod
