@@ -81,19 +81,19 @@ class Granule(Model):
             del_count += delete
         return del_count
 
+    # This function cannot be made static
     def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
-        select_granule_ids = (
-            Granule.select(Granule.granule_id).order_by(Granule.discovered_date).limit(batch_size).where(
+        sub_query = (
+            Granule.select().order_by(Granule.discovered_date).limit(batch_size).where(
                 (Granule.status == 'discovered') &
                 (Granule.collection_id == collection_id) &
                 (Granule.name.contains(provider_path)))
         )
 
-        batch_results = list(Granule.select().where(Granule.granule_id.in_(select_granule_ids)).execute())
-        _ = Granule.update(status='queued').where(Granule.granule_id.in_(select_granule_ids)).execute()
+        count = list(Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute())
+        return count
 
-        return batch_results
-
+    # This function cannot be made static
     def count_discovered(self, collection_id, provider_path):
         return Granule.select(Granule.granule_id).where(
             (Granule.status == 'discovered') &
