@@ -38,7 +38,7 @@ def main(event):
     dg_client = get_discovery_class(protocol)(event)
     ret = None
     if dg_client.input == 3:
-        rdg_logger.warning(f'The database is being cleaning and this should not happen right now.')
+        rdg_logger.warning('The database is being cleaning and this should not happen right now.')
         dg_client.clean_database()
     else:
         # If discovered_granules_count is already in the event then this is an ongoing execution
@@ -81,7 +81,7 @@ def main(event):
         # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
         # Additionally the provider needs to be updated to use the new location.
         if dg_client.meta.get('aws_key_id_name', None) and dg_client.meta.get('aws_secret_key_name', None):
-            rdg_logger.info(f'Granules are in an external provider. Updating output to internal bucket.')
+            rdg_logger.info('Granules are in an external provider. Updating output to internal bucket.')
             dg_client.move_granule_wrapper(batch_dict)
             dg_client.provider['id'] = 'private_bucket'
             dg_client.provider['host'] = f'{os.getenv("stackName")}-private'
