@@ -90,8 +90,8 @@ class Granule(Model):
                 (Granule.name.contains(provider_path)))
         )
 
-        count = Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute()
-        return [x for x in count]
+        count = list(Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute())
+        return count
 
     # This function cannot be made static
     def count_discovered(self, collection_id, provider_path):
