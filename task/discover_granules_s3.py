@@ -118,17 +118,19 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         )
 
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                        discovered_granules_count += safe_call(
-                            self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
-                            **{"granule_dict": ret_dict, 'logger': rdg_logger}
-                        )
+                        # discovered_granules_count += safe_call(
+                        #     self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+                        #     **{"granule_dict": ret_dict, 'logger': rdg_logger}
+                        # )
+                        discovered_granules_count += getattr(self.db_model, f'db_{self.duplicates}')
                         ret_dict.clear()
 
         if len(ret_dict) > 0:
-            discovered_granules_count += safe_call(
-                self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
-                **{"granule_dict": ret_dict, 'logger': rdg_logger}
-            )
+            # discovered_granules_count += safe_call(
+            #     self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
+            #     **{"granule_dict": ret_dict, 'logger': rdg_logger}
+            # )
+            discovered_granules_count += getattr(self.db_model, f'db_{self.duplicates}')
 
         return discovered_granules_count
 

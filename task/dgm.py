@@ -13,6 +13,20 @@ def safe_call(db_file_path, function: Callable, **kwargs):
     return ret
 
 
+def initialize_db_2(db_file_path):
+    global db
+    db.init(
+        db_file_path,
+        timeout=900,
+        pragmas={
+            'journal_mode': 'wal',
+            'cache_size': -1 * 64000
+        }
+    )
+    db.create_tables([Granule], safe=True)
+    db.close()
+
+
 def initialize_db(db_file_path):
     db.init(
         db_file_path,
@@ -43,7 +57,8 @@ class Granule(Model):
     class Meta:
         database = db
 
-    def db_skip(self, granule_dict, **kwargs):
+    @staticmethod
+    def db_skip(granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict unless they already exist
         :param granule_dict: Dictionary containing granules.
@@ -53,21 +68,23 @@ class Granule(Model):
             'preserve': [Granule.etag, Granule.last_modified, Granule.discovered_date, Granule.status, Granule.size],
             'where': (EXCLUDED.etag != Granule.etag)
         }
-        return self.__insert_many(granule_dict, conflict_resolution)
+        return Granule.__insert_many(granule_dict, conflict_resolution)
 
-    def db_replace(self, granule_dict, **kwargs):
+    @staticmethod
+    def db_replace(granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         :param granule_dict: Dictionary containing granules.
         """
-        return self.__insert_many(granule_dict, {'action': 'replace'})
+        return Granule.__insert_many(granule_dict, {'action': 'replace'})
 
-    def db_error(self, granule_dict, **kwargs):
+    @staticmethod
+    def db_error(granule_dict, **kwargs):
         """
         Tries to insert all the granules in the granule_dict erroring if there are duplicates
         :param granule_dict: Dictionary containing granules
         """
-        return self.__insert_many(granule_dict, {'action': 'rollback'})
+        return Granule.__insert_many(granule_dict, {'action': 'rollback'})
 
     @staticmethod
     def delete_granules_by_names(granule_names, **kwargs):
@@ -79,27 +96,33 @@ class Granule(Model):
         for key_batch in chunked(granule_names, SQLITE_VAR_LIMIT):
             delete = Granule.delete().where(Granule.name.in_(key_batch)).execute()
             del_count += delete
+
+        db.close()
         return del_count
 
-    # This function cannot be made static
-    def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
+    @staticmethod
+    def fetch_batch(collection_id, provider_path, batch_size=1000, **kwargs):
         sub_query = (
             Granule.select().order_by(Granule.discovered_date).limit(batch_size).where(
                 (Granule.status == 'discovered') &
                 (Granule.collection_id == collection_id) &
                 (Granule.name.contains(provider_path)))
         )
-
         count = list(Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute())
+
+        db.close()
         return count
 
-    # This function cannot be made static
-    def count_discovered(self, collection_id, provider_path):
-        return Granule.select(Granule.granule_id).where(
+    @staticmethod
+    def count_discovered(collection_id, provider_path):
+        count = Granule.select(Granule.granule_id).where(
             (Granule.status == 'discovered') &
             (Granule.collection_id == collection_id) &
             (Granule.name.contains(provider_path))
         ).count()
+
+        db.close()
+        return count
 
     @staticmethod
     def __insert_many(granule_dict, conflict_resolution, **kwargs):
@@ -117,6 +140,7 @@ class Granule(Model):
                 num = Granule.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
                 records_inserted += num
 
+        db.close()
         return records_inserted
 
 
