@@ -108,7 +108,6 @@ class Granule(Model):
         be the case that granules <= files.
         :return: The number of records that matched
         """
-
         query = self.select(Granule.granule_id)
 
         if count_type == 'granules':

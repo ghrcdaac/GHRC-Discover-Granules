@@ -298,38 +298,9 @@ As of v2.0.0 this module now supportes batching to the QueueGranules step. In or
           }
         ],
         "Next": "GHRCDiscoverGranulesLambda"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "NumericGreaterThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
-          }
-        ],
-        "Next": "WorkflowFailed"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
-            "IsPresent": false
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "IsPresent": false
-          }
-        ],
-        "Next": "WorkflowSucceeded"
       }
-    ]
+    ],
+    "Default": "WorkflowFailed"
   }
 }
 ```
