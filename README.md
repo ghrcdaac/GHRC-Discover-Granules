@@ -51,7 +51,8 @@ of the meta block:
  "force_replace": "false",
  "dir_reg_ex": "",
  "file_reg_ex": "",
- "batch_limit": 1000
+ "batch_limit": 1000,
+ "batch_delay": 0
 }
 ``` 
 
@@ -68,7 +69,8 @@ have been updated.
 
  - `file_reg_ex`: Regular expression used to only discover files it matches
 
- - `batch_limit`: Used to specify the size of the batches sent to QueueGranules when using the IsDone step in the DIscoverGranules workflow. Will default to 1000 if not provided. If you do not want to use batching provide a number larger than the expect number of granules to discover. This will effectively prevent batching. Note, this could cause memory issues for the DiscoverGranules or QueueGranules lambdas. 
+ - `batch_limit`: Used to specify the size of the batches sent to QueueGranules when using the IsDone step in the DiscoverGranules workflow. Will default to 1000 if not provided. If you do not want to use batching provide a number larger than the expect number of granules to discover. This will effectively prevent batching. Note, this could cause memory issues for the DiscoverGranules or QueueGranules lambdas.
+ - `batch_delay`: If this is provided, the workflow will transition into the `WaitStep` and wait for the specified duration.
 
 In order to match against specific granules the granuleIdExtraction value must be used.  
 This is an example of a collection with the added block:
@@ -128,7 +130,8 @@ current run. Discover granules handles 3 possible value for this:
    execution will cease 
    
 # Step Configuration
-The following definition is an example of defining the lambda as a step in a AWS statemachine. This configuration is read by the CMA which can be read about here: https://nasa.github.io/cumulus/docs/workflows/input_output
+The following definition is an example of defining the lambda as a step in an AWS state machine. This configuration is read by the CMA which can be read about here: https://nasa.github.io/cumulus/docs/workflows/input_output
+GHRCDiscoverGranules definition:
 ```json
 {
   "GHRCDiscoverGranulesLambda": {
@@ -235,6 +238,7 @@ Note: The actual output uses single quotes but double quotes were used here to a
 # Batching
 As of v2.0.0 this module now supportes batching to the QueueGranules step. In order to take advantage of this the discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more granules to queue from the discover process. The following is an example definition of the choice step. 
 
+IsDone Definition:  
 ```json
 {
   "IsDone": {
