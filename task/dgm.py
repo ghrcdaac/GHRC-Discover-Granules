@@ -7,7 +7,6 @@ db = APSWDatabase(None, vfs='unix-excl')
 
 
 def initialize_db(db_file_path):
-    global db
     db.init(
         db_file_path,
         timeout=900,
