@@ -4,7 +4,7 @@ import re
 
 import boto3
 
-from task.dgm import Granule, SQLITE_VAR_LIMIT, safe_call
+from task.dgm import SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -110,6 +110,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     try:
                         granule_id = reg_res.group(1)
+                        rdg_logger.info(f'granule_id: {granule_id}')
                         self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
                     except AttributeError as e:
                         rdg_logger.warning(
@@ -118,19 +119,11 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         )
 
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                        # discovered_granules_count += safe_call(
-                        #     self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
-                        #     **{"granule_dict": ret_dict, 'logger': rdg_logger}
-                        # )
-                        discovered_granules_count += getattr(self.db_model, f'db_{self.duplicates}')
+                        discovered_granules_count += self.duplicate_handler(ret_dict)
                         ret_dict.clear()
 
         if len(ret_dict) > 0:
-            # discovered_granules_count += safe_call(
-            #     self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
-            #     **{"granule_dict": ret_dict, 'logger': rdg_logger}
-            # )
-            discovered_granules_count += getattr(self.db_model, f'db_{self.duplicates}')
+            discovered_granules_count += self.duplicate_handler(ret_dict)
 
         return discovered_granules_count
 

@@ -57,8 +57,7 @@ class Granule(Model):
     class Meta:
         database = db
 
-    @staticmethod
-    def db_skip(granule_dict, **kwargs):
+    def db_skip(self, granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict unless they already exist
         :param granule_dict: Dictionary containing granules.
@@ -68,26 +67,23 @@ class Granule(Model):
             'preserve': [Granule.etag, Granule.last_modified, Granule.discovered_date, Granule.status, Granule.size],
             'where': (EXCLUDED.etag != Granule.etag)
         }
-        return Granule.__insert_many(granule_dict, conflict_resolution)
+        return self.__insert_many(granule_dict, conflict_resolution)
 
-    @staticmethod
-    def db_replace(granule_dict, **kwargs):
+    def db_replace(self, granule_dict, **kwargs):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         :param granule_dict: Dictionary containing granules.
         """
-        return Granule.__insert_many(granule_dict, {'action': 'replace'})
+        return self.__insert_many(granule_dict, {'action': 'replace'})
 
-    @staticmethod
-    def db_error(granule_dict, **kwargs):
+    def db_error(self, granule_dict, **kwargs):
         """
         Tries to insert all the granules in the granule_dict erroring if there are duplicates
         :param granule_dict: Dictionary containing granules
         """
-        return Granule.__insert_many(granule_dict, {'action': 'rollback'})
+        return self.__insert_many(granule_dict, {'action': 'rollback'})
 
-    @staticmethod
-    def delete_granules_by_names(granule_names, **kwargs):
+    def delete_granules_by_names(self, granule_names, **kwargs):
         """
         Removes all granule records from the database if the name is found in granule_names.
         :return del_count: The number of deleted granules
@@ -100,23 +96,29 @@ class Granule(Model):
         db.close()
         return del_count
 
-    @staticmethod
-    def fetch_batch(collection_id, provider_path, batch_size=1000, **kwargs):
+    def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
         sub_query = (
-            Granule.select().order_by(Granule.discovered_date).limit(batch_size).where(
+            self.select(Granule.granule_id).distinct().where(
                 (Granule.status == 'discovered') &
                 (Granule.collection_id == collection_id) &
-                (Granule.name.contains(provider_path)))
+                (Granule.name.contains(provider_path))
+            ).order_by(Granule.discovered_date.asc()).limit(batch_size)
         )
-        count = list(Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute())
 
+        update = (self.update(status='queued').where(Granule.granule_id.in_(sub_query)).returning(Granule))
+        updated_records = list(update.execute())
         db.close()
-        return count
 
-    @staticmethod
-    def count_discovered(collection_id, provider_path):
-        count = Granule.select(Granule.granule_id).where(
-            (Granule.status == 'discovered') &
+        return updated_records
+
+    def count_records(self, collection_id, provider_path, status='discovered', count_type='files'):
+        query = self.select(Granule.granule_id)
+
+        if count_type == 'granules':
+            query = query.distinct()
+
+        count = query.where(
+            (Granule.status == status) &
             (Granule.collection_id == collection_id) &
             (Granule.name.contains(provider_path))
         ).count()
@@ -124,8 +126,7 @@ class Granule(Model):
         db.close()
         return count
 
-    @staticmethod
-    def __insert_many(granule_dict, conflict_resolution, **kwargs):
+    def __insert_many(self, granule_dict, conflict_resolution, **kwargs):
         """
         Helper function to separate the insert many logic that is reused between queries
         :param granule_dict: Dictionary containing granules
@@ -137,7 +138,7 @@ class Granule(Model):
                   Granule.last_modified, Granule.size]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                num = Granule.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
+                num = self.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
                 records_inserted += num
 
         db.close()

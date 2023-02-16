@@ -5,7 +5,7 @@ import urllib3
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from task.dgm import SQLITE_VAR_LIMIT, safe_call, Granule
+from task.dgm import SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -68,11 +68,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                         )
 
                     if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
-                        discovered_granules_count += safe_call(
-                            self.db_file_path,
-                            getattr(Granule, f'db_{self.duplicates}'),
-                            **{"granule_dict": ret_dict, 'logger': rdg_logger}
-                        )
+                        discovered_granules_count += self.duplicate_handler(ret_dict)
                         ret_dict.clear()
             elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, path)):
                 directory_list.append(f'{path}/')
@@ -89,11 +85,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 discovered_granules_count += self.discover(session, ret_dict)
 
         if len(ret_dict) > 0:
-            # discovered_granules_count += safe_call(
-            #     self.db_file_path, getattr(Granule, f'db_{self.duplicates}'),
-            #     **{"granule_dict": ret_dict, 'logger': rdg_logger}
-            # )
-            discovered_granules_count += getattr(self.db_model, f'db_{self.duplicates}')
+            discovered_granules_count += self.duplicate_handler(ret_dict)
             ret_dict.clear()
 
         return discovered_granules_count

@@ -152,12 +152,16 @@ The following definition is an example of defining the lambda as a step in a AWS
                 "destination": "{$.meta.collection.meta.discover_tf.batch_size}"
               },
               {
-                "source": "{$.queued_granules_count}",
-                "destination": "{$.meta.collection.meta.discover_tf.queued_granules_count}"
+                "source": "{$.discovered_files_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.discovered_files_count}"
               },
               {
-                "source": "{$.discovered_granules_count}",
-                "destination": "{$.meta.collection.meta.discover_tf.discovered_granules_count}"
+                "source": "{$.queued_files_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.queued_files_count}"
+              },
+              {
+                "source": "{$.queued_granules_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.queued_granules_count}"
               },
               {
                 "source": "{$.granules}",
@@ -196,7 +200,6 @@ The following definition is an example of defining the lambda as a step in a AWS
 }
 ```
 
-
 # Output
 The module generates output that should match the output for the Cumulus DiscoverGranules 
 lambda: https://github.com/nasa/cumulus/tree/master/tasks/discover-granules   
@@ -233,38 +236,112 @@ Note: The actual output uses single quotes but double quotes were used here to a
 As of v2.0.0 this module now supportes batching to the QueueGranules step. In order to take advantage of this the discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more granules to queue from the discover process. The following is an example definition of the choice step. 
 
 ```json
-"IsDone": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "And": [
-            {
-              "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-              "IsPresent": true
-            },
-            {
-              "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
-              "IsPresent": true
-            },
-            {
-              "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-              "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_granules_count"
-            }
-          ],
-          "Next": "GHRCDiscoverGranulesLambda"
-        },
-        {
-          "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-          "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_granules_count",
-          "Next": "WorkflowSucceeded"
-        },
-        {
-          "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-          "NumericGreaterThanPath": "$.meta.collection.meta.discover_tf.discovered_granules_count",
-          "Next": "WorkflowFailed"
-        }
-      ]
-    }
+{
+  "IsDone": {
+    "Type": "Choice",
+    "Choices": [
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+          }
+        ],
+        "Next": "WorkflowSucceeded"
+      },
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.batch_delay",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+          }
+        ],
+        "Next": "WaitStep"
+      },
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.batch_delay",
+            "IsPresent": false
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+          }
+        ],
+        "Next": "GHRCDiscoverGranulesLambda"
+      },
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericGreaterThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+          }
+        ],
+        "Next": "WorkflowFailed"
+      },
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
+            "IsPresent": false
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "IsPresent": false
+          }
+        ],
+        "Next": "WorkflowSucceeded"
+      }
+    ]
+  }
+}
+```
+WaitStep:
+```json
+{
+  "WaitStep": {
+    "Type": "Wait",
+    "SecondsPath": "$.meta.collection.meta.discover_tf.batch_delay",
+    "Next": "GHRCDiscoverGranulesLambda"
+  }
+}
 ```
 The main difference between previous implementations and the batching functionality is that an attempt will be
 made to discover all granules for a provider and writes this to the SQLite database. Once the discovery process is 

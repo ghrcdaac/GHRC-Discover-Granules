@@ -120,6 +120,65 @@ class TestDGM(unittest.TestCase):
 
         self.assertEqual(1, len(batch))
 
+    def test_db_count_records_discovered_files(self):
+        collection_id = 'collection_id1'
+        provider_path = 'granule'
+        discovered_granules = {
+            "granule_a": {"ETag": "tag1", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1},
+            "granule_b": {"ETag": "tag2", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1}
+        }
+        inserted_files = self.model.db_skip(discovered_granules)
+        counted_files = self.model.count_records(collection_id, provider_path)
+
+        self.assertEqual(inserted_files, counted_files)
+
+    def test_db_count_records_discovered_granules(self):
+        collection_id = 'collection_id1'
+        provider_path = 'granule'
+        discovered_granules = {
+            "granule_a": {"ETag": "tag1", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1},
+            "granule_b": {"ETag": "tag2", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1}
+        }
+        _ = self.model.db_skip(discovered_granules)
+        counted_files = self.model.count_records(collection_id, provider_path, count_type='granules')
+
+        self.assertEqual(1, counted_files)
+
+    def test_db_count_records_queued_files(self):
+        collection_id = 'collection_id1'
+        provider_path = 'granule'
+        discovered_granules = {
+            "granule_a": {"ETag": "tag1", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1},
+            "granule_b": {"ETag": "tag2", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1}
+        }
+        inserted_files = self.model.db_skip(discovered_granules)
+        counted_files = self.model.count_records(collection_id, provider_path)
+
+        self.assertEqual(inserted_files, counted_files)
+
+    def test_db_count_records_queued_granules(self):
+        collection_id = 'collection_id1'
+        provider_path = 'granule'
+        discovered_granules = {
+            "granule_a": {"ETag": "tag1", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1},
+            "granule_b": {"ETag": "tag2", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1}
+        }
+        _ = self.model.db_skip(discovered_granules)
+        _ = self.model.fetch_batch(collection_id, provider_path)
+        counted_queued_granules = self.model.count_records(
+            collection_id, provider_path, status='queued', count_type='granules'
+        )
+
+        self.assertEqual(1, counted_queued_granules)
+
 
 if __name__ == "__main__":
     unittest.main()
