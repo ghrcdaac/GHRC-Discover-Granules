@@ -23,8 +23,8 @@ class TestDbInit(unittest.TestCase):
 
     def test_initialize_db(self):
         self.assertEqual(db.database, None)
-        local_db = initialize_db(DB_PATH)
-        self.assertEqual(local_db.database, DB_PATH)
+        initialize_db(DB_PATH)
+        self.assertEqual(db.database, DB_PATH)
 
 
 class TestDGM(unittest.TestCase):
