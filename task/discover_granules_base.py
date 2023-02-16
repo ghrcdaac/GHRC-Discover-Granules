@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import initialize_db, Granule, initialize_db_2
+from task.dgm import Granule, initialize_db
 from task.logger import rdg_logger
 
 
@@ -44,7 +44,7 @@ class DiscoverGranulesBase(ABC):
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
-        initialize_db_2(self.db_file_path)
+        initialize_db(self.db_file_path)
         self.db_model = Granule()
         self.duplicate_handler = getattr(self.db_model, f'db_{self.duplicates}')
 

@@ -1,5 +1,4 @@
 import datetime
-from typing import Callable
 
 from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
 
@@ -7,13 +6,7 @@ SQLITE_VAR_LIMIT = 999
 db = APSWDatabase(None, vfs='unix-excl')
 
 
-def safe_call(db_file_path, function: Callable, **kwargs):
-    with initialize_db(db_file_path):
-        ret = function(Granule(), **kwargs)
-    return ret
-
-
-def initialize_db_2(db_file_path):
+def initialize_db(db_file_path):
     global db
     db.init(
         db_file_path,
@@ -25,20 +18,6 @@ def initialize_db_2(db_file_path):
     )
     db.create_tables([Granule], safe=True)
     db.close()
-
-
-def initialize_db(db_file_path):
-    db.init(
-        db_file_path,
-        timeout=900,
-        pragmas={
-            'journal_mode': 'wal',
-            'cache_size': -1 * 64000
-        }
-    )
-    db.create_tables([Granule], safe=True)
-
-    return db
 
 
 class Granule(Model):
@@ -97,6 +76,14 @@ class Granule(Model):
         return del_count
 
     def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
+        """
+        Fetches N files for up to batch_size granules for the provided collection_id and if the provider path
+        is present in the full path of the file.
+        :param collection_id: The id of the collection to fetch files for
+        :param provider_path: The location where the granule files were discovered from
+        :param batch_size: The limit for the number of unique granules to fetch files for
+        :return: Returns a list of records that had the status set from "discovered" to queued
+        """
         sub_query = (
             self.select(Granule.granule_id).distinct().where(
                 (Granule.status == 'discovered') &
@@ -112,6 +99,16 @@ class Granule(Model):
         return updated_records
 
     def count_records(self, collection_id, provider_path, status='discovered', count_type='files'):
+        """
+        Counts the number of records that match the parameters passed in
+        :param collection_id: The id of the collection to fetch files for
+        :param provider_path: The location where the granule files were discovered from
+        :param status: "discovered" if the records have now been part of a batch or "queued" if they have
+        :param count_type: "files" to count the number of files or "granules" to count count granules. It should always
+        be the case that granules <= files.
+        :return: The number of records that matched
+        """
+
         query = self.select(Granule.granule_id)
 
         if count_type == 'granules':
