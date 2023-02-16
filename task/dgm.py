@@ -1,16 +1,9 @@
 import datetime
-from typing import Callable
 
 from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
 
 SQLITE_VAR_LIMIT = 999
 db = APSWDatabase(None, vfs='unix-excl')
-
-
-def safe_call(db_file_path, function: Callable, **kwargs):
-    with initialize_db(db_file_path):
-        ret = function(Granule(), **kwargs)
-    return ret
 
 
 def initialize_db(db_file_path):
@@ -23,8 +16,7 @@ def initialize_db(db_file_path):
         }
     )
     db.create_tables([Granule], safe=True)
-
-    return db
+    db.close()
 
 
 class Granule(Model):
@@ -69,8 +61,7 @@ class Granule(Model):
         """
         return self.__insert_many(granule_dict, {'action': 'rollback'})
 
-    @staticmethod
-    def delete_granules_by_names(granule_names, **kwargs):
+    def delete_granules_by_names(self, granule_names, **kwargs):
         """
         Removes all granule records from the database if the name is found in granule_names.
         :return del_count: The number of deleted granules
@@ -79,30 +70,58 @@ class Granule(Model):
         for key_batch in chunked(granule_names, SQLITE_VAR_LIMIT):
             delete = Granule.delete().where(Granule.name.in_(key_batch)).execute()
             del_count += delete
+
+        db.close()
         return del_count
 
-    # This function cannot be made static
     def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
+        """
+        Fetches N files for up to batch_size granules for the provided collection_id and if the provider path
+        is present in the full path of the file.
+        :param collection_id: The id of the collection to fetch files for
+        :param provider_path: The location where the granule files were discovered from
+        :param batch_size: The limit for the number of unique granules to fetch files for
+        :return: Returns a list of records that had the status set from "discovered" to queued
+        """
         sub_query = (
-            Granule.select().order_by(Granule.discovered_date).limit(batch_size).where(
+            self.select(Granule.granule_id).distinct().where(
                 (Granule.status == 'discovered') &
                 (Granule.collection_id == collection_id) &
-                (Granule.name.contains(provider_path)))
+                (Granule.name.contains(provider_path))
+            ).order_by(Granule.discovered_date.asc()).limit(batch_size)
         )
 
-        count = list(Granule.update(status='queued').where(Granule.name.in_(sub_query)).returning(Granule).execute())
-        return count
+        update = (self.update(status='queued').where(Granule.granule_id.in_(sub_query)).returning(Granule))
+        updated_records = list(update.execute())
+        db.close()
 
-    # This function cannot be made static
-    def count_discovered(self, collection_id, provider_path):
-        return Granule.select(Granule.granule_id).where(
-            (Granule.status == 'discovered') &
+        return updated_records
+
+    def count_records(self, collection_id, provider_path, status='discovered', count_type='files'):
+        """
+        Counts the number of records that match the parameters passed in
+        :param collection_id: The id of the collection to fetch files for
+        :param provider_path: The location where the granule files were discovered from
+        :param status: "discovered" if the records have now been part of a batch or "queued" if they have
+        :param count_type: "files" to count the number of files or "granules" to count count granules. It should always
+        be the case that granules <= files.
+        :return: The number of records that matched
+        """
+        query = self.select(Granule.granule_id)
+
+        if count_type == 'granules':
+            query = query.distinct()
+
+        count = query.where(
+            (Granule.status == status) &
             (Granule.collection_id == collection_id) &
             (Granule.name.contains(provider_path))
         ).count()
 
-    @staticmethod
-    def __insert_many(granule_dict, conflict_resolution, **kwargs):
+        db.close()
+        return count
+
+    def __insert_many(self, granule_dict, conflict_resolution, **kwargs):
         """
         Helper function to separate the insert many logic that is reused between queries
         :param granule_dict: Dictionary containing granules
@@ -114,9 +133,10 @@ class Granule(Model):
                   Granule.last_modified, Granule.size]
         with db.atomic():
             for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                num = Granule.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
+                num = self.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
                 records_inserted += num
 
+        db.close()
         return records_inserted
 
 

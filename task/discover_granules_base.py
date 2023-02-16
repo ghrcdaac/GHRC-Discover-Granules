@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import initialize_db, Granule
+from task.dgm import Granule, initialize_db
 from task.logger import rdg_logger
 
 
@@ -33,9 +33,6 @@ class DiscoverGranulesBase(ABC):
         self.files_list = self.config.get('collection').get('files')
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
-        db_suffix = self.meta.get('collection_type', 'static')
-        db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
 
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
@@ -43,6 +40,14 @@ class DiscoverGranulesBase(ABC):
         if duplicates == 'replace' and force_replace == 'false':
             duplicates = 'skip'
         self.duplicates = duplicates
+
+        db_suffix = self.meta.get('collection_type', 'static')
+        db_filename = f'discover_granules_{db_suffix}.db'
+        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+        initialize_db(self.db_file_path)
+        self.db_model = Granule()
+        self.duplicate_handler = getattr(self.db_model, f'db_{self.duplicates}')
+
         super().__init__()
 
     def clean_database(self):

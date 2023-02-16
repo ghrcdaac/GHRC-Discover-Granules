@@ -155,12 +155,16 @@ GHRCDiscoverGranules definition:
                 "destination": "{$.meta.collection.meta.discover_tf.batch_size}"
               },
               {
-                "source": "{$.queued_granules_count}",
-                "destination": "{$.meta.collection.meta.discover_tf.queued_granules_count}"
+                "source": "{$.discovered_files_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.discovered_files_count}"
               },
               {
-                "source": "{$.discovered_granules_count}",
-                "destination": "{$.meta.collection.meta.discover_tf.discovered_granules_count}"
+                "source": "{$.queued_files_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.queued_files_count}"
+              },
+              {
+                "source": "{$.queued_granules_count}",
+                "destination": "{$.meta.collection.meta.discover_tf.queued_granules_count}"
               },
               {
                 "source": "{$.granules}",
@@ -198,7 +202,6 @@ GHRCDiscoverGranules definition:
   }
 }
 ```
-
 
 # Output
 The module generates output that should match the output for the Cumulus DiscoverGranules 
@@ -244,16 +247,16 @@ IsDone Definition:
       {
         "And": [
           {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
             "IsPresent": true
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
             "IsPresent": true
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_granules_count"
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
           }
         ],
         "Next": "WorkflowSucceeded"
@@ -261,11 +264,11 @@ IsDone Definition:
       {
         "And": [
           {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
             "IsPresent": true
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
             "IsPresent": true
           },
           {
@@ -273,8 +276,8 @@ IsDone Definition:
             "IsPresent": true
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_granules_count"
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
           }
         ],
         "Next": "WaitStep"
@@ -282,11 +285,11 @@ IsDone Definition:
       {
         "And": [
           {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
             "IsPresent": true
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
             "IsPresent": true
           },
           {
@@ -294,47 +297,18 @@ IsDone Definition:
             "IsPresent": false
           },
           {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_granules_count"
+            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
           }
         ],
         "Next": "GHRCDiscoverGranulesLambda"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "NumericGreaterThanPath": "$.meta.collection.meta.discover_tf.discovered_granules_count"
-          }
-        ],
-        "Next": "WorkflowFailed"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_granules_count",
-            "IsPresent": false
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_granules_count",
-            "IsPresent": false
-          }
-        ],
-        "Next": "WorkflowSucceeded"
       }
-    ]
+    ],
+    "Default": "WorkflowFailed"
   }
 }
 ```
-WaitStep definition:
+WaitStep:
 ```json
 {
   "WaitStep": {

@@ -1,6 +1,5 @@
 import os
 
-from task.dgm import safe_call, Granule
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -43,29 +42,28 @@ def main(event):
     else:
         # If discovered_granules_count is already in the event then this is an ongoing execution
         # otherwise check if there are already discovered granules that need to be queued`
-        discovered_granules_count = dg_client.discover_tf.get('discovered_granules_count', None)
-        if not discovered_granules_count:
-            discovered_granules_count = safe_call(
-                dg_client.db_file_path,
-                getattr(Granule, 'count_discovered'),
-                **{'collection_id': dg_client.collection_id,
-                   'provider_path': dg_client.collection.get('meta').get('provider_path')}
+        # discovered_granules_count = dg_client.discover_tf.get('discovered_granules_count', 0)
+        discovered_files_count = dg_client.discover_tf.get('discovered_files_count', 0)
+        if not discovered_files_count:
+            discovered_files_count += dg_client.db_model.count_records(
+                dg_client.collection_id,
+                dg_client.collection.get('meta').get('provider_path')
             )
-            if discovered_granules_count == 0 or (
+            if discovered_files_count == 0 or (
                     dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') == 'true'):
-                discovered_granules_count = dg_client.discover_granules()
+                discovered_files_count = dg_client.discover_granules()
+                rdg_logger.info(f'Files discovered: {discovered_files_count}')
 
         rdg_logger.info('Fetching batch...')
-        batch = safe_call(
-            dg_client.db_file_path,
-            getattr(Granule, 'fetch_batch'),
-            **{
-                'collection_id': dg_client.collection_id,
-                'batch_size': dg_client.discover_tf.get('batch_limit'),
-                'provider_path': dg_client.collection.get('meta').get('provider_path'),
-                'logger': rdg_logger
-               }
+        batch = dg_client.db_model.fetch_batch(
+            dg_client.collection_id,
+            dg_client.collection.get('meta').get('provider_path'),
+            dg_client.discover_tf.get('batch_limit')
         )
+        queued_batch_count = len(batch)
+        rdg_logger.info(f'fetch_batch returned {queued_batch_count} records.')
+        rdg_logger.info(batch)
+        queued_files_count = int(dg_client.discover_tf.get('queued_granules_count', 0)) + queued_batch_count
 
         # Convert peewee model objects to a dictionary
         batch_dict = {}
@@ -94,13 +92,14 @@ def main(event):
                 del batch_dict[granule_name]
 
         cumulus_output = dg_client.generate_lambda_output(batch_dict)
-        qgc = int(dg_client.discover_tf.get('queued_granules_count', 0)) + len(cumulus_output)
+        queued_granule_count = int(dg_client.discover_tf.get('queued_granules_count', 0)) + len(cumulus_output)
 
         ret = {
             'granules': cumulus_output,
             'batch_size': len(cumulus_output),
-            'discovered_granules_count': discovered_granules_count,
-            'queued_granules_count': qgc
+            'discovered_files_count': discovered_files_count,
+            'queued_files_count': queued_files_count,
+            'queued_granules_count': queued_granule_count
         }
 
     rdg_logger.info(f'returning: {ret}')
