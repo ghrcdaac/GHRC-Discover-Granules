@@ -1,5 +1,6 @@
 import os
 
+from task.dgm import db
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -32,7 +33,6 @@ def main(event):
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
-    rdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event)
     ret = None
@@ -44,22 +44,25 @@ def main(event):
         # otherwise check if there are already discovered granules that need to be queued`
         # discovered_granules_count = dg_client.discover_tf.get('discovered_granules_count', 0)
         discovered_files_count = dg_client.discover_tf.get('discovered_files_count', 0)
-        if not discovered_files_count:
-            discovered_files_count += dg_client.db_model.count_records(
-                dg_client.collection_id,
-                dg_client.collection.get('meta').get('provider_path')
-            )
-            if discovered_files_count == 0 or (
-                    dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') == 'true'):
-                discovered_files_count = dg_client.discover_granules()
-                rdg_logger.info(f'Files discovered: {discovered_files_count}')
 
-        rdg_logger.info('Fetching batch...')
-        batch = dg_client.db_model.fetch_batch(
-            dg_client.collection_id,
-            dg_client.collection.get('meta').get('provider_path'),
-            dg_client.discover_tf.get('batch_limit')
-        )
+        with db:
+            if not discovered_files_count:
+                discovered_files_count += dg_client.db_model.count_records(
+                    dg_client.collection_id,
+                    dg_client.collection.get('meta').get('provider_path')
+                )
+                if discovered_files_count == 0 or (
+                        dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') == 'true'):
+                    discovered_files_count = dg_client.discover_granules()
+                    rdg_logger.info(f'Files discovered: {discovered_files_count}')
+
+            rdg_logger.info('Fetching batch...')
+            batch = dg_client.db_model.fetch_batch(
+                dg_client.collection_id,
+                dg_client.collection.get('meta').get('provider_path'),
+                dg_client.discover_tf.get('batch_limit')
+            )
+
         queued_batch_count = len(batch)
         rdg_logger.info(f'fetch_batch returned {queued_batch_count} records.')
         rdg_logger.info(batch)
