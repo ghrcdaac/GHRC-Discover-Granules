@@ -16,7 +16,6 @@ def initialize_db(db_file_path):
         }
     )
     db.create_tables([Granule], safe=True)
-    db.close()
 
 
 class Granule(Model):
@@ -71,7 +70,6 @@ class Granule(Model):
             delete = Granule.delete().where(Granule.name.in_(key_batch)).execute()
             del_count += delete
 
-        db.close()
         return del_count
 
     def fetch_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
@@ -93,7 +91,6 @@ class Granule(Model):
 
         update = (self.update(status='queued').where(Granule.granule_id.in_(sub_query)).returning(Granule))
         updated_records = list(update.execute())
-        db.close()
 
         return updated_records
 
@@ -118,7 +115,6 @@ class Granule(Model):
             (Granule.name.contains(provider_path))
         ).count()
 
-        db.close()
         return count
 
     def __insert_many(self, granule_dict, conflict_resolution, **kwargs):
@@ -136,7 +132,6 @@ class Granule(Model):
                 num = self.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
                 records_inserted += num
 
-        db.close()
         return records_inserted
 
 

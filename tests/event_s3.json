@@ -15,7 +15,7 @@
       "version": "1",
       "meta": {
         "discover_tf": {
-          "force_replace": "true",
+          "force_replace": true,
           "depth": 0,
           "dir_reg_ex": ".*"
         },

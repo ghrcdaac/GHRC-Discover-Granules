@@ -17,7 +17,7 @@
       "dataType": "rssmif17d",
       "meta": {
         "discover_tf": {
-          "force_replace": "true",
+          "force_replace": true,
           "depth": 2,
           "dir_reg_ex": ".*"
         },
