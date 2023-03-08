@@ -48,7 +48,7 @@ of the meta block:
 ```json
 "discover_tf": {
  "depth": 0,
- "force_replace": "false",
+ "force_replace": false,
  "dir_reg_ex": "",
  "file_reg_ex": "",
  "batch_limit": 1000,
@@ -103,7 +103,7 @@ This is an example of a collection with the added block:
 	"meta": {
         "discover_tf": { 
             "depth": 0, 
-            "force_replace": "false",
+            "force_replace": false,
             "dir_reg_ex": ".*" 
         },
 		"hyrax_processing": "false",

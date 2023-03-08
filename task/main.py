@@ -52,7 +52,7 @@ def main(event):
                     dg_client.collection.get('meta').get('provider_path')
                 )
                 if discovered_files_count == 0 or (
-                        dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') == 'true'):
+                        dg_client.duplicates == 'replace' and dg_client.discover_tf.get('force_replace') is True):
                     discovered_files_count = dg_client.discover_granules()
                     rdg_logger.info(f'Files discovered: {discovered_files_count}')
 

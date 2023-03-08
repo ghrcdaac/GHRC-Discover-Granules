@@ -55,7 +55,7 @@ def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None):
     if pagination_config is None:
         pagination_config = {'page_size': 1000}
 
-    s3_paginator = s3_client.get_paginator('list_objects')
+    s3_paginator = s3_client.get_paginator('list_objects_v2')
     return s3_paginator.paginate(
         Bucket=host,
         Prefix=prefix,

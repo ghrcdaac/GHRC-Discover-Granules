@@ -35,9 +35,9 @@ class DiscoverGranulesBase(ABC):
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
 
         duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        force_replace = str(self.discover_tf.get('force_replace', 'false')).lower()
+        force_replace = self.discover_tf.get('force_replace', False)
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
-        if duplicates == 'replace' and force_replace == 'false':
+        if duplicates == 'replace' and force_replace is False:
             duplicates = 'skip'
         self.duplicates = duplicates
 
