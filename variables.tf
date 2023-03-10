@@ -61,3 +61,24 @@ variable "timeout" {
   description = "Lambda function time-out"
   default     = 900
 }
+
+# Sqlite Configuration
+variable "sqlite_transaction_size" {
+  type = number
+  default = 100000
+}
+
+variable "sqlite_temp_store" {
+  type = number
+  default = 0
+}
+
+variable "sqlite_cache_size" {
+  type = number
+  default = (-1 * 64000)
+}
+
+variable "SQLITE_TMPDIR" {
+  type = string
+  default = null
+}

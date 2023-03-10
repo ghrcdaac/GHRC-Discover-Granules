@@ -138,7 +138,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     granule_id=granule_id, collection_id=self.collection_id,
                     last_mod=file_stat.st_mtime, size=file_stat.st_size
                 )
-                if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                if len(ret_dict) >= self.transaction_size:
                     discovered_granules_count += self.duplicate_handler(ret_dict)
                     ret_dict.clear()
             else:

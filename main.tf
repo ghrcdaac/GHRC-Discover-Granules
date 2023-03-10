@@ -21,4 +21,10 @@ module "aws_lambda_function" {
   memory_size               = var.memory_size
   efs_arn                   = var.efs_arn
   efs_mount_path            = var.efs_mount_path
+
+  # Sqlite
+  sqlite_transaction_size = var.sqlite_transaction_size
+  sqlite_temp_store = var.sqlite_temp_store
+  sqlite_cache_size = var.sqlite_cache_size
+  SQLITE_TMPDIR = var.SQLITE_TMPDIR
 }
