@@ -67,7 +67,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                             f' did not match the filename {url_segment}: {e}'
                         )
 
-                    if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    if len(ret_dict) >= self.transaction_size:
                         discovered_granules_count += self.duplicate_handler(ret_dict)
                         ret_dict.clear()
             elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, path)):

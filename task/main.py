@@ -65,7 +65,6 @@ def main(event):
 
         queued_batch_count = len(batch)
         rdg_logger.info(f'fetch_batch returned {queued_batch_count} records.')
-        rdg_logger.info(batch)
         queued_files_count = int(dg_client.discover_tf.get('queued_granules_count', 0)) + queued_batch_count
 
         # Convert peewee model objects to a dictionary

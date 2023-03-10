@@ -179,6 +179,21 @@ class TestDGM(unittest.TestCase):
 
         self.assertEqual(1, counted_queued_granules)
 
+    def test_data_generator(self):
+        collection_id = 'collection_id1'
+        provider_path = 'granule'
+        discovered_granules = {
+            "granule_a": {"ETag": "tag1", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1},
+            "granule_b": {"ETag": "tag2", "GranuleId": "granule_id1", "CollectionId": collection_id,
+                          "Last-Modified": "modified", "Size": 1}
+        }
+        inserted_files = self.model.db_replace(discovered_granules)
+        counted_files = self.model.count_records(collection_id, provider_path)
+
+        self.assertEqual(inserted_files, counted_files)
+        self.assertEqual(len(discovered_granules), inserted_files)
+
 
 if __name__ == "__main__":
     unittest.main()

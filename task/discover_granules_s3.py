@@ -110,7 +110,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     try:
                         granule_id = reg_res.group(1)
-                        rdg_logger.info(f'granule_id: {granule_id}')
+                        # rdg_logger.info(f'granule_id: {granule_id}')
                         self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
                     except AttributeError as e:
                         rdg_logger.warning(
@@ -118,7 +118,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                             f' did not match the filename {url_segment}: {e}'
                         )
 
-                    if len(ret_dict) >= self.discover_tf.get('batch_size', SQLITE_VAR_LIMIT):
+                    if len(ret_dict) >= self.transaction_size:
                         discovered_granules_count += self.duplicate_handler(ret_dict)
                         ret_dict.clear()
 

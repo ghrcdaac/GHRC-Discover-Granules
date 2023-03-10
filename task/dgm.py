@@ -1,4 +1,7 @@
 import datetime
+import itertools
+import os
+import time
 
 from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
 
@@ -12,7 +15,8 @@ def initialize_db(db_file_path):
         timeout=900,
         pragmas={
             'journal_mode': 'wal',
-            'cache_size': -1 * 64000
+            'cache_size': os.getenv('sqlite_cache_size'),
+            'temp_store': os.getenv('sqlite_temp_store')
         }
     )
     db.create_tables([Granule], safe=True)
@@ -117,21 +121,49 @@ class Granule(Model):
 
         return count
 
+    def data_generator(self, granule_dict):
+        """
+        Generator for query tuples
+        :param granule_dict: Discover granules dictionary to insert into the database
+        :yield: Insertable tuple
+        """
+        for k, v in granule_dict.items():
+            yield (k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size'])
+
+    def query_chunker(self, granule_dict, var_limit):
+        """
+        Breaks up the queries into subsets that will not overwhelm the Sqlite var limit
+        :yield: Generator of a list
+        """
+        batch_continue = True
+        data_generator = self.data_generator(granule_dict)
+        while batch_continue:
+            batch_list = list(itertools.islice(data_generator, var_limit))
+            if len(batch_list) < var_limit:
+                batch_continue = False
+
+            if len(batch_list) == var_limit or (batch_continue is False and len(batch_list) > 0):
+                yield batch_list
+                batch_list.clear()
+
     def __insert_many(self, granule_dict, conflict_resolution, **kwargs):
         """
         Helper function to separate the insert many logic that is reused between queries
         :param granule_dict: Dictionary containing granules
         """
         records_inserted = 0
-        data = [(k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size']) for k, v
-                in granule_dict.items()]
         fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.status,
                   Granule.last_modified, Granule.size]
-        with db.atomic():
-            for key_batch in chunked(data, SQLITE_VAR_LIMIT // len(fields)):
-                num = self.insert_many(key_batch, fields=fields).on_conflict(**conflict_resolution).execute()
-                records_inserted += num
 
+        var_limit = SQLITE_VAR_LIMIT // len(fields)
+        db_st = time.time()
+        with db.atomic():
+            for batch in self.query_chunker(granule_dict, var_limit):
+                num = self.insert_many(batch, fields=fields).on_conflict(**conflict_resolution).execute()
+                records_inserted += num
+        db_et = time.time() - db_st
+        print(f'Processed {records_inserted} records in {db_et} seconds.')
+        print(f'Rate: {int(len(granule_dict) / db_et)}/s')
         return records_inserted
 
 
