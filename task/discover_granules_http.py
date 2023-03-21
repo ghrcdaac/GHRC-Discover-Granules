@@ -5,7 +5,6 @@ import urllib3
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from task.dgm import SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -21,7 +20,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         super().__init__(event)
         self.url_path = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
                         f'{self.config["provider_path"].lstrip("/")}'
-        self.depth = int(self.discover_tf.get('depth'))
+        self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
         ret_dict = {}
@@ -34,7 +33,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         {'http://path/to/granule/file.extension': { 'ETag': 'S3ETag', 'Last-Modified': '1645564956.0},...}
         """
-        rdg_logger.info(f'Discovering in s3://{self.host}/{self.url_path}.')
+        rdg_logger.info(f'Discovering in {self.url_path}.')
         discovered_granules_count = 0
         directory_list = []
         response = session.get(self.url_path)
@@ -45,10 +44,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             head_resp = session.head(path).headers
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
+            size = head_resp.get('Content-Length', 0)
 
             if (etag is not None or last_modified is not None) and (check_reg_ex(self.file_reg_ex, url_segment)):
                 rdg_logger.info(f'Discovered granule: {path}')
-                print(f'url_segment: {url_segment}')
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
@@ -58,7 +57,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                         self.populate_dict(
                             ret_dict, path, etag,
                             granule_id, self.collection_id,
-                            str(parse(last_modified).timestamp()), 0
+                            str(parse(last_modified).timestamp()),
+                            size
                         )
                         rdg_logger.info(f'{url_segment} matched the granuleIdExtraction')
                     except AttributeError as e:
@@ -76,8 +76,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 rdg_logger.warning(f'Notice: {path} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
 
-        # Make 3 as the maximum depth
-        self.depth = min(abs(self.depth), 3)
         if self.depth > 0:
             self.depth -= 1
             for directory in directory_list:

@@ -87,8 +87,3 @@ variable "sqlite_cache_size" {
   type = number
   default = (-1 * 64000)
 }
-
-variable "SQLITE_TMPDIR" {
-  type = string
-  default = null
-}
