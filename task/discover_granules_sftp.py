@@ -7,7 +7,6 @@ import boto3
 
 import paramiko
 
-from task.dgm import SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -113,7 +112,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     def discover(self, sftp_client, ret_dict):
         discovered_granules_count = 0
         directory_list = []
-        rdg_logger.info(f'Exploring path {self.path} depth {self.depth}')
+        rdg_logger.info(f'Discovering in {self.path}.')
         sftp_client.chdir(self.path)
 
         rdg_logger.info(sftp_client.listdir())
@@ -145,7 +144,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
 
-        self.depth = min(abs(self.depth), 3)
         if self.depth > 0:
             self.depth -= 1
             for directory in directory_list:

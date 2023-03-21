@@ -4,7 +4,6 @@ import re
 
 import boto3
 
-from task.dgm import SQLITE_VAR_LIMIT
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
 
@@ -72,7 +71,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         super().__init__(event)
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
-        self.prefix = self.collection['meta']['provider_path']
+        self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
 
     def discover_granules(self):
         rdg_logger.info(f'Discovering in s3://{self.host}/{self.prefix}.')
@@ -132,6 +131,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
         internal S3 bucket.
         :param source_s3_uri: The external location to copy from
+        :param destination_bucket: The location to copy the file to
         """
         # Download granule from external S3 bucket with provided keys
         external_s3_client = get_s3_client_with_keys(self.key_id_name, self.secret_key_name)

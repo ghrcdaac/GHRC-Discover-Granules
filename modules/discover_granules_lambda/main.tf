@@ -29,7 +29,6 @@ resource "aws_lambda_function" "discover_granules" {
       sqlite_transaction_size = var.sqlite_transaction_size
       sqlite_temp_store = var.sqlite_temp_store
       sqlite_cache_size = var.sqlite_cache_size
-      SQLITE_TMPDIR = var.SQLITE_TMPDIR
     }, var.env_variables)
   }
 

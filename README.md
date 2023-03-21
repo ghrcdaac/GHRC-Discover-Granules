@@ -76,46 +76,48 @@ In order to match against specific granules the granuleIdExtraction value must b
 This is an example of a collection with the added block:
  ```json
 {
-	"name": "msutls",
-	"version": "6",
-	"dataType": "msut",
-	"process": "msut",
-	"url_path": "msutls__6",
-	"duplicateHandling": "replace",
-	"granuleId": "^(tls|uah).*_6\\.0\\.(nc|txt)$",
-	"granuleIdExtraction": "((tls|uah).*_6\\.0(\\.nc)?)",
-	"reportToEms": true,
-	"sampleFileName": "tlsmonamg.2019_6.0.nc",
-	"files": [
-		{
-			"bucket": "protected",
-			"regex": "^(tls|uah).*_6\\.0(\\.nc|\\.txt)?$",
-			"sampleFileName": "uahncdc_ls_6.0.txt",
-			"reportToEms": true
-		},
-		{
-			"bucket": "public",
-			"regex": "^(tls|uah).*_6\\.0\\.(nc|txt)\\.cmr\\.xml$",
-			"sampleFileName": "tlsmonamg.1999_6.0.nc.cmr.xml",
-			"reportToEms": true
-		}
-	],
-	"meta": {
-        "discover_tf": { 
-            "depth": 0, 
-            "force_replace": false,
-            "dir_reg_ex": ".*" 
-        },
-		"hyrax_processing": "false",
-		"provider_path": "/public/msu/v6.0/tls/",
-		"collection_type": "ongoing",
-		"metadata_extractor": [
-			{
-				"regex": "^.*(nc|txt)$",
-				"module": "netcdf"
-			}
-		]
-	}
+  "name": "msutls",
+  "version": "6",
+  "dataType": "msut",
+  "process": "msut",
+  "url_path": "msutls__6",
+  "duplicateHandling": "replace",
+  "granuleId": "^(tls|uah).*_6\\.0\\.(nc|txt)$",
+  "granuleIdExtraction": "((tls|uah).*_6\\.0(\\.nc)?)",
+  "reportToEms": true,
+  "sampleFileName": "tlsmonamg.2019_6.0.nc",
+  "files": [
+    {
+      "bucket": "protected",
+      "regex": "^(tls|uah).*_6\\.0(\\.nc|\\.txt)?$",
+      "sampleFileName": "uahncdc_ls_6.0.txt",
+      "reportToEms": true
+    },
+    {
+      "bucket": "public",
+      "regex": "^(tls|uah).*_6\\.0\\.(nc|txt)\\.cmr\\.xml$",
+      "sampleFileName": "tlsmonamg.1999_6.0.nc.cmr.xml",
+      "reportToEms": true
+    }
+  ],
+  "meta": {
+    "discover_tf": {
+      "depth": 0,
+      "dir_reg_ex": "",
+      "force_replace": true,
+      "batch_limit": 1000,
+      "batch_delay": 0
+    },
+    "hyrax_processing": "false",
+    "provider_path": "/public/msu/v6.0/tls/",
+    "collection_type": "ongoing",
+    "metadata_extractor": [
+      {
+        "regex": "^.*(nc|txt)$",
+        "module": "netcdf"
+      }
+    ]
+  }
 }
 ```
 
@@ -324,6 +326,42 @@ complete the module will fetch records from the database, limited by the batch_l
 appropriate output for the QueueGranules step. The code internally keeps up with the number of discovered and queued 
 granules and will keep looping between the `IsDone` step and `DiscoverGranules` step until all granules have been marked 
 as queued in the SQLite database. 
+
+# Skip Ingest
+It is possible to skip the queue granules step and it can be convenient to do so for some situations. The following
+is an example of skip step.
+
+SkipStep:
+```json
+{
+  "SkipQueueGranules": {
+    "Type": "Choice",
+    "Choices": [
+      {
+        "And": [
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.skip_queue_granules",
+            "IsPresent": true
+          },
+          {
+            "Variable": "$.meta.collection.meta.discover_tf.skip_queue_granules",
+            "BooleanEquals": true
+          }
+        ],
+        "Next": "IsDone"
+      }
+    ],
+    "Default": "QueueGranulesLambdaBatch"
+  }
+}
+```
+
+# SQLite Configuration
+There are some SQLite variables that can be configured via terraform variables. These can be left to their default values
+in most cases:
+ - sqlite_transaction_size: Determines how many records will be stored in memory before being written to the database
+ - sqlite_temp_store: Set to determine if the database temporary files are stored in memory or on disc
+ - sqlite_cache_size: Sets the SQLite database cache
 
 # Testing
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
