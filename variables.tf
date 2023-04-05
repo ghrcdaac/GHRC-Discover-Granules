@@ -24,12 +24,12 @@ variable "env_variables" {
   default = {}
 }
 
-variable "lambda_security_group_ids" {
+variable "security_group_ids" {
   type    = list(string)
   default = null
 }
 
-variable "lambda_subnet_ids" {
+variable "subnet_ids" {
   type    = list(string)
   default = null
 }
@@ -76,4 +76,34 @@ variable "sqlite_temp_store" {
 variable "sqlite_cache_size" {
   type = number
   default = (-1 * 64000)
+}
+
+# RDS Configuration
+variable "db_identifier" {
+  type = string
+  default = "dgdb"
+}
+
+variable "db_instance_class" {
+  type = string
+  default = "db.t3.micro"
+}
+
+variable "db_username" {
+  type = string
+  default = "dgdbadmin"
+}
+
+variable "db_allocated_storage" {
+  type = number
+  default = 5
+}
+
+variable "db_type" {
+  type = string
+
+  validation {
+    condition = contains(["postgresql", "sqlite", "cumulus"], var.db_type)
+    error_message = "The variable db_type must be one of: postgresql, sqlite, or cumulus."
+  }
 }

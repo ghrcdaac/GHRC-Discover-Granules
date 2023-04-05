@@ -14,11 +14,10 @@ resource "aws_lambda_function" "discover_granules" {
   timeout                        = var.timeout
   memory_size                    = var.memory_size
   tags                           = local.default_tags
-  layers                         = var.layers
 
   vpc_config {
-    security_group_ids = var.lambda_security_group_ids
-    subnet_ids         = var.lambda_subnet_ids
+    security_group_ids = var.security_group_ids
+    subnet_ids         = var.subnet_ids
   }
 
   environment {
@@ -29,13 +28,11 @@ resource "aws_lambda_function" "discover_granules" {
       sqlite_transaction_size = var.sqlite_transaction_size
       sqlite_temp_store = var.sqlite_temp_store
       sqlite_cache_size = var.sqlite_cache_size
+      postgresql_secret_arn = length(aws_secretsmanager_secret.dg_db_credentials) > 0 ? aws_secretsmanager_secret.dg_db_credentials[0].arn : ""
     }, var.env_variables)
   }
 
-  file_system_config {
-    local_mount_path = var.efs_mount_path
-    arn              = var.efs_arn
-  }
+  depends_on = [aws_secretsmanager_secret.dg_db_credentials]
 }
 
 resource "aws_iam_policy" "ssm_test" {
@@ -57,4 +54,64 @@ resource "aws_iam_policy" "ssm_test" {
 resource "aws_iam_role_policy_attachment" "glm-ssm-policy-attach" {
   policy_arn = aws_iam_policy.ssm_test.arn
   role = var.cumulus_lambda_role_name
+}
+
+resource "aws_db_subnet_group" "dg-db-subnet-group" {
+  count = (var.db_type == "postgresql") ? 1 : 0
+  name = "dg-db-subnet-group"
+  subnet_ids = var.subnet_ids
+
+  tags = {
+    Name = "dg-db-subnet-group"
+  }
+}
+
+resource "aws_rds_cluster" "dg_db_cluster" {
+  count = (var.db_type == "postgresql") ? 1 : 0
+  cluster_identifier      = "dg-db-cluster"
+  engine                  = "aurora-postgresql"
+  engine_mode             = "serverless"
+  enable_http_endpoint    = true
+  scaling_configuration {
+    min_capacity = 2
+  }
+
+  database_name           = var.db_identifier
+  master_username         = var.db_username
+  master_password         = random_password.master_password[0].result
+  backup_retention_period = 1
+  db_subnet_group_name    = aws_db_subnet_group.dg-db-subnet-group[0].name
+  skip_final_snapshot     = true
+  apply_immediately       = true
+  vpc_security_group_ids  = var.security_group_ids
+}
+
+resource "random_password" "master_password" {
+  count = (var.db_type == "postgresql") ? 1 : 0
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "aws_secretsmanager_secret" "dg_db_credentials" {
+  count = (var.db_type == "postgresql") ? 1 : 0
+  recovery_window_in_days = 0
+  name = "dg_db_credentials"
+}
+
+resource "aws_secretsmanager_secret_version" "dg_db_credentials" {
+  count = (var.db_type == "postgresql") ? 1 : 0
+  depends_on = [
+    aws_secretsmanager_secret.dg_db_credentials,
+    aws_rds_cluster.dg_db_cluster,
+    random_password.master_password
+  ]
+  secret_id = aws_secretsmanager_secret.dg_db_credentials[0].id
+  secret_string = jsonencode({
+    "username": aws_rds_cluster.dg_db_cluster[0].master_username,
+    "password": random_password.master_password[0].result,
+    "host": aws_rds_cluster.dg_db_cluster[0].endpoint,
+    "port": aws_rds_cluster.dg_db_cluster[0].port,
+    "database": aws_rds_cluster.dg_db_cluster[0].database_name
+  })
 }
