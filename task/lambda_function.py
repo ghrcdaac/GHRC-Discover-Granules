@@ -1,6 +1,7 @@
 import os
 import sys
 
+from task.test import test_main
 from task.logger import rdg_logger
 from task.main import main
 
@@ -9,21 +10,14 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
     from run_cumulus_task import run_cumulus_task
 
 
-def lambda_handler(event, context):  # pylint: disable=unused-argument
-    """
-    AWS Lambda handler
-    :param event: Cumulus workflow event used to setup the discover granules class
-    :param context: Unused variable but is required as the rum_cumulus_task passes it when the lambda handler is called
-    :return: Formatted output of the event with any discovered granules in the payload
-    """
-    print(f'event: {event}')
-    return main(event)
-
-
 def handler(event, context):
     rdg_logger.info(f'Full Event: {event}')
-    result = []
-    if run_cumulus_task:
-        result = run_cumulus_task(lambda_handler, event, context)
-        rdg_logger.info(f'result: {result}')
-    return result
+    if event.get('is_test', False):
+        results = test_main(event, context)
+    else:
+        if run_cumulus_task:
+            results = run_cumulus_task(main, event, context)
+            rdg_logger.info(f'result: {results}')
+        else:
+            results = main(event, context)
+    return results
