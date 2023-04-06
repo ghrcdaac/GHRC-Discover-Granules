@@ -72,7 +72,6 @@ resource "aws_rds_cluster" "dg_db_cluster" {
   engine                  = "aurora-postgresql"
   engine_mode             = "serverless"
   enable_http_endpoint    = true
-  enabled_cloudwatch_logs_exports = ["postgresql"]
   scaling_configuration {
     min_capacity = 2
   }
