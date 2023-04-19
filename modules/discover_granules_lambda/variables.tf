@@ -11,11 +11,11 @@ variable "cumulus_lambda_role_name" {
   type = string
 }
 
-variable "efs_arn" {
+variable "efs_access_point_arn" {
   type = string
 }
 
-variable "efs_mount_path" {
+variable "efs_path" {
   type = string
 }
 
@@ -108,5 +108,9 @@ variable "db_allocated_storage" {
 }
 
 variable "db_type" {
+  type = string
+}
+
+variable "cumulus_credentials_arn" {
   type = string
 }

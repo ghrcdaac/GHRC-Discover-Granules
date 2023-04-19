@@ -13,17 +13,20 @@ module "aws_lambda_function" {
   s3_bucket_name            = var.s3_bucket_name
   cumulus_lambda_role_arn   = var.cumulus_lambda_role_arn
   cumulus_lambda_role_name  = var.cumulus_lambda_role_name
-  subnet_ids                = var.subnet_ids
   security_group_ids        = var.security_group_ids
+  subnet_ids                = var.subnet_ids
   env_variables             = var.env_variables
   layers                    = var.layers
   timeout                   = var.timeout
   memory_size               = var.memory_size
-  efs_arn                   = var.efs_arn
-  efs_mount_path            = var.efs_mount_path
+  efs_access_point_arn      = var.efs_access_point_arn
+  efs_path                  = var.efs_path
 
   # DB Config
   db_type = var.db_type
+
+  # Cumulus
+  cumulus_credentials_arn = var.user_credentials_secret_arn
 
   # Sqlite
   sqlite_transaction_size = var.sqlite_transaction_size

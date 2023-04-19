@@ -4,7 +4,7 @@ import os
 import unittest
 from tempfile import mkstemp
 
-from task.dgm import initialize_db, db, Granule
+from task.dgm import db, Granule
 
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,7 +23,7 @@ class TestDbInit(unittest.TestCase):
 
     def test_initialize_db(self):
         self.assertEqual(db.database, None)
-        initialize_db(DB_PATH)
+        # initialize_db(DB_PATH)
         self.assertEqual(db.database, DB_PATH)
 
 
@@ -116,7 +116,7 @@ class TestDGM(unittest.TestCase):
             "granule_b": {"ETag": "tag1_b", "GranuleId": "granule_id2", "CollectionId": 'collection_id',
                           "Last-Modified": "modified_b", "Size": 1}}
         _ = self.model.db_skip(discovered_granules)
-        batch = self.model.fetch_batch(collection_id=collection_id, provider_path='', batch_size=1)
+        batch = self.model.read_batch(collection_id=collection_id, provider_path='', batch_size=1)
 
         self.assertEqual(1, len(batch))
 
@@ -172,7 +172,7 @@ class TestDGM(unittest.TestCase):
                           "Last-Modified": "modified", "Size": 1}
         }
         _ = self.model.db_skip(discovered_granules)
-        _ = self.model.fetch_batch(collection_id, provider_path)
+        _ = self.model.read_batch(collection_id, provider_path)
         counted_queued_granules = self.model.count_records(
             collection_id, provider_path, status='queued', count_type='granules'
         )

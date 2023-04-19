@@ -66,18 +66,29 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     """
     Class to discover granules from S3 provider
     """
-
     def __init__(self, event):
         super().__init__(event)
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
+        self.provider_url = f'{self.host}/{self.prefix}'
 
     def discover_granules(self):
-        rdg_logger.info(f'Discovering in s3://{self.host}/{self.prefix}.')
+        rdg_logger.info(f'Discovering in {self.provider_url}')
         s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
             else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        return self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
+        self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
+        self.dbm.flush_dict()
+        batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        self.dbm.close_db()
+
+        ret = {
+            'discovered_files_count': self.dbm.discovered_granules_count,
+            'queued_files_count': self.dbm.queued_files_count,
+            'batch': batch
+        }
+
+        return ret
 
     def discover(self, response_iterator):
         """
@@ -91,8 +102,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
            ...
         }
         """
-        discovered_granules_count = 0
-        ret_dict = {}
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
@@ -102,29 +111,26 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 if check_reg_ex(self.file_reg_ex, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
-                    size = s3_object['Size']
-                    # print(f'key: {key}')
-                    # print(f'filename: {url_segment}')
-                    # print(f'granule_id_extraction: {self.granule_id_extraction}')
+                    size = int(s3_object['Size'])
+                    print(f'Found: {key}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
-                    try:
+                    if reg_res:
                         granule_id = reg_res.group(1)
-                        # rdg_logger.info(f'granule_id: {granule_id}')
-                        self.populate_dict(ret_dict, key, etag, granule_id, self.collection_id, last_modified, size)
-                    except AttributeError as e:
+                        self.dbm.add_record({
+                            key: {
+                                'ETag': etag,
+                                'GranuleId': granule_id,
+                                'CollectionId': self.collection_id,
+                                'Last-Modified': str(last_modified),
+                                'Size': size
+                            }
+                        })
+
+                    else:
                         rdg_logger.warning(
                             f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
-                            f' did not match the filename {url_segment}: {e}'
+                            f' did not match the filename {url_segment}.'
                         )
-
-                    if len(ret_dict) >= self.transaction_size:
-                        discovered_granules_count += self.duplicate_handler(ret_dict)
-                        ret_dict.clear()
-
-        if len(ret_dict) > 0:
-            discovered_granules_count += self.duplicate_handler(ret_dict)
-
-        return discovered_granules_count
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """

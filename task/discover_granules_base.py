@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import Granule, initialize_db
+from task.dgm import get_db_manager_class
 from task.logger import rdg_logger
 
 
@@ -39,34 +39,20 @@ class DiscoverGranulesBase(ABC):
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if duplicates == 'replace' and force_replace is False:
             duplicates = 'skip'
-        self.duplicates = duplicates
 
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.transaction_size = self.discover_tf.get('transaction_size', 100000)
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
-        initialize_db(self.db_file_path)
-        self.db_model = Granule()
-        self.duplicate_handler = getattr(self.db_model, f'db_{self.duplicates}')
+        transaction_size = self.discover_tf.get('transaction_size', 100000)
+
+        kwargs = {
+            'duplicate_handling': duplicates,
+            'transaction_size': transaction_size,
+            'database': self.db_file_path
+        }
+        self.dbm = get_db_manager_class(**kwargs)
 
         super().__init__()
-
-    def clean_database(self):
-        """
-        If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
-        from the database.
-        """
-        names = []
-        rdg_logger.warning(self.input.get('granules', {}))
-        for granule in self.input.get('granules', {}):
-            file = granule.get('files')[0]
-            name = f'{file.get("path")}/{file.get("name")}'
-            names.append(name)
-
-        with initialize_db(self.db_file_path):
-            num = Granule().delete_granules_by_names(names)
-
-        rdg_logger.info(f'Cleaned {num} records from the database.')
 
     def generate_lambda_output(self, ret_dict):
         if self.config.get('workflow_name') == 'LZARDSBackup':
@@ -113,7 +99,6 @@ class DiscoverGranulesBase(ABC):
             file_type = file_def.get('type', '')
             bucket_type = file_def.get('bucket', '')
 
-            granule_id = ''
             if re.search(gid_regex, filename):
                 granule_id = filename
             else:
@@ -125,7 +110,7 @@ class DiscoverGranulesBase(ABC):
 
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
-                    filename, file_path_name[0], v.get('Size'),
+                    filename, file_path_name[0], v.get('size'),
                     self.get_bucket_name(bucket_type), file_type
                 )
             )

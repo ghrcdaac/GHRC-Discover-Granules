@@ -11,11 +11,11 @@ variable "cumulus_lambda_role_name" {
   type = string
 }
 
-variable "efs_arn" {
+variable "efs_access_point_arn" {
   type = string
 }
 
-variable "efs_mount_path" {
+variable "efs_path" {
   type = string
 }
 
@@ -106,4 +106,8 @@ variable "db_type" {
     condition = contains(["postgresql", "sqlite", "cumulus"], var.db_type)
     error_message = "The variable db_type must be one of: postgresql, sqlite, or cumulus."
   }
+}
+
+variable "user_credentials_secret_arn" {
+  type = string
 }

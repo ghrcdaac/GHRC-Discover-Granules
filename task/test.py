@@ -1,5 +1,5 @@
 
 def test_main(event, context):
-    results = None
+    res = None
 
-    return results
+    return res
