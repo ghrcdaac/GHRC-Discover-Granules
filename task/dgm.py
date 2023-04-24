@@ -7,11 +7,11 @@ from abc import ABC, abstractmethod
 
 import boto3
 
-DB_TYPE = os.getenv('db_type')
+DB_TYPE = os.getenv('db_type', ':memory:')
 VAR_LIMIT = 0
 
 print(f'Database configuration: {DB_TYPE}')
-if DB_TYPE == 'postgresql' or DB_TYPE == 'cumulus':
+if DB_TYPE in ['postgresql', 'cumulus']:
     import psycopg2
     VAR_LIMIT = 32768
     sm = boto3.client('secretsmanager')
@@ -27,10 +27,8 @@ if DB_TYPE == 'postgresql' or DB_TYPE == 'cumulus':
         init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
         init_kwargs.update({'user': init_kwargs.pop('username')})
         DB = psycopg2.connect(**init_kwargs)
-    else:
-        print(f'db_type should be one of postgresql, cumulus, or sqlite but it was {DB_TYPE}')
 else:
-    from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED
+    from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
     DB = APSWDatabase(None, vfs='unix-excl')
     VAR_LIMIT = 999
     init_kwargs = {
@@ -44,19 +42,21 @@ else:
     }
 
 
-def get_db_manager_class(*args, **kwargs):
-    print(f'Creating {DB_TYPE} database manager: {kwargs}')
-    if DB_TYPE == 'cumulus':
-        _ = kwargs.pop('database')
+def get_db_manager(db_type=DB_TYPE, *args, **kwargs):
+    print(f'Creating {db_type} database manager')
+    if db_type == 'cumulus':
+        _ = kwargs.pop('database', None)
         return DBManagerCumulus(*args, **kwargs)
-    elif DB_TYPE == 'postgresql' or DB_TYPE == 'sqlite':
-        return DBManager(*args, **kwargs)
+    # elif DB_TYPE == 'postgresql' or DB_TYPE == 'sqlite':
     else:
-        return DBManagerNoDB()
+        return DBManager(*args, **kwargs)
+    # else:
+    #     return DBManagerMemory()
 
 
 class DBManagerBase(ABC):
-    def __init__(self, duplicate_handling='skip', transaction_size=100000):
+    def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=100000, *args, **kwargs):
+        self.db_type = db_type
         self.dict_queue = {}
         self.discovered_granules_count = 0
         self.queued_files_count = 0
@@ -68,7 +68,7 @@ class DBManagerBase(ABC):
         DB.close()
 
     @abstractmethod
-    def add_record(self, dict_record):
+    def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
         raise NotImplementedError
 
     @abstractmethod
@@ -81,13 +81,14 @@ class DBManagerBase(ABC):
 
 
 class DBManager(DBManagerBase):
-    def __init__(self, database=None, duplicate_handling='skip', transaction_size=50000):
-        super().__init__(duplicate_handling, transaction_size)
+    def __init__(self, db_type=DB_TYPE, database=None, duplicate_handling='skip', transaction_size=50000, *args, **kwargs):
+        super().__init__(db_type, duplicate_handling, transaction_size, *args, **kwargs)
 
-        if DB_TYPE == 'sqlite':
+        if self.db_type == 'sqlite':
             DB.init(database=database, **init_kwargs)
-            DB.create_tables([Granule], safe=True)
-        else:
+        elif self.db_type == ':memory:':
+            DB.init(database=db_type)
+        elif self.db_type == 'postgresql':
             DB.init(
                 database=init_kwargs.get('database'),
                 user=init_kwargs.get('user'),
@@ -99,10 +100,19 @@ class DBManager(DBManagerBase):
         self.model = Granule()
 
     def __del__(self):
-        DB.close()
+        if self.db_type != ':memory:':
+            DB.close()
 
-    def add_record(self, dict_record):
-        self.dict_queue.update(dict_record)
+    def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
+        self.dict_queue.update({
+            name: {
+                'etag': etag,
+                'granule_id': granule_id,
+                'collection_id': collection_id,
+                'last_modified': str(last_modified),
+                'size': size
+            }
+        })
 
         if len(self.dict_queue) >= self.transaction_size:
             self.write_batch()
@@ -123,11 +133,19 @@ class DBManager(DBManagerBase):
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, duplicate_handling='skip', transaction_size=50000):
-        super().__init__(duplicate_handling, transaction_size)
+    def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=50000):
+        super().__init__(db_type, duplicate_handling, transaction_size)
 
-    def add_record(self, dict_record):
-        self.dict_queue.update(dict_record)
+    def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
+        self.dict_queue.update({
+            name: {
+                'etag': etag,
+                'granule_id': granule_id,
+                'collection_id': collection_id,
+                'last_modified': str(last_modified),
+                'size': size
+            }
+        })
         return self.transaction_size - len(self.dict_queue)
 
     def flush_dict(self):
@@ -167,7 +185,7 @@ class DBManagerCumulus(DBManagerBase):
                 if len(id_batch) == 0:
                     break
                 query_string = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
-                print(f'Query: {query_string}')
+                print(f'Trim query: {query_string}')
                 curs.execute(query_string, (id_batch,))
                 results.extend([x[0] for x in curs.fetchall()])
                 start_index = end_index + 1
@@ -179,17 +197,6 @@ class DBManagerCumulus(DBManagerBase):
         return results
 
 
-class DBManagerNoDB(DBManagerBase):
-    def add_record(self, dict_record):
-        self.dict_queue.update({dict_record})
-
-    def flush_dict(self):
-        self.dict_queue.clear()
-
-    def read_batch(self):
-        return dict(itertools.islice(self.dict_queue.items(), 0, self.transaction_size))
-
-
 if DB_TYPE != 'cumulus':
     class Granule(Model):
         """
@@ -198,7 +205,7 @@ if DB_TYPE != 'cumulus':
         name = CharField(primary_key=True)
         granule_id = CharField()
         collection_id = CharField()
-        status = CharField()
+        status = CharField(default='discovered')
         etag = CharField()
         last_modified = CharField()
         discovered_date = DateTimeField(default=datetime.datetime.now)
@@ -206,8 +213,6 @@ if DB_TYPE != 'cumulus':
 
         class Meta:
             database = DB
-            if DB_TYPE == 'cumulus':
-                table_name = 'granules'
 
         def db_skip(self, granule_dict, **kwargs):
             """
@@ -216,8 +221,18 @@ if DB_TYPE != 'cumulus':
             """
             conflict_resolution = {
                 'conflict_target': [Granule.name],
-                'preserve': [Granule.etag, Granule.last_modified, Granule.discovered_date, Granule.status, Granule.size],
-                'where': (EXCLUDED.etag != Granule.etag)
+                'update': {
+                    Granule.etag: EXCLUDED.etag,
+                    Granule.last_modified: EXCLUDED.last_modified,
+                    Granule.discovered_date: EXCLUDED.discovered_date,
+                    Granule.status: EXCLUDED.status,
+                    Granule.size: EXCLUDED.size
+                },
+                'where': (
+                        (Granule.etag != EXCLUDED.etag) |
+                        (Granule.last_modified != EXCLUDED.last_modified) |
+                        (Granule.size != EXCLUDED.size)
+                )
             }
             return self.__insert_many(granule_dict, conflict_resolution)
 
@@ -267,8 +282,9 @@ if DB_TYPE != 'cumulus':
             )
 
             update = (self.update(status='queued').dicts().where(Granule.granule_id.in_(sub_query)).returning(Granule))
+            print(f'Update query: {update}')
             updated_records = list(update.execute())
-            print(f'records returned by query: {len(updated_records)}')
+            print(f'Records returned by query: {len(updated_records)}')
 
             conversion_dict = {}
             while len(updated_records) > 0:
@@ -277,7 +293,6 @@ if DB_TYPE != 'cumulus':
                 del updated_records[0]
 
             updated_records = conversion_dict
-
             return updated_records
 
         def count_records(self, collection_id, provider_path, status='discovered', count_type='files'):
@@ -299,9 +314,9 @@ if DB_TYPE != 'cumulus':
                 (Granule.status == status) &
                 (Granule.collection_id == collection_id) &
                 (Granule.name.contains(provider_path))
-            ).count()
+            )
 
-            return count
+            return count.count()
 
         @staticmethod
         def data_generator(granule_dict):
@@ -311,12 +326,12 @@ if DB_TYPE != 'cumulus':
             :yield: Insertable tuple
             """
             for k, v in granule_dict.items():
-                yield k, v['ETag'], v['GranuleId'], v['CollectionId'], 'discovered', v['Last-Modified'], v['Size']
+                yield k, v['etag'], v['granule_id'], v['collection_id'], 'discovered', v['last_modified'], v['size']
 
         def query_chunker(self, granule_dict, var_limit):
             """
             Breaks up the queries into subsets that will not overwhelm the query var limit
-            :yield: Generator of a list
+            :yield: Generator of a list of tuples
             """
             batch_continue = True
             data_generator = self.data_generator(granule_dict)
@@ -342,8 +357,8 @@ if DB_TYPE != 'cumulus':
             var_limit = VAR_LIMIT // len(fields)
             db_st = time.time()
             with DB.atomic():
-                for batch in self.query_chunker(granule_dict, var_limit):
-                    num = self.insert_many(batch, fields=fields).on_conflict(**conflict_resolution).execute()
+                for batch in chunked(granule_dict, var_limit):
+                    num = self.insert_many(batch).on_conflict(**conflict_resolution).execute()
                     if isinstance(num, int):
                         records_inserted += num
                     else:

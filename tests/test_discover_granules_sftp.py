@@ -81,7 +81,7 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 3)
 
-        res_count = self.dg_sftp.discover(sftp_test_client, {})
+        self.dg_sftp.discover(sftp_test_client)
         expected = {
             '/ssmi/f16/bmaps_v07/y2021/m03/file_0': {
                 'ETag': 'N/A', "GranuleId": "file_0", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1},
@@ -90,7 +90,8 @@ class TestDiscoverGranules(unittest.TestCase):
             '/ssmi/f16/bmaps_v07/y2021/m03/file_2': {
                 'ETag': 'N/A', "GranuleId": "file_2", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1}
         }
-        self.assertEqual(res_count, 3)
+
+        self.assertEqual(3, len(self.dg_sftp.dbm.dict_queue))
 
     @patch.object(re, 'search')
     def test_discover_granules_sftp_recursion(self, re_test):
@@ -98,9 +99,10 @@ class TestDiscoverGranules(unittest.TestCase):
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         # dg_sftp = sftp.DiscoverGranulesSFTP(event)
-        res_count = self.dg_sftp.discover(sftp_test_client, {})
+        self.dg_sftp.discover(sftp_test_client)
 
-        self.assertEqual(res_count, 0)
+        discover_count = len(self.dg_sftp.dbm.dict_queue)
+        self.assertEqual(0, discover_count)
 
     @patch.object(re, 'search')
     def test_discover_granules_sftp_no_reg_ex_match(self, re_test):
@@ -108,10 +110,10 @@ class TestDiscoverGranules(unittest.TestCase):
         event = self.get_sample_event('sftp')
         event.get('config').get('collection').get('meta').get('discover_tf')['depth'] = 1
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
-        # dg_sftp = sftp.DiscoverGranulesSFTP(event)
-        res_count = self.dg_sftp.discover(sftp_test_client, {})
+        self.dg_sftp.discover(sftp_test_client)
 
-        self.assertEqual(res_count, 0)
+        discover_count = len(self.dg_sftp.dbm.dict_queue)
+        self.assertEqual(0, discover_count)
 
     @patch('paramiko.SSHClient')
     def test_setup_ssh_sftp_client(self, mock_paramiko):

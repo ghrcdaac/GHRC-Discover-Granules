@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import get_db_manager_class
+from task.dgm import get_db_manager
 from task.logger import rdg_logger
 
 
@@ -50,7 +50,7 @@ class DiscoverGranulesBase(ABC):
             'transaction_size': transaction_size,
             'database': self.db_file_path
         }
-        self.dbm = get_db_manager_class(**kwargs)
+        self.dbm = get_db_manager(**kwargs)
 
         super().__init__()
 

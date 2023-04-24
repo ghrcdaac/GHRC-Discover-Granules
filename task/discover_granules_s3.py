@@ -116,15 +116,11 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     if reg_res:
                         granule_id = reg_res.group(1)
-                        self.dbm.add_record({
-                            key: {
-                                'ETag': etag,
-                                'GranuleId': granule_id,
-                                'CollectionId': self.collection_id,
-                                'Last-Modified': str(last_modified),
-                                'Size': size
-                            }
-                        })
+                        self.dbm.add_record(
+                            name=key, granule_id=granule_id,
+                            collection_id=self.collection_id,etag=etag,
+                            last_modified=str(last_modified), size=size
+                        )
 
                     else:
                         rdg_logger.warning(

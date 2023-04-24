@@ -58,9 +58,9 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_generate_cumulus_output(self):
         test_dict = {
             's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
-                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
+                'etag': 'ec5273963f74811028e38a367beaf7a5', 'last_modified': '1645564956.0', 'size': 4553538},
             's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
-                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+                'etag': '919a1ba1dfbbd417a662ab686a2ff574', 'last_modified': '1645564956.0', 'size': 4706838}}
 
         ret_list = self.dg.generate_cumulus_output(test_dict)
 
@@ -75,7 +75,7 @@ class TestDiscoverGranules(unittest.TestCase):
                         {
                             'name': str(k).rsplit('/', maxsplit=1)[-1],
                             'path': 'lma/nalma/raw/short_test',
-                            'size': v.get('Size'),
+                            'size': v.get('size'),
                             'time': 0,
                             'url_path': 'nalmaraw__1',
                             'bucket': 'sharedsbx-private',

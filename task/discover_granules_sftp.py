@@ -146,15 +146,12 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
 
-                self.dbm.add_record({
-                    f'{self.path.rstrip("/")}/{dir_file}': {
-                        'ETag': 'N/A',
-                        'GranuleId': granule_id,
-                        'CollectionId': self.collection_id,
-                        'Last-Modified': str(file_stat.st_mtime),
-                        'Size': int(file_stat.st_size)
-                    }
-                })
+                full_path = f'{self.path.rstrip("/")}/{dir_file}'
+                self.dbm.add_record(
+                    name=full_path, granule_id=granule_id,
+                    collection_id=self.collection_id, etag='N/A',
+                    last_modified=str(file_stat.st_mtime), size=int(file_stat.st_size)
+                )
             else:
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')

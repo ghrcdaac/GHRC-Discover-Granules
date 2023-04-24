@@ -60,8 +60,9 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 2)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_queue)
+        self.assertEqual(2, discover_count)
 
     def test_discover_granules_s3_file_regex(self):
         self.dg.file_reg_ex = 'key1.txt'
@@ -85,8 +86,9 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 1)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_queue)
+        self.assertEqual(1, discover_count)
 
     def test_discover_granules_s3_dir_regex(self):
         self.dg.file_reg_ex = None
@@ -110,8 +112,9 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 1)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_queue)
+        self.assertEqual(1, discover_count)
 
     @patch('task.discover_granules_s3.get_s3_client')
     @patch('task.discover_granules_s3.get_s3_client_with_keys')
