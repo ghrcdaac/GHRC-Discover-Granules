@@ -107,11 +107,13 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                             f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
-        sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
-        self.discover(sftp_client)
-        self.dbm.flush_dict()
-        batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        self.dbm.close_db()
+        try:
+            sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
+            self.discover(sftp_client)
+            self.dbm.flush_dict()
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
 
         ret = {
             'discovered_files_count': self.dbm.discovered_granules_count,

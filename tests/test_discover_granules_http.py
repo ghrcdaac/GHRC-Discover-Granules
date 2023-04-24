@@ -74,7 +74,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.configure_mock_session(mock_session, 'remss')
         self.dg.file_reg_ex = ''
         self.dg.discover(mock_session)
-        discover_count = len(self.dg.dbm.dict_queue)
+        discover_count = len(self.dg.dbm.dict_list)
         self.assertEqual(3, discover_count)
 
     @patch('requests.Session')
@@ -82,7 +82,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.configure_mock_session(mock_session, 'remss')
         self.dg.file_reg_ex = "f16_20200402v7.gz"
         self.dg.discover(mock_session)
-        discover_count = len(self.dg.dbm.dict_queue)
+        discover_count = len(self.dg.dbm.dict_list)
         self.assertEqual(discover_count, 1)
 
     @patch('requests.Session')
@@ -91,7 +91,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.granule_id_extraction = '((tlt|uah).*_6\\.0(\\.nc)?)'
         self.dg.file_reg_ex = '((tlt|uah).*_6\\.0(\\.nc)?)'
         self.dg.discover(mock_session)
-        discover_count = len(self.dg.dbm.dict_queue)
+        discover_count = len(self.dg.dbm.dict_list)
         self.assertEqual(discover_count, 4)
 
     @patch('requests.Session')
@@ -100,7 +100,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg.granule_id_extraction = '((tlt|uah).*_6\\.0(\\.nc)?)'
         self.dg.file_reg_ex = 'tltglhmam_6\\.0$'
         self.dg.discover(mock_session)
-        discover_count = len(self.dg.dbm.dict_queue)
+        discover_count = len(self.dg.dbm.dict_list)
         self.assertEqual(discover_count, 1)
 
 

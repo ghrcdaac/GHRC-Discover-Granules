@@ -7,28 +7,27 @@ from abc import ABC, abstractmethod
 
 import boto3
 
+import psycopg2
+from playhouse.postgres_ext import PostgresqlExtDatabase, DateTimeField, CharField, Model, chunked, \
+    IntegerField, EXCLUDED
+from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
+
 DB_TYPE = os.getenv('db_type', ':memory:')
 VAR_LIMIT = 0
 
 print(f'Database configuration: {DB_TYPE}')
 if DB_TYPE in ['postgresql', 'cumulus']:
-    import psycopg2
     VAR_LIMIT = 32768
     sm = boto3.client('secretsmanager')
     if DB_TYPE == 'postgresql':
-        from playhouse.postgres_ext import PostgresqlExtDatabase, DateTimeField, CharField, Model, chunked, \
-            IntegerField, EXCLUDED
         secrets_arn = os.getenv('postgresql_secret_arn', None)
         init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
-
         DB = PostgresqlExtDatabase(None)
     elif DB_TYPE == 'cumulus':
         secrets_arn = os.getenv('cumulus_credentials_arn', None)
         init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
         init_kwargs.update({'user': init_kwargs.pop('username')})
-        DB = psycopg2.connect(**init_kwargs)
 else:
-    from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
     DB = APSWDatabase(None, vfs='unix-excl')
     VAR_LIMIT = 999
     init_kwargs = {
@@ -47,25 +46,22 @@ def get_db_manager(db_type=DB_TYPE, *args, **kwargs):
     if db_type == 'cumulus':
         _ = kwargs.pop('database', None)
         return DBManagerCumulus(*args, **kwargs)
-    # elif DB_TYPE == 'postgresql' or DB_TYPE == 'sqlite':
     else:
         return DBManager(*args, **kwargs)
-    # else:
-    #     return DBManagerMemory()
 
 
 class DBManagerBase(ABC):
     def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=100000, *args, **kwargs):
         self.db_type = db_type
-        self.dict_queue = {}
+        self.dict_list = []
         self.discovered_granules_count = 0
         self.queued_files_count = 0
         self.duplicate_handling = duplicate_handling
         self.transaction_size = transaction_size
 
-    @staticmethod
-    def close_db():
-        DB.close()
+    @abstractmethod
+    def close_db(self):
+        raise NotImplementedError
 
     @abstractmethod
     def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
@@ -81,13 +77,15 @@ class DBManagerBase(ABC):
 
 
 class DBManager(DBManagerBase):
-    def __init__(self, db_type=DB_TYPE, database=None, duplicate_handling='skip', transaction_size=50000, *args, **kwargs):
+    def __init__(self, db_type=DB_TYPE, database=None, duplicate_handling='skip', transaction_size=50000, *args,
+                 **kwargs):
         super().__init__(db_type, duplicate_handling, transaction_size, *args, **kwargs)
 
         if self.db_type == 'sqlite':
             DB.init(database=database, **init_kwargs)
         elif self.db_type == ':memory:':
-            DB.init(database=db_type)
+            database = db_type
+            DB.init(database=database)
         elif self.db_type == 'postgresql':
             DB.init(
                 database=init_kwargs.get('database'),
@@ -99,25 +97,24 @@ class DBManager(DBManagerBase):
         DB.create_tables([Granule], safe=True)
         self.model = Granule()
 
-    def __del__(self):
+    def close_db(self):
         if self.db_type != ':memory:':
             DB.close()
 
     def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
-        self.dict_queue.update({
-            name: {
-                'etag': etag,
-                'granule_id': granule_id,
-                'collection_id': collection_id,
-                'last_modified': str(last_modified),
-                'size': size
-            }
+        self.dict_list.append({
+            'name': name,
+            'etag': etag,
+            'granule_id': granule_id,
+            'collection_id': collection_id,
+            'last_modified': str(last_modified),
+            'size': size
         })
 
-        if len(self.dict_queue) >= self.transaction_size:
+        if len(self.dict_list) >= self.transaction_size:
             self.write_batch()
 
-        return self.transaction_size - len(self.dict_queue)
+        return self.transaction_size - len(self.dict_list)
 
     def flush_dict(self):
         self.write_batch()
@@ -128,25 +125,27 @@ class DBManager(DBManagerBase):
         return batch
 
     def write_batch(self):
-        self.discovered_granules_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_queue)
-        self.dict_queue.clear()
+        self.discovered_granules_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
+        self.dict_list.clear()
 
 
 class DBManagerCumulus(DBManagerBase):
     def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=50000):
         super().__init__(db_type, duplicate_handling, transaction_size)
+        self.DB = psycopg2.connect(**init_kwargs) if 'psycopg2' in globals() else None
+
+    def close_db(self):
+        self.DB.close()
 
     def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
-        self.dict_queue.update({
-            name: {
-                'etag': etag,
-                'granule_id': granule_id,
-                'collection_id': collection_id,
-                'last_modified': str(last_modified),
-                'size': size
-            }
+        self.dict_list.append({
+            'name': name,
+            'etag': etag,
+            'granule_id': granule_id,
+            'collection_id': collection_id,
+            'last_modified': str(last_modified),
+            'size': size
         })
-        return self.transaction_size - len(self.dict_queue)
 
     def flush_dict(self):
         if self.duplicate_handling == 'skip':
@@ -155,41 +154,41 @@ class DBManagerCumulus(DBManagerBase):
             print(f'Trimming {len(db_granule_ids)} files that already existed in the Cumulus database.')
             print(f'Trimmed granule IDs: {db_granule_ids}')
 
-            # Get keys that need to be removed
-            discard_set = set()
-            for k, v in self.dict_queue.items():
-                discovered_granule_id = v.get('GranuleId', None)
-                if discovered_granule_id in db_granule_ids:
-                    db_granule_ids.discard(discovered_granule_id)
-                    discard_set.add(k)
+            # Remove the keys that have already been discovered
+            index = 0
+            while index < len(self.dict_list):
+                granule_id = self.dict_list[index].get('granule_id')
+                if granule_id in db_granule_ids:
+                    del self.dict_list[index]
+                else:
+                    index += 1
 
-            # Delete keys
-            for key in discard_set:
-                del self.dict_queue[key]
-
-        self.discovered_granules_count += len(self.dict_queue)
+        self.discovered_granules_count += len(self.dict_list)
 
     def read_batch(self, collection_id, provider_path, batch_size):
-        self.queued_files_count += len(self.dict_queue)
-        return self.dict_queue
+        self.queued_files_count += len(self.dict_list)
+        return self.dict_list
 
     def trim_results(self, **kwargs):
-        granule_ids = [x.get('GranuleId') for x in self.dict_queue.values()]
+        granule_ids = [x.get('granule_id') for x in self.dict_list]
+        print(f'granule_ids: {granule_ids}')
         results = []
         start_index = 0
         end_index = VAR_LIMIT
         db_st = time.time()
         while True:
-            with DB.cursor() as curs:
-                id_batch = tuple(granule_ids[start_index:end_index])
-                if len(id_batch) == 0:
-                    break
-                query_string = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
-                print(f'Trim query: {query_string}')
-                curs.execute(query_string, (id_batch,))
-                results.extend([x[0] for x in curs.fetchall()])
-                start_index = end_index + 1
-                end_index += VAR_LIMIT
+            with self.DB:
+                with self.DB.cursor() as curs:
+                    id_batch = tuple(granule_ids[start_index:end_index])
+                    if len(id_batch) == 0:
+                        break
+                    print(f'id_batch" {id_batch}')
+                    query_string = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
+                    print(f'Trim query: {query_string}')
+                    curs.execute(query_string, (id_batch,))
+                    results.extend([x[0] for x in curs.fetchall()])
+                    start_index = end_index + 1
+                    end_index += VAR_LIMIT
         db_et = time.time() - db_st
         print(f'{len(results)} records read in {db_et} seconds')
         print(f'Rate: {int(len(results) / db_et)}/s')
@@ -286,13 +285,6 @@ if DB_TYPE != 'cumulus':
             updated_records = list(update.execute())
             print(f'Records returned by query: {len(updated_records)}')
 
-            conversion_dict = {}
-            while len(updated_records) > 0:
-                record_dict = updated_records[0]
-                conversion_dict.update({record_dict.pop('name'): record_dict})
-                del updated_records[0]
-
-            updated_records = conversion_dict
             return updated_records
 
         def count_records(self, collection_id, provider_path, status='discovered', count_type='files'):
@@ -351,13 +343,14 @@ if DB_TYPE != 'cumulus':
             """
             print(f'Inserting {len(granule_dict)} records...')
             records_inserted = 0
-            fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.status,
-                      Granule.last_modified, Granule.size]
+            fields = [Granule.name, Granule.etag, Granule.granule_id, Granule.collection_id, Granule.last_modified,
+                      Granule.size]
 
             var_limit = VAR_LIMIT // len(fields)
             db_st = time.time()
             with DB.atomic():
                 for batch in chunked(granule_dict, var_limit):
+                    print(batch)
                     num = self.insert_many(batch).on_conflict(**conflict_resolution).execute()
                     if isinstance(num, int):
                         records_inserted += num
@@ -367,7 +360,6 @@ if DB_TYPE != 'cumulus':
             print(f'Inserted {records_inserted}/{len(granule_dict)} records in {db_et} seconds.')
             print(f'Rate: {int(len(granule_dict) / db_et)}/s')
             return records_inserted
-
 
 if __name__ == '__main__':
     pass

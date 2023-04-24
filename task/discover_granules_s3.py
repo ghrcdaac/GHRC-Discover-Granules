@@ -74,13 +74,15 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.provider_url = f'{self.host}/{self.prefix}'
 
     def discover_granules(self):
-        rdg_logger.info(f'Discovering in {self.provider_url}')
-        s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
-            else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
-        self.dbm.flush_dict()
-        batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        self.dbm.close_db()
+        try:
+            rdg_logger.info(f'Discovering in {self.provider_url}')
+            s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
+                else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+            self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
+            self.dbm.flush_dict()
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
 
         ret = {
             'discovered_files_count': self.dbm.discovered_granules_count,
@@ -112,13 +114,13 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified'].timestamp()
                     size = int(s3_object['Size'])
-                    print(f'Found: {key}')
+                    # print(f'Found: {key}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     if reg_res:
                         granule_id = reg_res.group(1)
                         self.dbm.add_record(
                             name=key, granule_id=granule_id,
-                            collection_id=self.collection_id,etag=etag,
+                            collection_id=self.collection_id, etag=etag,
                             last_modified=str(last_modified), size=size
                         )
 
@@ -154,12 +156,12 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         except FileNotFoundError:
             rdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
 
-    def move_granule_wrapper(self, granule_dict):
+    def move_granule_wrapper(self, granule_list):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for s3_uri in granule_dict:
+            for granule in granule_list:
                 futures.append(
-                    executor.submit(self.move_granule, s3_uri)
+                    executor.submit(self.move_granule, granule.get('name'))
                 )
 
             for future in concurrent.futures.as_completed(futures):

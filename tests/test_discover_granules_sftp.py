@@ -91,7 +91,7 @@ class TestDiscoverGranules(unittest.TestCase):
                 'ETag': 'N/A', "GranuleId": "file_2", "CollectionId": "rssmif16d___7", 'Last-Modified': '1', 'Size': 1}
         }
 
-        self.assertEqual(3, len(self.dg_sftp.dbm.dict_queue))
+        self.assertEqual(3, len(self.dg_sftp.dbm.dict_list))
 
     @patch.object(re, 'search')
     def test_discover_granules_sftp_recursion(self, re_test):
@@ -101,7 +101,7 @@ class TestDiscoverGranules(unittest.TestCase):
         # dg_sftp = sftp.DiscoverGranulesSFTP(event)
         self.dg_sftp.discover(sftp_test_client)
 
-        discover_count = len(self.dg_sftp.dbm.dict_queue)
+        discover_count = len(self.dg_sftp.dbm.dict_list)
         self.assertEqual(0, discover_count)
 
     @patch.object(re, 'search')
@@ -112,7 +112,7 @@ class TestDiscoverGranules(unittest.TestCase):
         sftp_test_client = SFTPTestClient(event.get('config').get('provider_path'), 3, 0)
         self.dg_sftp.discover(sftp_test_client)
 
-        discover_count = len(self.dg_sftp.dbm.dict_queue)
+        discover_count = len(self.dg_sftp.dbm.dict_list)
         self.assertEqual(0, discover_count)
 
     @patch('paramiko.SSHClient')

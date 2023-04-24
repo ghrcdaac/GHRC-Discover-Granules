@@ -1,9 +1,12 @@
 
 import os
+import sys
 
 import unittest
 from tempfile import mkstemp
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import psycopg2
 
 from task.dgm import DB, get_db_manager, DBManagerCumulus, DBManager
 
@@ -65,19 +68,10 @@ class TestDGM(unittest.TestCase):
         self.dbm = get_db_manager(db_type=':memory:')
         self.granule = self.dbm.model
 
-    # def tearDown(self) -> None:
-    #     with DB.atomic():
-    #         c = self.dbm.model.delete().execute()
-    #     print(f'Cleaned up {c} records in teardown.')
-        # DB.close()
-
-
-    def test_get_db_manager_class_cumulus(self):
-        DB.init = MagicMock()
-        DB.create_tables = MagicMock()
-        DB.close = MagicMock()
+    @patch('task.dgm.DBManagerCumulus')
+    def test_get_db_manager_class_cumulus(self, dgm_mock):
         dbm = get_db_manager(db_type='cumulus')
-        self.assertTrue(isinstance(dbm, DBManagerCumulus))
+        self.assertTrue(dgm_mock.called)
 
     def test_get_db_manager_class_postgresql(self):
         DB.init = MagicMock()

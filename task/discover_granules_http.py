@@ -22,11 +22,13 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
-        session = requests.Session()
-        self.discover(session)
-        self.dbm.flush_dict()
-        batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        self.dbm.close_db()
+        try:
+            session = requests.Session()
+            self.discover(session)
+            self.dbm.flush_dict()
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
 
         ret = {
             'discovered_files_count': self.dbm.discovered_granules_count,

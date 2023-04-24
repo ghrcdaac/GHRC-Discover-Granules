@@ -80,10 +80,10 @@ class DiscoverGranulesBase(ABC):
 
         return file_desc
 
-    def generate_cumulus_output(self, ret_dict):
+    def generate_cumulus_output(self, granule_dict_list):
         """
         Generates necessary output for the ingest workflow.
-        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
+        :param granule_dict_list: Dictionary of granules discovered, ETag, Last-Modified, and Size
         :return List of dictionaries that follow this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
@@ -91,8 +91,8 @@ class DiscoverGranulesBase(ABC):
         gid_regex = self.collection.get('granuleId')
         strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
 
-        for k, v in ret_dict.items():
-            file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
+        for granule in granule_dict_list:
+            file_path_name = str(granule.get('name')).replace(strip_str, '').rsplit('/', 1)
             filename = file_path_name[-1]
 
             file_def = self.get_file_description(filename)
@@ -110,7 +110,7 @@ class DiscoverGranulesBase(ABC):
 
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
-                    filename, file_path_name[0], v.get('size'),
+                    filename, file_path_name[0], granule.get('size'),
                     self.get_bucket_name(bucket_type), file_type
                 )
             )
@@ -190,42 +190,6 @@ class DiscoverGranulesBase(ABC):
             )
 
         return ret_lst
-
-    @staticmethod
-    def populate_dict(target_dict, key, etag, granule_id, collection_id, last_mod, size):
-        """
-        Helper function to populate a dictionary with ETag and Last-Modified fields.
-        Clarifying Note: This function works by exploiting the mutability of dictionaries
-        :param target_dict: Dictionary to add a sub-dictionary to
-        :param key: Value that will function as the new dictionary element key
-        :param etag: The value of the ETag retrieved from the provider server
-        :param last_mod: The value of the Last-Modified value retrieved from the provider server
-        :param size: File size of the discovered granule
-        """
-        target_dict[key] = {
-            'ETag': etag,
-            'GranuleId': granule_id,
-            'CollectionId': collection_id,
-            'Last-Modified': str(last_mod),
-            'Size': size
-        }
-
-    @staticmethod
-    def update_etag_lm(dict1, dict2, key):
-        """
-        Helper function to update the Etag and Last-Modified fields when comparing two dictionaries.
-        Clarifying Note: This function works by exploiting the mutability of dictionaries
-        :param dict1: The dictionary to be updated
-        :param dict2: The source dictionary
-        :param key: The key of the entry to be updated
-        """
-        dict1[key] = {
-            'ETag': dict2.get(key).get('ETag'),
-            'GranuleId': dict2.get(key).get('GranuleId'),
-            'CollectionId': dict2.get(key).get('CollectionId'),
-            'Last-Modified': dict2.get(key).get('Last-Modified'),
-            'Size': dict2.get(key).get('Size'),
-        }
 
     @abstractmethod
     def discover_granules(self):
