@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import Granule, initialize_db
+from task.dgm import get_db_manager
 from task.logger import rdg_logger
 
 
@@ -39,34 +39,21 @@ class DiscoverGranulesBase(ABC):
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if duplicates == 'replace' and force_replace is False:
             duplicates = 'skip'
-        self.duplicates = duplicates
 
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
-        self.transaction_size = self.discover_tf.get('transaction_size', 100000)
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
-        initialize_db(self.db_file_path)
-        self.db_model = Granule()
-        self.duplicate_handler = getattr(self.db_model, f'db_{self.duplicates}')
+        transaction_size = self.discover_tf.get('transaction_size', 100000)
+
+        kwargs = {
+            'duplicate_handling': duplicates,
+            'transaction_size': transaction_size,
+            'database': self.db_file_path,
+            'db_type': os.getenv('db_type', 'sqlite')
+        }
+        self.dbm = get_db_manager(**kwargs)
 
         super().__init__()
-
-    def clean_database(self):
-        """
-        If there is input in the event then QueueGranules failed and we need to clean out the discovered granules
-        from the database.
-        """
-        names = []
-        rdg_logger.warning(self.input.get('granules', {}))
-        for granule in self.input.get('granules', {}):
-            file = granule.get('files')[0]
-            name = f'{file.get("path")}/{file.get("name")}'
-            names.append(name)
-
-        with initialize_db(self.db_file_path):
-            num = Granule().delete_granules_by_names(names)
-
-        rdg_logger.info(f'Cleaned {num} records from the database.')
 
     def generate_lambda_output(self, ret_dict):
         if self.config.get('workflow_name') == 'LZARDSBackup':
@@ -94,10 +81,10 @@ class DiscoverGranulesBase(ABC):
 
         return file_desc
 
-    def generate_cumulus_output(self, ret_dict):
+    def generate_cumulus_output(self, granule_dict_list):
         """
         Generates necessary output for the ingest workflow.
-        :param ret_dict: Dictionary of granules discovered, ETag, Last-Modified, and Size
+        :param granule_dict_list: Dictionary of granules discovered, ETag, Last-Modified, and Size
         :return List of dictionaries that follow this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
@@ -105,15 +92,14 @@ class DiscoverGranulesBase(ABC):
         gid_regex = self.collection.get('granuleId')
         strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
 
-        for k, v in ret_dict.items():
-            file_path_name = str(k).replace(strip_str, '').rsplit('/', 1)
+        for granule in granule_dict_list:
+            file_path_name = str(granule.get('name')).replace(strip_str, '').rsplit('/', 1)
             filename = file_path_name[-1]
 
             file_def = self.get_file_description(filename)
             file_type = file_def.get('type', '')
             bucket_type = file_def.get('bucket', '')
 
-            granule_id = ''
             if re.search(gid_regex, filename):
                 granule_id = filename
             else:
@@ -125,7 +111,7 @@ class DiscoverGranulesBase(ABC):
 
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
-                    filename, file_path_name[0], v.get('Size'),
+                    filename, file_path_name[0], granule.get('size'),
                     self.get_bucket_name(bucket_type), file_type
                 )
             )
@@ -205,42 +191,6 @@ class DiscoverGranulesBase(ABC):
             )
 
         return ret_lst
-
-    @staticmethod
-    def populate_dict(target_dict, key, etag, granule_id, collection_id, last_mod, size):
-        """
-        Helper function to populate a dictionary with ETag and Last-Modified fields.
-        Clarifying Note: This function works by exploiting the mutability of dictionaries
-        :param target_dict: Dictionary to add a sub-dictionary to
-        :param key: Value that will function as the new dictionary element key
-        :param etag: The value of the ETag retrieved from the provider server
-        :param last_mod: The value of the Last-Modified value retrieved from the provider server
-        :param size: File size of the discovered granule
-        """
-        target_dict[key] = {
-            'ETag': etag,
-            'GranuleId': granule_id,
-            'CollectionId': collection_id,
-            'Last-Modified': str(last_mod),
-            'Size': size
-        }
-
-    @staticmethod
-    def update_etag_lm(dict1, dict2, key):
-        """
-        Helper function to update the Etag and Last-Modified fields when comparing two dictionaries.
-        Clarifying Note: This function works by exploiting the mutability of dictionaries
-        :param dict1: The dictionary to be updated
-        :param dict2: The source dictionary
-        :param key: The key of the entry to be updated
-        """
-        dict1[key] = {
-            'ETag': dict2.get(key).get('ETag'),
-            'GranuleId': dict2.get(key).get('GranuleId'),
-            'CollectionId': dict2.get(key).get('CollectionId'),
-            'Last-Modified': dict2.get(key).get('Last-Modified'),
-            'Size': dict2.get(key).get('Size'),
-        }
 
     @abstractmethod
     def discover_granules(self):

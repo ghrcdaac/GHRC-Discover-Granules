@@ -3,7 +3,6 @@ import re
 import requests
 import urllib3
 from bs4 import BeautifulSoup
-from dateutil.parser import parse
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
@@ -18,75 +17,76 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
     def __init__(self, event):
         super().__init__(event)
-        self.url_path = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
-                        f'{self.config["provider_path"].lstrip("/")}'
+        self.provider_url = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
+                            f'{self.config["provider_path"].lstrip("/")}'
         self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
-        ret_dict = {}
-        session = requests.Session()
-        return self.discover(session, ret_dict)
+        try:
+            session = requests.Session()
+            self.discover(session)
+            self.dbm.flush_dict()
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
 
-    def discover(self, session, ret_dict):
+        ret = {
+            'discovered_files_count': self.dbm.discovered_granules_count,
+            'queued_files_count': self.dbm.queued_files_count,
+            'batch': batch
+        }
+
+        return ret
+
+    def discover(self, session):
         """
         Fetch the link of the granules in the host url_path
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         {'http://path/to/granule/file.extension': { 'ETag': 'S3ETag', 'Last-Modified': '1645564956.0},...}
         """
-        rdg_logger.info(f'Discovering in {self.url_path}.')
-        discovered_granules_count = 0
+        rdg_logger.info(f'Discovering in {self.provider_url}')
         directory_list = []
-        response = session.get(self.url_path)
+        response = session.get(self.provider_url)
         html = BeautifulSoup(response.text, features='html.parser')
         for a_tag in html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
-            path = f'{self.url_path.rstrip("/")}/{url_segment}'
-            head_resp = session.head(path).headers
+            full_path = f'{self.provider_url.rstrip("/")}/{url_segment}'
+            head_resp = session.head(full_path).headers
             etag = head_resp.get('ETag')
             last_modified = head_resp.get('Last-Modified')
-            size = head_resp.get('Content-Length', 0)
+            size = int(head_resp.get('Content-Length', 0))
 
             if (etag is not None or last_modified is not None) and (check_reg_ex(self.file_reg_ex, url_segment)):
-                rdg_logger.info(f'Discovered granule: {path}')
+                rdg_logger.info(f'Discovered granule: {full_path}')
                 # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
                 # object which will cause a crash during unit tests
                 if isinstance(head_resp.get('Last-Modified'), str):
                     res = re.search(self.granule_id_extraction, url_segment)
-                    try:
+                    if res:
                         granule_id = res.group(1)
-                        self.populate_dict(
-                            ret_dict, path, etag,
-                            granule_id, self.collection_id,
-                            str(parse(last_modified).timestamp()),
-                            size
+                        self.dbm.add_record(
+                            name=full_path, granule_id=granule_id,
+                            collection_id=self.collection_id, etag=etag,
+                            last_modified=str(last_modified), size=size
                         )
                         rdg_logger.info(f'{url_segment} matched the granuleIdExtraction')
-                    except AttributeError as e:
+                    else:
                         rdg_logger.warning(
                             f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
-                            f' did not match the filename {url_segment}: {e}'
+                            f' did not match the filename {url_segment}.'
                         )
 
-                    if len(ret_dict) >= self.transaction_size:
-                        discovered_granules_count += self.duplicate_handler(ret_dict)
-                        ret_dict.clear()
-            elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, path)):
-                directory_list.append(f'{path}/')
+            elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, full_path)):
+                directory_list.append(f'{full_path}/')
             else:
-                rdg_logger.warning(f'Notice: {path} not processed as granule or directory. '
+                rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
 
         if self.depth > 0:
             self.depth -= 1
             for directory in directory_list:
-                self.url_path = directory
-                discovered_granules_count += self.discover(session, ret_dict)
-
-        if len(ret_dict) > 0:
-            discovered_granules_count += self.duplicate_handler(ret_dict)
-            ret_dict.clear()
-
-        return discovered_granules_count
+                self.provider_url = directory
+                self.discover(session)
 
 
 if __name__ == '__main__':

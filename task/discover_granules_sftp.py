@@ -103,21 +103,36 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         super().__init__(event)
         self.path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
+        self.provider_url = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
+                            f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
-        ret_dict = {}
-        sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
-        return self.discover(sftp_client, ret_dict)
+        try:
+            sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
+            self.discover(sftp_client)
+            self.dbm.flush_dict()
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
 
-    def discover(self, sftp_client, ret_dict):
+        ret = {
+            'discovered_files_count': self.dbm.discovered_granules_count,
+            'queued_files_count': self.dbm.queued_files_count,
+            'batch': batch
+        }
+
+        return ret
+
+    def discover(self, sftp_client):
         discovered_granules_count = 0
         directory_list = []
-        rdg_logger.info(f'Discovering in {self.path}.')
+        rdg_logger.info(f'Discovering in {self.provider_url}')
         sftp_client.chdir(self.path)
 
-        rdg_logger.info(sftp_client.listdir())
+        listdir_res = sftp_client.listdir()
+        rdg_logger.info(listdir_res)
 
-        for dir_file in sftp_client.listdir():
+        for dir_file in listdir_res:
             rdg_logger.info(f'Evaluating: {str(dir_file)}')
             file_stat = sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
@@ -132,14 +147,13 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 else:
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
-                self.populate_dict(
-                    ret_dict, f'{self.path.rstrip("/")}/{dir_file}', etag='N/A',
-                    granule_id=granule_id, collection_id=self.collection_id,
-                    last_mod=file_stat.st_mtime, size=file_stat.st_size
+
+                full_path = f'{self.path.rstrip("/")}/{dir_file}'
+                self.dbm.add_record(
+                    name=full_path, granule_id=granule_id,
+                    collection_id=self.collection_id, etag='N/A',
+                    last_modified=str(file_stat.st_mtime), size=int(file_stat.st_size)
                 )
-                if len(ret_dict) >= self.transaction_size:
-                    discovered_granules_count += self.duplicate_handler(ret_dict)
-                    ret_dict.clear()
             else:
                 rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                                    f'The supplied regex [{self.file_reg_ex}] may not match.')
@@ -148,15 +162,9 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             self.depth -= 1
             for directory in directory_list:
                 self.path = directory
-                discovered_granules_count += self.discover(sftp_client, ret_dict)
+                discovered_granules_count += self.discover(sftp_client)
 
         sftp_client.chdir('../')
-
-        if len(ret_dict) > 0:
-            discovered_granules_count += self.duplicate_handler(ret_dict)
-            ret_dict.clear()
-
-        return discovered_granules_count
 
 
 if __name__ == "__main__":

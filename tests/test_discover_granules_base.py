@@ -20,62 +20,33 @@ class TestDiscoverGranules(unittest.TestCase):
         self.dg = DiscoverGranulesBase(event)  # pylint: disable=abstract-class-instantiated
         self.dg.get_session = MagicMock()
 
-    def test_populate_dict(self):
-        key = 'key'
-        etag = 'ETag'
-        last_mod = 'Last-Modified'
-        granule_id = 'GranuleId'
-        collection_id = 'CollectionId'
-        size = 'Size'
-        t_dict = {}
-        self.dg.populate_dict(
-            target_dict=t_dict,
-            key=key, etag=etag,
-            granule_id=granule_id,
-            collection_id=collection_id,
-            last_mod=last_mod,
-            size=size
-        )
-        self.assertIn(key, t_dict)
-        self.assertIn(etag, t_dict['key'])
-        self.assertIn(granule_id, t_dict['key'])
-        self.assertIn(last_mod, t_dict['key'])
-        self.assertIn(size, t_dict['key'])
-
-    def test_update_etag_lm(self):
-        dict1 = {
-            'key1': {
-                'ETag': 'etag1', 'GranuleId': 'granule_id1',
-                'CollectionId': 'collection_id1',
-                'Last-Modified': 'lm1', 'Size': 's1'
-            }
-        }
-        dict2 = {}
-        self.dg.update_etag_lm(dict2, dict1, 'key1')
-        self.assertDictEqual(dict1, dict2)
-
     @mock.patch('time.time', mock.MagicMock(return_value=0))
     def test_generate_cumulus_output(self):
-        test_dict = {
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
-                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
-                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        test_dict = [
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                'etag': 'ec5273963f74811028e38a367beaf7a5', 'last_modified': '1645564956.0', 'size': 4553538
+            },
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                'etag': '919a1ba1dfbbd417a662ab686a2ff574', 'last_modified': '1645564956.0', 'size': 4706838
+            }
+        ]
 
         ret_list = self.dg.generate_cumulus_output(test_dict)
 
         expected_entries = []
-        for k, v in test_dict.items():
+        for granule in test_dict:
             expected_entries.append(
                 {
-                    'granuleId': str(k).rsplit('/', maxsplit=1)[-1],
+                    'granuleId': str(granule.get('name')).rsplit('/', maxsplit=1)[-1],
                     'dataType': 'nalmaraw',
                     'version': '1',
                     'files': [
                         {
-                            'name': str(k).rsplit('/', maxsplit=1)[-1],
+                            'name': str(granule.get('name')).rsplit('/', maxsplit=1)[-1],
                             'path': 'lma/nalma/raw/short_test',
-                            'size': v.get('Size'),
+                            'size': granule.get('size'),
                             'time': 0,
                             'url_path': 'nalmaraw__1',
                             'bucket': 'sharedsbx-private',

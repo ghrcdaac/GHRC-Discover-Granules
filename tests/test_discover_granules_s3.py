@@ -7,7 +7,6 @@ import unittest
 from dateutil.tz import tzutc
 from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys
 
-
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -60,8 +59,9 @@ class TestDiscoverGranules(unittest.TestCase):
                 ]
             }
         ]
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 2)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_list)
+        self.assertEqual(2, discover_count)
 
     def test_discover_granules_s3_file_regex(self):
         self.dg.file_reg_ex = 'key1.txt'
@@ -85,8 +85,9 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 1)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_list)
+        self.assertEqual(1, discover_count)
 
     def test_discover_granules_s3_dir_regex(self):
         self.dg.file_reg_ex = None
@@ -110,8 +111,9 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
 
-        ret_dict = self.dg.discover(test_resp_iter)
-        self.assertEqual(ret_dict, 1)
+        self.dg.discover(test_resp_iter)
+        discover_count = len(self.dg.dbm.dict_list)
+        self.assertEqual(1, discover_count)
 
     @patch('task.discover_granules_s3.get_s3_client')
     @patch('task.discover_granules_s3.get_s3_client_with_keys')
@@ -137,11 +139,17 @@ class TestDiscoverGranules(unittest.TestCase):
         del os.environ['efs_path']
 
     def test_move_granule_wrapper(self):
-        test_dict = {
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
-                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
-                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
+        test_dict = [
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538
+            },
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838
+            }
+        ]
+
         self.dg.move_granule = MagicMock()
         self.dg.move_granule_wrapper(test_dict)
         self.assertEqual(self.dg.move_granule.call_count, 2)

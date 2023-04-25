@@ -11,11 +11,11 @@ variable "cumulus_lambda_role_name" {
   type = string
 }
 
-variable "efs_arn" {
+variable "efs_access_point_arn" {
   type = string
 }
 
-variable "efs_mount_path" {
+variable "efs_path" {
   type = string
 }
 
@@ -24,12 +24,12 @@ variable "env_variables" {
   default = {}
 }
 
-variable "lambda_security_group_ids" {
+variable "security_group_ids" {
   type    = list(string)
   default = null
 }
 
-variable "lambda_subnet_ids" {
+variable "subnet_ids" {
   type    = list(string)
   default = null
 }
@@ -86,4 +86,31 @@ variable "sqlite_temp_store" {
 variable "sqlite_cache_size" {
   type = number
   default = (-1 * 64000)
+}
+
+# RDS Configuration
+variable "db_identifier" {
+  type = string
+}
+
+variable "db_instance_class" {
+  type = string
+  default = "db.t3.micro"
+}
+
+variable "db_username" {
+  type = string
+}
+
+variable "db_allocated_storage" {
+  type = number
+  default = 5
+}
+
+variable "db_type" {
+  type = string
+}
+
+variable "cumulus_credentials_arn" {
+  type = string
 }
