@@ -134,8 +134,9 @@ class TestDGM(unittest.TestCase):
         test_dict = generate_test_dict(collection_id='test_db_skip_new_granule', granule_count=2, file_count=2,
                                        collection_count=2)
         granule_dict = generate_db_dict(test_dict.get('granule_dict'))
-        count = self.granule._Granule__insert_many(granule_dict,**{'conflict_resolution': {'action': 'ignore'}})  #
         # pylint: disable=W0212
+        count = self.granule._Granule__insert_many(granule_dict, **{'conflict_resolution': {'action': 'ignore'}})
+
         self.assertEqual(test_dict.get('total_files'), count)
 
     def test_db_fetch_batch(self):
