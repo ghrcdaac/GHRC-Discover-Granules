@@ -120,8 +120,8 @@ class TestDiscoverGranules(unittest.TestCase):
     def test_check_reg_ex_match(self):
         self.assertTrue(check_reg_ex(r'.*', 'test_text'))
 
-        def test_check_reg_ex_no_match(self):
-            self.assertFalse(check_reg_ex(r'No_match', 'test_text'))
+    def test_check_reg_ex_no_match(self):
+        self.assertFalse(check_reg_ex(r'No_match', 'test_text'))
 
     def test_check_reg_ex_none(self):
         self.assertTrue(check_reg_ex(None, 'test_text'))

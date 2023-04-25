@@ -4,12 +4,17 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import get_db_manager
+from task.dgm import get_db_manager, db_init_kwargs
 from task.logger import rdg_logger
 
 
 def check_reg_ex(regex, target):
     return regex is None or re.search(regex, target) is not None
+
+
+def get_db_connection_args():
+    db_init_kwargs
+    pass
 
 
 class DiscoverGranulesBase(ABC):
@@ -48,7 +53,8 @@ class DiscoverGranulesBase(ABC):
         kwargs = {
             'duplicate_handling': duplicates,
             'transaction_size': transaction_size,
-            'database': self.db_file_path
+            'database': self.db_file_path,
+            'db_type': os.getenv('db_type', 'sqlite')
         }
         self.dbm = get_db_manager(**kwargs)
 

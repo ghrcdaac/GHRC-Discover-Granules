@@ -11,5 +11,3 @@ for ele in os.listdir(task_dir):
 
 shutil.make_archive('./package', 'zip', './package')
 shutil.rmtree('./package')
-
-

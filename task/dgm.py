@@ -7,30 +7,31 @@ from abc import ABC, abstractmethod
 
 import boto3
 
-import psycopg2
-from playhouse.postgres_ext import PostgresqlExtDatabase, DateTimeField, CharField, Model, chunked, \
-    IntegerField, EXCLUDED
-from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
+from playhouse.postgres_ext import PostgresqlExtDatabase
+from playhouse.apsw_ext import APSWDatabase
 
 DB_TYPE = os.getenv('db_type', ':memory:')
 VAR_LIMIT = 0
 
 print(f'Database configuration: {DB_TYPE}')
 if DB_TYPE in ['postgresql', 'cumulus']:
+    import psycopg2
+    from playhouse.postgres_ext import DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
     VAR_LIMIT = 32768
     sm = boto3.client('secretsmanager')
     if DB_TYPE == 'postgresql':
         secrets_arn = os.getenv('postgresql_secret_arn', None)
-        init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
+        db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
         DB = PostgresqlExtDatabase(None)
     elif DB_TYPE == 'cumulus':
         secrets_arn = os.getenv('cumulus_credentials_arn', None)
-        init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
-        init_kwargs.update({'user': init_kwargs.pop('username')})
+        db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
+        db_init_kwargs.update({'user': db_init_kwargs.pop('username')})
 else:
+    from playhouse.apsw_ext import DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
     DB = APSWDatabase(None, vfs='unix-excl')
     VAR_LIMIT = 999
-    init_kwargs = {
+    db_init_kwargs = {
         'timeout': 900,
         'vfs': 'unix-excl',
         'pragmas': {
@@ -41,17 +42,19 @@ else:
     }
 
 
-def get_db_manager(db_type=DB_TYPE, *args, **kwargs):
+def get_db_manager(db_type=DB_TYPE, database=':memory:', duplicate_handling='skip', transaction_size=100000):
     print(f'Creating {db_type} database manager')
+
     if db_type == 'cumulus':
-        _ = kwargs.pop('database', None)
-        return DBManagerCumulus(*args, **kwargs)
+        dbm = DBManagerCumulus(db_type, duplicate_handling, transaction_size)
     else:
-        return DBManager(*args, **kwargs)
+        dbm = DBManager(db_type, database, duplicate_handling, transaction_size)
+
+    return dbm
 
 
 class DBManagerBase(ABC):
-    def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=100000, *args, **kwargs):
+    def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=100000, **kwargs):
         self.db_type = db_type
         self.dict_list = []
         self.discovered_granules_count = 0
@@ -77,23 +80,15 @@ class DBManagerBase(ABC):
 
 
 class DBManager(DBManagerBase):
-    def __init__(self, db_type=DB_TYPE, database=None, duplicate_handling='skip', transaction_size=50000, *args,
-                 **kwargs):
-        super().__init__(db_type, duplicate_handling, transaction_size, *args, **kwargs)
+    def __init__(self, db_type, database, duplicate_handling, transaction_size, **kwargs):
+        super().__init__(db_type, duplicate_handling, transaction_size, **kwargs)
 
-        if self.db_type == 'sqlite':
-            DB.init(database=database, **init_kwargs)
-        elif self.db_type == ':memory:':
-            database = db_type
+        if database == ':memory:':
             DB.init(database=database)
+        elif self.db_type == 'sqlite':
+            DB.init(database=database, **db_init_kwargs)
         elif self.db_type == 'postgresql':
-            DB.init(
-                database=init_kwargs.get('database'),
-                user=init_kwargs.get('user'),
-                password=init_kwargs.get('password'),
-                host=init_kwargs.get('host'),
-                port=init_kwargs.get('port')
-            )
+            DB.init(**db_init_kwargs)
         DB.create_tables([Granule], safe=True)
         self.model = Granule()
 
@@ -130,9 +125,9 @@ class DBManager(DBManagerBase):
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=50000):
+    def __init__(self, db_type, duplicate_handling, transaction_size):
         super().__init__(db_type, duplicate_handling, transaction_size)
-        self.DB = psycopg2.connect(**init_kwargs) if 'psycopg2' in globals() else None
+        self.DB = psycopg2.connect(**db_init_kwargs) if 'psycopg2' in globals() else None
 
     def close_db(self):
         self.DB.close()
@@ -150,7 +145,7 @@ class DBManagerCumulus(DBManagerBase):
     def flush_dict(self):
         if self.duplicate_handling == 'skip':
             db_granule_ids = self.trim_results()
-            db_granule_ids = {x for x in db_granule_ids}
+            db_granule_ids = set(db_granule_ids)
             print(f'Trimming {len(db_granule_ids)} files that already existed in the Cumulus database.')
             print(f'Trimmed granule IDs: {db_granule_ids}')
 
@@ -169,7 +164,7 @@ class DBManagerCumulus(DBManagerBase):
         self.queued_files_count += len(self.dict_list)
         return self.dict_list
 
-    def trim_results(self, **kwargs):
+    def trim_results(self):
         granule_ids = [x.get('granule_id') for x in self.dict_list]
         print(f'granule_ids: {granule_ids}')
         results = []
@@ -207,7 +202,7 @@ if DB_TYPE != 'cumulus':
         status = CharField(default='discovered')
         etag = CharField()
         last_modified = CharField()
-        discovered_date = DateTimeField(default=datetime.datetime.now)
+        discovered_date = DateTimeField(formats='YYYY-mm-dd HH:MM:SS', default=datetime.datetime.now)
         size = IntegerField()
 
         class Meta:
@@ -263,7 +258,7 @@ if DB_TYPE != 'cumulus':
             """
             return self.__insert_many(granule_dict, {'action': 'rollback'})
 
-        def read_batch(self, collection_id, provider_path, batch_size=1000, **kwargs):
+        def read_batch(self, collection_id, provider_path, batch_size=1000):
             """
             Fetches N files for up to batch_size granules for the provided collection_id and if the provider path
             is present in the full path of the file.
@@ -273,14 +268,17 @@ if DB_TYPE != 'cumulus':
             :return: Returns a list of records that had the status set from "discovered" to queued
             """
             sub_query = (
-                self.select(Granule.granule_id).where(
+                self.select(Granule.granule_id).dicts().where(
                     (Granule.status == 'discovered') &
                     (Granule.collection_id == collection_id) &
                     (Granule.name.contains(provider_path))
                 ).order_by(Granule.discovered_date.asc()).limit(batch_size)
             )
 
-            update = (self.update(status='queued').dicts().where(Granule.granule_id.in_(sub_query)).returning(Granule))
+            update = (self.update(status='queued').where(
+                (Granule.granule_id.in_(sub_query)) &
+                (Granule.name.contains(provider_path))
+            ).returning(Granule).dicts())
             print(f'Update query: {update}')
             updated_records = list(update.execute())
             print(f'Records returned by query: {len(updated_records)}')
