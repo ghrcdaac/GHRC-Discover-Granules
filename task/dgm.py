@@ -6,8 +6,6 @@ import time
 from abc import ABC, abstractmethod
 
 import boto3
-from playhouse.postgres_ext import PostgresqlExtDatabase
-from playhouse.apsw_ext import APSWDatabase
 
 DB_TYPE = os.getenv('db_type', ':memory:')
 VAR_LIMIT = 0
@@ -15,7 +13,7 @@ VAR_LIMIT = 0
 print(f'Database configuration: {DB_TYPE}')
 if DB_TYPE in ['postgresql', 'cumulus']:
     import psycopg2
-    from playhouse.postgres_ext import DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
+    from playhouse.postgres_ext import PostgresqlExtDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
     VAR_LIMIT = 32768
     sm = boto3.client('secretsmanager')
     if DB_TYPE == 'postgresql':
@@ -27,7 +25,7 @@ if DB_TYPE in ['postgresql', 'cumulus']:
         db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
         db_init_kwargs.update({'user': db_init_kwargs.pop('username')})
 else:
-    from playhouse.apsw_ext import DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
+    from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
     DB = APSWDatabase(None, vfs='unix-excl')
     VAR_LIMIT = 999
     db_init_kwargs = {
