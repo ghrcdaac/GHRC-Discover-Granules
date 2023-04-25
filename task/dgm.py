@@ -6,7 +6,6 @@ import time
 from abc import ABC, abstractmethod
 
 import boto3
-
 from playhouse.postgres_ext import PostgresqlExtDatabase
 from playhouse.apsw_ext import APSWDatabase
 

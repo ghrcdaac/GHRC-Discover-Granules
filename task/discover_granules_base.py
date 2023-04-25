@@ -4,17 +4,12 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import get_db_manager, db_init_kwargs
+from task.dgm import get_db_manager
 from task.logger import rdg_logger
 
 
 def check_reg_ex(regex, target):
     return regex is None or re.search(regex, target) is not None
-
-
-def get_db_connection_args():
-    db_init_kwargs
-    pass
 
 
 class DiscoverGranulesBase(ABC):

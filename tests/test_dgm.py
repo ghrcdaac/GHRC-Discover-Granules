@@ -1,20 +1,17 @@
-
 import os
-import sys
 
 import unittest
 from tempfile import mkstemp
 from unittest.mock import MagicMock, patch
 
-import psycopg2
-
-from task.dgm import DB, get_db_manager, DBManagerCumulus, DBManager
+from task.dgm import DB, get_db_manager, DBManager
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = f'{mkstemp()[1]}.db'
 
 
-def generate_test_dict(collection_id, granule_count=1, file_count=1, collection_count=1, new_etag='', new_last_mod='', new_size='', *args, **kwargs):
+def generate_test_dict(collection_id, granule_count=1, file_count=1, collection_count=1, new_etag='', new_last_mod='',
+                       new_size=''):
     ret = {
         'total_collections': collection_count,
         'total_granules': collection_count * granule_count,
@@ -25,9 +22,7 @@ def generate_test_dict(collection_id, granule_count=1, file_count=1, collection_
 
     granule_dict = {}
     for x in range(collection_count):
-        if x == 0:
-            collection_id = collection_id
-        else:
+        if x != 0:
             collection_id = f'collection_id_{x}'
 
         for y in range(granule_count):
@@ -70,7 +65,7 @@ class TestDGM(unittest.TestCase):
 
     @patch('task.dgm.DBManagerCumulus')
     def test_get_db_manager_class_cumulus(self, dgm_mock):
-        dbm = get_db_manager(db_type='cumulus')
+        _ = get_db_manager(db_type='cumulus')
         self.assertTrue(dgm_mock.called)
 
     def test_get_db_manager_class_postgresql(self):
@@ -136,7 +131,8 @@ class TestDGM(unittest.TestCase):
             self.assertEqual(num1, test_dict.get('total_files'))
 
     def test_db_insert_many(self):
-        test_dict = generate_test_dict(collection_id='test_db_skip_new_granule', granule_count=2, file_count=2, collection_count=2)
+        test_dict = generate_test_dict(collection_id='test_db_skip_new_granule', granule_count=2, file_count=2,
+                                       collection_count=2)
         granule_dict = generate_db_dict(test_dict.get('granule_dict'))
         count = self.granule._Granule__insert_many(
             granule_dict,
