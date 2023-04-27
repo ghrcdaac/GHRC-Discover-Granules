@@ -11,18 +11,18 @@
 |____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
 ```
 # Overview
-The discover granules terraform module uses a lambda function to recursively discover files provided via HTTP/HTTPS, SFTP
-and S3 protocols. 
-The code retrieves the granule names, ETag and Last-Modified values from the provider and stores the results as a SQLite
-database file in an EFS mount point that is retrieved from the `efs_path` environment variable. If this is not provided 
-the database will be written to a temporary directory which is not persistent. 
+The discover granules terraform module uses a lambda function to recursively discover granules at HTTP/HTTPS, SFTP
+and S3 providers. 
+
+The code retrieves the granule names, ETag, Last-Modified, and size values from the provider location and generates
+output to be used in the Cumulus QueueGranules lambda. An attempt is made to generate output that mirrors that of the 
+cumulus discover granules schema: https://github.com/nasa/cumulus/blob/master/tasks/discover-granules/schemas/output.json  
+
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
 Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
 ## Supported Protocols
  - AWS S3, HTTP/HTTPS, and SFTP 
-## Limitations
- - HTTP/HTTPS does not support redirects or username + password authentication
 
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
@@ -36,11 +36,38 @@ We are following `v<major>.<minor>.<patch>` versioning convention, where:
 This module is meant to run within Cumulus stack. 
 If you don't have Cumulus stack deployed yet please consult [this repo](https://github.com/nasa/cumulus) 
 and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
-## EFS
+
+## Database Configuration Options
+As of v3.0.0 the module supports three database configurations though the `db_type` terraform variable.   
+
+If migrating to v3.0.0+ bear in mind that the SQLite database that currently exists will not automatically be migrated
+to postgresql if you wish to use that configuration. Additioinally if an EFS mount was configured specifically to hold
+the SQLite database and it is no longer needed be sure to delete the infrastructure as it can accumulate costs storing
+unused files. 
+### AWS RDS Aurora-Postgresql: `db_type="postgresql""` 
+An RDS instance will be created exclusively for this module. Much of the parameters are configurable through terraform 
+variables so that the deployment can be customized as needed. This deployment offers the most flexibility as it is still
+possible to use the SQLite in EFS if it was already being used or it is possible to use the cumulus database as read 
+only for smaller discovery efforts. It is important to note that if the `db_type` variable is changed on subsequent 
+deployments the contents of this database are not currently saved.
+### SQLite: `db_type="sqlite""`
 It is recommended to set up an EFS partition in EC2 to store the SQLite database. Persistent memory will not be possible
 without doing this but would still be possible to run one off discovery processes. See the following repo for 
 setting it up: 
-https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip
+https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip  
+There are limitations to this deployment type. The main performance impact is that the database must be locked with
+an exclusive file lock that does not allow other readers for the duration of the lambda execution. An additional
+downside is that as the database grows in size the throughput of EFS may become a problem. This issue might be 
+minimized in later version of terraform where the EFS mount can be configured in elastic mode but the other two 
+deplyment options seem more ideal. 
+
+### Cumulus-Read-Only: `db_type="cumulus""`
+When running with `"duplicateHandling": "skip"` the code will check the discovered `granule_id`'s against the cumulus
+database to see if it can skip generating and returning output for that granule. If `"duplicateHandling": "replace"` is 
+used instead then no reads will be performed against the database.  
+There is some concern that large queries against the cumulus database could cause resource starvation for the cumulus
+infrastructure so bear this in mind when using `skip` with this configuration.  
+It is also worth noting that this configuration does not support batching. 
 
 # How to
 In order to use the recursive discover granules the following block must be added to the collection definition inside 
@@ -238,7 +265,10 @@ The step function returns a dictionary of granules that were discovered this run
 Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.
 
 # Batching
-As of v2.0.0 this module now supportes batching to the QueueGranules step. In order to take advantage of this the discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more granules to queue from the discover process. The following is an example definition of the choice step. 
+As of v2.0.0 this module now supportes batching to the QueueGranules step. In order to take advantage of this the 
+discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more 
+granules to queue from the discover process. It is important to note that batching cannot be used when using a deployment
+that relies on the cumulus database. The following is an example definition of the choice step. 
 
 IsDone Definition:  
 ```json
@@ -355,13 +385,6 @@ SkipStep:
   }
 }
 ```
-
-# SQLite Configuration
-There are some SQLite variables that can be configured via terraform variables. These can be left to their default values
-in most cases:
- - sqlite_transaction_size: Determines how many records will be stored in memory before being written to the database
- - sqlite_temp_store: Set to determine if the database temporary files are stored in memory or on disc
- - sqlite_cache_size: Sets the SQLite database cache
 
 # Testing
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
