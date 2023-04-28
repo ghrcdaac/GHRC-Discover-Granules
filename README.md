@@ -11,8 +11,7 @@
 |____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
 ```
 # Overview
-The discover granules terraform module uses a lambda function to recursively discover granules at HTTP/HTTPS, SFTP
-and S3 providers. 
+The discover granules terraform module uses a lambda function to discover granules at HTTP/HTTPS, SFTP and S3 providers. 
 
 The code retrieves the granule names, ETag, Last-Modified, and size values from the provider location and generates
 output to be used in the Cumulus QueueGranules lambda. An attempt is made to generate output that mirrors that of the 
