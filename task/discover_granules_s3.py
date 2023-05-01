@@ -85,7 +85,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
             self.dbm.close_db()
 
         ret = {
-            'discovered_files_count': self.dbm.discovered_granules_count,
+            'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
             'queued_files_count': self.dbm.queued_files_count,
             'batch': batch
         }
@@ -129,6 +129,20 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                             f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
                             f' did not match the filename {url_segment}.'
                         )
+
+    def read_batch(self):
+        try:
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
+
+        ret = {
+            'discovered_files_count': self.discovered_files_count,
+            'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
+            'batch': batch
+        }
+
+        return ret
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """

@@ -40,6 +40,8 @@ class DiscoverGranulesBase(ABC):
         if duplicates == 'replace' and force_replace is False:
             duplicates = 'skip'
 
+        self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
+        self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
         db_suffix = self.meta.get('collection_type', 'static')
         db_filename = f'discover_granules_{db_suffix}.db'
         self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'

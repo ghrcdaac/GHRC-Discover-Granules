@@ -54,7 +54,7 @@ class DBManagerBase(ABC):
     def __init__(self, db_type=DB_TYPE, duplicate_handling='skip', transaction_size=100000, **kwargs):
         self.db_type = db_type
         self.dict_list = []
-        self.discovered_granules_count = 0
+        self.discovered_files_count = 0
         self.queued_files_count = 0
         self.duplicate_handling = duplicate_handling
         self.transaction_size = transaction_size
@@ -117,7 +117,7 @@ class DBManager(DBManagerBase):
         return batch
 
     def write_batch(self):
-        self.discovered_granules_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
+        self.discovered_files_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
         self.dict_list.clear()
 
 
@@ -155,7 +155,7 @@ class DBManagerCumulus(DBManagerBase):
                 else:
                     index += 1
 
-        self.discovered_granules_count += len(self.dict_list)
+        self.discovered_files_count += len(self.dict_list)
 
     def read_batch(self, collection_id, provider_path, batch_size):
         self.queued_files_count += len(self.dict_list)
@@ -345,7 +345,7 @@ if DB_TYPE != 'cumulus':
             db_st = time.time()
             with DB.atomic():
                 for batch in chunked(granule_dict, var_limit):
-                    print(batch)
+                    # print(batch)
                     num = self.insert_many(batch).on_conflict(**conflict_resolution).execute()
                     if isinstance(num, int):
                         records_inserted += num
