@@ -41,15 +41,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
 
         return ret
 
-    def discover(self, ftp_client):
-        rdg_logger.info(f'Discovering in {self.provider_url}')
-        ftp_client.cwd(self.path)
-
-        directory_list = []
-        with io.StringIO() as buffer, redirect_stdout(buffer):
-            ftp_client.retrlines('LIST')
-            output = buffer.getvalue()
-
+    def process_ftp_list_output(self, output, directory_list):
         output_rows = output.splitlines()
         for row in output_rows:
             column_list = row.split()
@@ -61,7 +53,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
                 if len(column_list) == 9:
                     size = column_list[4]
                     last_mod = ' '.join(column_list[5:8])
-                    
+
                     self.dbm.add_record(
                         name=filename, granule_id=filename, collection_id='collection_id',
                         etag='N/A', last_modified=last_mod, size=size
@@ -70,6 +62,16 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
                     raise Exception(f'FTP row format is not the expected length: {column_list}')
             else:
                 rdg_logger.info(f'The granuleIdExtraction {self.granule_id_extraction} did not match the file name.')
+
+    def discover(self, ftp_client):
+        rdg_logger.info(f'Discovering in {self.provider_url}')
+        ftp_client.cwd(self.path)
+        directory_list = []
+        with io.StringIO() as buffer, redirect_stdout(buffer):
+            ftp_client.retrlines('LIST')
+            output = buffer.getvalue()
+
+        self.process_ftp_list_output(output, directory_list)
 
         if self.depth > 0:
             self.depth -= 1

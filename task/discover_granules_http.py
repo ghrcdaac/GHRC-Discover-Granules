@@ -30,13 +30,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         finally:
             self.dbm.close_db()
 
-        if self.discovered_files_count:
-            discovered_files_count = self.discovered_files_count
-        else:
-            discovered_files_count = self.discovered_files_count
-
         ret = {
-            'discovered_files_count': discovered_files_count,
+            'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
             'queued_files_count': self.dbm.queued_files_count,
             'batch': batch
         }
@@ -103,9 +98,11 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
         if self.depth > 0:
             self.depth -= 1
+            old_path = self.provider_url
             for directory in directory_list:
                 self.provider_url = directory
                 self.discover(session)
+            self.provider_url = old_path
 
 
 if __name__ == '__main__':
