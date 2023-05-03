@@ -162,7 +162,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             self.depth -= 1
             for directory in directory_list:
                 self.path = directory
-                discovered_granules_count += self.discover(sftp_client)
 
         sftp_client.chdir('../')
 

@@ -110,4 +110,5 @@ variable "db_type" {
 
 variable "user_credentials_secret_arn" {
   type = string
+  default = null
 }
