@@ -71,7 +71,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
-        self.provider_url = f'{self.host}/{self.prefix}'
+        self.provider_url = f'{self.provider["protocol"]}://{self.host.strip("/")}/' \
+                            f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
         try:
