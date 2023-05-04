@@ -4,7 +4,7 @@ import unittest
 from tempfile import mkstemp
 from unittest.mock import MagicMock, patch
 
-from task.dgm import DB, get_db_manager, DBManager
+from task.dgm import DB, get_db_manager, DBManager, DBManagerBase
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = f'{mkstemp()[1]}.db'
@@ -220,6 +220,35 @@ class TestDGM(unittest.TestCase):
 
         generated_tuple_lst = list(tuple_generator)
         self.assertEqual(generated_tuple_lst, tuple_lst)
+
+    def test_abc_exceptions(self):
+        class TestDBM(DBManagerBase):
+            def __init__(self):
+                super().__init__()
+
+            def close_db(self):
+                super().close_db()
+                pass
+
+            def add_record(self, name=None, granule_id=None, collection_id=None, etag=None, last_modified=None,
+                           size=None):
+                super().add_record(name=name, granule_id=granule_id, collection_id=collection_id, etag=etag,
+                                   last_modified=last_modified, size=size)
+                pass
+
+            def flush_dict(self):
+                super().flush_dict()
+                pass
+
+            def read_batch(self, collection_id=None, provider_path=None, batch_size=None):
+                super().read_batch(collection_id=collection_id, provider_path=provider_path, batch_size=batch_size)
+                pass
+
+        test_dbm = TestDBM()
+        self.assertRaises(NotImplementedError, test_dbm.close_db)
+        self.assertRaises(NotImplementedError, test_dbm.add_record)
+        self.assertRaises(NotImplementedError, test_dbm.flush_dict)
+        self.assertRaises(NotImplementedError, test_dbm.read_batch)
 
 
 if __name__ == "__main__":
