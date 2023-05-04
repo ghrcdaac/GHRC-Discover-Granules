@@ -1,5 +1,6 @@
 import os
 
+from task.discover_granules_ftp import DiscoverGranulesFTP
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -16,7 +17,8 @@ def get_discovery_class(protocol):
         'http': DiscoverGranulesHTTP,
         'https': DiscoverGranulesHTTP,
         's3': DiscoverGranulesS3,
-        'sftp': DiscoverGranulesSFTP
+        'sftp': DiscoverGranulesSFTP,
+        'ftp': DiscoverGranulesFTP
     }
     try:
         rdg_logger.info(f'trying protocol: {protocol}')

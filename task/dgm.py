@@ -18,7 +18,8 @@ if DB_TYPE in ['postgresql', 'cumulus']:
     sm = boto3.client('secretsmanager')
     if DB_TYPE == 'postgresql':
         secrets_arn = os.getenv('postgresql_secret_arn', None)
-        db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
+        secrets = sm.get_secret_value(SecretId=secrets_arn).get('SecretString')
+        db_init_kwargs = json.loads(secrets)
         DB = PostgresqlExtDatabase(None)
     elif DB_TYPE == 'cumulus':
         secrets_arn = os.getenv('cumulus_credentials_arn', None)
