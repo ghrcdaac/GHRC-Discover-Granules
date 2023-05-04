@@ -81,7 +81,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
                             etag='N/A', last_modified=last_mod, size=size
                         )
                     else:
-                        raise Exception(f'FTP row format is not the expected length: {column_list}')
+                        raise ValueError(f'FTP row format is not the expected length: {column_list}')
                 else:
                     rdg_logger.info(f'The granuleIdExtraction {self.granule_id_extraction} did not match the file name.')
 
