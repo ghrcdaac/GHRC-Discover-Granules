@@ -1,8 +1,11 @@
+import os
 import re
 import unittest
 from unittest.mock import patch, MagicMock
 
 from task.discover_granules_ftp import DiscoverGranulesFTP
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class TestDiscoverGranules(unittest.TestCase):
@@ -12,7 +15,7 @@ class TestDiscoverGranules(unittest.TestCase):
 
     @patch.object(re, 'search')
     def test_process_ftp_list_output(self, re_mock):
-        with open('ftp_list_output.txt', 'r+', encoding='utf-8') as sample_output:
+        with open(os.path.join(THIS_DIR, 'ftp_list_output.txt'), 'r+', encoding='utf-8') as sample_output:
             self.output = sample_output.read()
         self.dg_client.dbm.add_record = MagicMock()
         directory_list = []
