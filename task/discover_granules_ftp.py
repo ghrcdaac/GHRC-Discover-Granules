@@ -22,8 +22,8 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
         super().__init__(event)
         self.path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
-        self.provider_url = f'{self.provider["protocol"]}://{self.host.strip("/")}/' \
-                            f'{self.config["provider_path"].strip("/")}/'
+        self.provider_url = f'{self.provider.get("protocol", "")}://{self.host.strip("/")}/' \
+                            f'{self.config.get("provider_path", "").strip("/")}/'
 
     def discover_granules(self):
         try:

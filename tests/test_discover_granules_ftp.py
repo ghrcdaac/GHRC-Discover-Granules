@@ -10,8 +10,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class TestDiscoverGranules(unittest.TestCase):
     def setUp(self) -> None:
-        event = MagicMock()
-        self.dg_client = DiscoverGranulesFTP(event)
+        self.dg_client = DiscoverGranulesFTP({})
 
     @patch.object(re, 'search')
     def test_process_ftp_list_output(self, re_mock):

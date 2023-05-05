@@ -108,7 +108,7 @@ variable "db_type" {
   }
 }
 
-variable "user_credentials_secret_arn" {
+variable "cumulus_user_credentials_secret_arn" {
   type = string
   default = null
 }
