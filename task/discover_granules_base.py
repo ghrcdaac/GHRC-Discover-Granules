@@ -17,20 +17,20 @@ class DiscoverGranulesBase(ABC):
     Base class for discovering granules
     """
 
-    def __init__(self, event):
+    def __init__(self, event, db_type=None, database=None):
         self.event = event
-        self.input = event.get('input')
-        self.config = event.get('config')
-        self.provider = self.config.get('provider')
-        self.collection = self.config.get('collection')
+        self.input = event.get('input', {})
+        self.config = event.get('config', {})
+        self.provider = self.config.get('provider', {})
+        self.collection = self.config.get('collection', {})
         self.collection_id = f'{self.collection.get("name")}___{self.collection.get("version")}'
-        self.granule_id_extraction = self.collection.get('granuleIdExtraction')
-        self.buckets = self.config.get('buckets')
-        self.meta = self.collection.get('meta')
-        self.discover_tf = self.meta.get('discover_tf')
-        self.host = self.provider.get('host')
-        self.config_stack = self.config.get('stack')
-        self.files_list = self.config.get('collection').get('files')
+        self.granule_id_extraction = self.collection.get('granuleIdExtraction', {})
+        self.buckets = self.config.get('buckets', {})
+        self.meta = self.collection.get('meta', {})
+        self.discover_tf = self.meta.get('discover_tf', {})
+        self.host = self.provider.get('host', '')
+        self.config_stack = self.config.get('stack', {})
+        self.files_list = self.config.get('collection', {}).get('files', {})
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
 
@@ -40,16 +40,25 @@ class DiscoverGranulesBase(ABC):
         if duplicates == 'replace' and force_replace is False:
             duplicates = 'skip'
 
-        db_suffix = self.meta.get('collection_type', 'static')
-        db_filename = f'discover_granules_{db_suffix}.db'
-        self.db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+        self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
+        self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
+        print(f'discovered_files_count: {self.discovered_files_count}')
+        print(f'queued_files_count: {self.queued_files_count}')
+
+        db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'sqlite'))
+        if db_type == 'sqlite':
+            db_suffix = self.meta.get('collection_type', 'static')
+            db_filename = f'discover_granules_{db_suffix}.db'
+            db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+        else:
+            db_file_path = None
         transaction_size = self.discover_tf.get('transaction_size', 100000)
 
         kwargs = {
             'duplicate_handling': duplicates,
             'transaction_size': transaction_size,
-            'database': self.db_file_path,
-            'db_type': os.getenv('db_type', 'sqlite')
+            'database': db_file_path,
+            'db_type': db_type
         }
         self.dbm = get_db_manager(**kwargs)
 

@@ -111,6 +111,6 @@ variable "db_type" {
   type = string
 }
 
-variable "cumulus_credentials_arn" {
+variable "cumulus_user_credentials_secret_arn" {
   type = string
 }

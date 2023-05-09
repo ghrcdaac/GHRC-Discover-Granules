@@ -26,7 +26,7 @@ module "aws_lambda_function" {
   db_type = var.db_type
 
   # Cumulus
-  cumulus_credentials_arn = var.user_credentials_secret_arn
+  cumulus_user_credentials_secret_arn = var.cumulus_user_credentials_secret_arn
 
   # Sqlite
   sqlite_transaction_size = var.sqlite_transaction_size

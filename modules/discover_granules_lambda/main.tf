@@ -25,7 +25,7 @@ resource "aws_lambda_function" "discover_granules" {
       sqlite_temp_store = var.sqlite_temp_store
       sqlite_cache_size = var.sqlite_cache_size
       postgresql_secret_arn = length(aws_secretsmanager_secret.dg_db_credentials) > 0 ? aws_secretsmanager_secret.dg_db_credentials[0].arn : ""
-      cumulus_credentials_arn = var.cumulus_credentials_arn
+      cumulus_credentials_arn = var.cumulus_user_credentials_secret_arn
     }, var.env_variables)
   }
 
@@ -65,7 +65,7 @@ resource "aws_iam_role_policy_attachment" "glm_ssm_policy_attach" {
 }
 
 resource "aws_iam_policy" "cumulus_secrets_manager_read" {
-  count = (var.db_type == "cumulus") ? 1 : 0
+  count = var.cumulus_user_credentials_secret_arn != null ? 1 : 0
   policy = jsonencode(
   {
     Version = "2012-10-17"
@@ -74,14 +74,14 @@ resource "aws_iam_policy" "cumulus_secrets_manager_read" {
         Effect = "Allow",
         Action = ["secretsmanager:GetSecretValue"],
         Resource = [
-          var.cumulus_credentials_arn]
+          var.cumulus_user_credentials_secret_arn]
       }
     ]
   })
 }
 
 resource "aws_iam_role_policy_attachment" "cumulus_secrets_manager_policy_attach" {
-  count = (var.db_type == "cumulus") ? 1 : 0
+  count = var.cumulus_user_credentials_secret_arn != null ? 1 : 0
   policy_arn = aws_iam_policy.cumulus_secrets_manager_read[0].arn
   role = var.cumulus_lambda_role_name
 }

@@ -1,5 +1,6 @@
 import os
 
+from task.discover_granules_ftp import DiscoverGranulesFTP
 from task.discover_granules_http import DiscoverGranulesHTTP
 from task.discover_granules_s3 import DiscoverGranulesS3
 from task.discover_granules_sftp import DiscoverGranulesSFTP
@@ -16,7 +17,8 @@ def get_discovery_class(protocol):
         'http': DiscoverGranulesHTTP,
         'https': DiscoverGranulesHTTP,
         's3': DiscoverGranulesS3,
-        'sftp': DiscoverGranulesSFTP
+        'sftp': DiscoverGranulesSFTP,
+        'ftp': DiscoverGranulesFTP
     }
     try:
         rdg_logger.info(f'trying protocol: {protocol}')
@@ -35,10 +37,14 @@ def main(event, context):
     rdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event)
-    res = dg_client.discover_granules()
+    if dg_client.discovered_files_count == 0:
+        res = dg_client.discover_granules()
+    else:
+        res = dg_client.read_batch()
 
     batch_dict_list = res.pop('batch')
     res.update({'batch_size': len(batch_dict_list)})
+    print(res)
 
     # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules
     # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
