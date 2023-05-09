@@ -60,7 +60,6 @@ class DiscoverGranulesBase(ABC):
             'database': db_file_path,
             'db_type': db_type
         }
-        print(f'pre_manager: {kwargs}')
         self.dbm = get_db_manager(**kwargs)
 
         super().__init__()
