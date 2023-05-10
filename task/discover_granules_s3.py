@@ -171,12 +171,12 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         except FileNotFoundError:
             rdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
 
-    def move_granule_wrapper(self, granule_list):
+    def move_granule_wrapper(self, granule_list_dicts):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for granule in granule_list:
+            for granule_dict in granule_list_dicts:
                 futures.append(
-                    executor.submit(self.move_granule, granule.get('name'))
+                    executor.submit(self.move_granule, granule_dict.get('name'))
                 )
 
             for future in concurrent.futures.as_completed(futures):
