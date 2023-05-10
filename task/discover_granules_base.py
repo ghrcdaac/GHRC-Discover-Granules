@@ -28,7 +28,8 @@ class DiscoverGranulesBase(ABC):
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-        self.host = self.provider.get('host', '')
+
+        self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
@@ -42,8 +43,8 @@ class DiscoverGranulesBase(ABC):
 
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
-        print(f'discovered_files_count: {self.discovered_files_count}')
-        print(f'queued_files_count: {self.queued_files_count}')
+        rdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
+        rdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
         db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'sqlite'))
         if db_type == 'sqlite':

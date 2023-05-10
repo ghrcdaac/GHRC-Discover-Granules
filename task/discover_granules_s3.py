@@ -163,8 +163,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = get_s3_client()
         if not destination_bucket:
             destination_bucket = f'{os.getenv("stackName")}-private'
-            rdg_logger.info(f'destination bucket: {destination_bucket}')
-            rdg_logger.info(f'key: {bucket_and_key[-1]}')
+            # rdg_logger.info(f'key: {bucket_and_key[-1]}')
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)

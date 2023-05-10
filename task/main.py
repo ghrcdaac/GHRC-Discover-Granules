@@ -52,16 +52,21 @@ def main(event, context):
     if dg_client.meta.get('aws_key_id_name', None) and dg_client.meta.get('aws_secret_key_name', None):
         rdg_logger.info('Granules are in an external provider. Updating output to internal bucket.')
         dg_client.move_granule_wrapper(granule_list_dicts)
+        external_host = dg_client.provider.get('external_host', None)
+        rdg_logger.info(f'external_host was: {external_host}')
+        if not external_host:
+            dg_client.provider.update({'external_id': dg_client.provider.get('id')})
+            dg_client.provider.update({'external_host': dg_client.provider.get('host')})
+            rdg_logger.info(f'updated_provider: {dg_client.provider}')
         dg_client.provider['id'] = 'private_bucket'
         dg_client.provider['host'] = f'{os.getenv("stackName")}-private'
 
         # Update the granule name before producing the cumulus output
+        rdg_logger.info(f'Updating external S3 URIs...')
         for granule_dict in granule_list_dicts:
             granule_name = granule_dict.get('name')
-            rdg_logger.info(f'Updating URL: {granule_name}')
             path = granule_name.replace('s3://', '').split('/', maxsplit=1)[-1]
             new_uri = f's3://{dg_client.provider.get("host")}/{path}'
-            rdg_logger.info(f'New URL: {new_uri}')
             granule_dict.update({'name': new_uri})
 
     cumulus_output = dg_client.generate_lambda_output(granule_list_dicts)
