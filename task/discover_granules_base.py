@@ -28,6 +28,7 @@ class DiscoverGranulesBase(ABC):
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
+        cumulus_filter = self.discover_tf.get('cumulus_filter', False)
 
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
@@ -59,7 +60,8 @@ class DiscoverGranulesBase(ABC):
             'duplicate_handling': duplicates,
             'transaction_size': transaction_size,
             'database': db_file_path,
-            'db_type': db_type
+            'db_type': db_type,
+            'cumulus_filter': cumulus_filter
         }
         self.dbm = get_db_manager(**kwargs)
 

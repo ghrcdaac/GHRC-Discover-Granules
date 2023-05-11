@@ -6,12 +6,14 @@ import time
 from task.dbm_base import DBManagerBase
 from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
 
+from task.dgm_cumulus import DBManagerCumulus
 
 DB = APSWDatabase(None, vfs='unix-excl')
 VAR_LIMIT = 999
 
+
 class DBManagerSQLite(DBManagerBase):
-    def __init__(self, db_type, database, duplicate_handling, transaction_size, **kwargs):
+    def __init__(self, db_type, database, duplicate_handling, transaction_size, cumulus_filter=False, **kwargs):
         super().__init__(db_type, duplicate_handling, transaction_size, **kwargs)
         db_init_kwargs = {
             'database': database,
@@ -26,6 +28,11 @@ class DBManagerSQLite(DBManagerBase):
         DB.init(**db_init_kwargs)
         DB.create_tables([Granule], safe=True)
         self.model = Granule()
+        self.cumulus_filter = cumulus_filter
+        if self.cumulus_filter:
+            self.cumulus_dbm = DBManagerCumulus(
+                db_type='cumulus', database=None, transaction_size=transaction_size, duplicate_handling='replace'
+            )
 
     def close_db(self):
         if self.db_type != ':memory:':
@@ -47,6 +54,18 @@ class DBManagerSQLite(DBManagerBase):
         return batch
 
     def write_batch(self):
+        if self.cumulus_filter:
+            discovered_granule_ids = tuple(x.get('granule_id') for x in self.dict_list)
+            new_granule_ids = self.cumulus_dbm.filter_against_cumulus(discovered_granule_ids)
+
+            index = 0
+            while index < len(self.dict_list):
+                record = self.dict_list[index]
+                if record.get('granule_id') not in new_granule_ids:
+                    self.dict_list.pop(index)
+                else:
+                    index += 1
+
         self.discovered_files_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
         self.dict_list.clear()
 
