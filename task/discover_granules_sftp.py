@@ -104,7 +104,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         self.path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
         self.provider_url = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
-                            f'{self.config["provider_path"].lstrip("/")}'
+                            f'{self.config["provider_path"].strip("/")}/'
 
     def discover_granules(self):
         try:
@@ -124,7 +124,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         return ret
 
     def discover(self, sftp_client):
-        discovered_granules_count = 0
         directory_list = []
         rdg_logger.info(f'Discovering in {self.provider_url}')
         sftp_client.chdir(self.path)
@@ -148,7 +147,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
 
-                full_path = f'{self.path.rstrip("/")}/{dir_file}'
+                full_path = f'{self.provider_url.rstrip("/")}/{dir_file}'
                 self.dbm.add_record(
                     name=full_path, granule_id=granule_id,
                     collection_id=self.collection_id, etag='N/A',
