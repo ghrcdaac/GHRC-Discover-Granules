@@ -3,7 +3,7 @@ import itertools
 import os
 import time
 
-from task.dbm_base import DBManagerBase
+from task.dbm_base import DBManagerBase, DBManagerWriter
 from playhouse.apsw_ext import APSWDatabase, DateTimeField, CharField, Model, IntegerField, EXCLUDED, chunked
 
 from task.dgm_cumulus import DBManagerCumulus
@@ -12,8 +12,11 @@ DB = APSWDatabase(None, vfs='unix-excl')
 VAR_LIMIT = 999
 
 
-class DBManagerSQLite(DBManagerBase):
-    def __init__(self, db_type, database, duplicate_handling, transaction_size, cumulus_filter=False, **kwargs):
+class DBManagerSQLite(DBManagerWriter):
+    def __init__(
+            self, db_type, database, duplicate_handling, transaction_size, force_replace=False, cumulus_filter=False,
+            **kwargs
+    ):
         super().__init__(db_type, duplicate_handling, transaction_size, **kwargs)
         db_init_kwargs = {
             'database': database,
@@ -27,6 +30,7 @@ class DBManagerSQLite(DBManagerBase):
         }
         DB.init(**db_init_kwargs)
         DB.create_tables([Granule], safe=True)
+        self.force_replace = force_replace
         self.model = Granule()
         self.cumulus_filter = cumulus_filter
         if self.cumulus_filter:
@@ -38,38 +42,11 @@ class DBManagerSQLite(DBManagerBase):
         if self.db_type != ':memory:':
             DB.close()
 
-    def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
-        super().add_record(name, granule_id, collection_id, etag, last_modified, size)
-        if len(self.dict_list) >= self.transaction_size:
-            self.write_batch()
 
-        return self.transaction_size - len(self.dict_list)
-
-    def flush_dict(self):
-        self.write_batch()
-
-    def read_batch(self, collection_id, provider_path, batch_size):
-        batch = self.model.read_batch(collection_id, provider_path, batch_size)
-        self.queued_files_count += len(batch)
-        return batch
-
-    def write_batch(self):
-        if self.cumulus_filter:
-            discovered_granule_ids = tuple(x.get('granule_id') for x in self.dict_list)
-            new_granule_ids = self.cumulus_dbm.filter_against_cumulus(discovered_granule_ids)
-
-            index = 0
-            while index < len(self.dict_list):
-                record = self.dict_list[index]
-                if record.get('granule_id') not in new_granule_ids:
-                    self.dict_list.pop(index)
-                else:
-                    index += 1
-
-        self.discovered_files_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
-        self.dict_list.clear()
-
-
+# TODO: The granule model needs to be refactored to prevent the current code duplication. This is complicated by
+#       the models necessity to have the database defined at a global scope and an incompatibility between field types
+#       for SQLite and Postgresql databases. Additionally the database must be defined in a global scope for the
+#       transaction logic in the write_many function.
 class Granule(Model):
     """
     Model representing a granule and the associated metadata

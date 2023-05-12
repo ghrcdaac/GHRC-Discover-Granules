@@ -128,7 +128,7 @@ class TestDGM(unittest.TestCase):
         discovered_granules = generate_test_dict(collection_id=collection_id)
         granule_dict = generate_db_dict(discovered_granules.get('granule_dict'))
         self.granule.db_skip(granule_dict)
-        batch = self.granule.read_batch(collection_id=collection_id, provider_path='', batch_size=1)
+        batch = self.granule.read_batch(collection_id=collection_id, provider_full_url='', batch_size=1)
 
         self.assertEqual(1, len(batch))
 

@@ -18,7 +18,6 @@ class DiscoverGranulesBase(ABC):
     """
 
     def __init__(self, event, db_type=None, database=None):
-        self.event = event
         self.input = event.get('input', {})
         self.config = event.get('config', {})
         self.provider = self.config.get('provider', {})
@@ -28,7 +27,6 @@ class DiscoverGranulesBase(ABC):
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-        cumulus_filter = self.discover_tf.get('cumulus_filter', False)
 
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
@@ -44,6 +42,8 @@ class DiscoverGranulesBase(ABC):
 
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
+        self.provider_url = f'{self.provider.get("protocol", "")}://{self.host.strip("/")}/' \
+                            f'{self.config.get("provider_path", "").strip("/")}/'
         rdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
         rdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
@@ -54,15 +54,21 @@ class DiscoverGranulesBase(ABC):
             db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
         else:
             db_file_path = None
-        transaction_size = self.discover_tf.get('transaction_size', 100000)
+        self.transaction_size = self.discover_tf.get('transaction_size', 100000)
 
         kwargs = {
             'duplicate_handling': duplicates,
-            'transaction_size': transaction_size,
+            'transaction_size': self.transaction_size,
             'database': db_file_path,
-            'db_type': db_type,
-            'cumulus_filter': cumulus_filter
+            'db_type': db_type
         }
+
+        if self.discover_tf.get('cumulus_filter', False):
+            cumulus_kwargs = dict(kwargs)
+            cumulus_kwargs.update({'db_type': 'cumulus', 'database': None})
+            cumulus_dbm = get_db_manager(**cumulus_kwargs)
+            kwargs.update({'cumulus_filter_dbm': cumulus_dbm})
+
         self.dbm = get_db_manager(**kwargs)
 
         super().__init__()
@@ -203,6 +209,20 @@ class DiscoverGranulesBase(ABC):
             )
 
         return ret_lst
+
+    def read_batch(self):
+        try:
+            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+        finally:
+            self.dbm.close_db()
+
+        ret = {
+            'discovered_files_count': self.discovered_files_count,
+            'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
+            'batch': batch
+        }
+
+        return ret
 
     @abstractmethod
     def discover_granules(self):

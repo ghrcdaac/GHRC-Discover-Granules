@@ -77,24 +77,22 @@ class DBManagerCumulus(DBManagerBase):
         """
         Returns a set of granule_ids that were not in the cumulus database
         """
-        print('Starting test...')
-        print('time start...')
+        print(f'Filtering {len(granule_ids_tuple)} granule IDs against the cumulus database...')
         st = time.time()
         with self.DB.cursor() as curs2:
             query_string_3 = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
             curs2.execute(query_string_3, (granule_ids_tuple,))
-            fetched_ids_set = set(x[0] for x in curs2.fetchall())
-
+            fetched_ids_set = set(record_tuple[0] for record_tuple in curs2.fetchall())
             count = len(fetched_ids_set)
             print(f'{count} records existed in the database')
 
-        discovered_ids_set = {x[0] for x in granule_ids_tuple}
-        discovered_ids_set = discovered_ids_set.difference(fetched_ids_set)
-        print(f'left with {len(discovered_ids_set)} ids')
+        discovered_ids_set = {x for x in granule_ids_tuple}
+        new_ids_set = discovered_ids_set.difference(fetched_ids_set)
+        print(f'ID count after filtering: {len(new_ids_set)}')
 
         et = time.time() - st
         print(f'Retrieved Rows: {count}')
         print(f'Duration: {et}')
-        print(f'Rate: {count} rows/{int(et)} s')
+        print(f'Rate: {count} rows/{et} s')
 
-        return discovered_ids_set
+        return new_ids_set

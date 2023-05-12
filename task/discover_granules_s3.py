@@ -71,8 +71,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
-        self.provider_url = f'{self.provider["protocol"]}://{self.host.strip("/")}/' \
-                            f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
         try:
@@ -130,20 +128,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                             f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
                             f' did not match the filename {url_segment}.'
                         )
-
-    def read_batch(self):
-        try:
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        finally:
-            self.dbm.close_db()
-
-        ret = {
-            'discovered_files_count': self.discovered_files_count,
-            'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
-            'batch': batch
-        }
-
-        return ret
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """

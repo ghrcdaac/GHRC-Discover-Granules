@@ -7,16 +7,17 @@ import time
 import boto3
 from playhouse.postgres_ext import PostgresqlExtDatabase, DateTimeField, CharField, Model, chunked, IntegerField, EXCLUDED
 
-from task.dbm_base import DBManagerBase
-from task.dgm_cumulus import DBManagerCumulus
+from task.dbm_base import DBManagerWriter
 
 DB = PostgresqlExtDatabase(None)
 VAR_LIMIT = 32768
 
 
-class DBManagerPostgresql(DBManagerBase):
-    def __init__(self, db_type, database, duplicate_handling, transaction_size, cumulus_filter=False):
-        super().__init__(db_type, duplicate_handling, transaction_size)
+class DBManagerPostgresql(DBManagerWriter):
+    def __init__(
+            self, db_type, database, duplicate_handling, transaction_size, cumulus_filter_dbm=None, auto_batching=True
+    ):
+        super().__init__(db_type, duplicate_handling, transaction_size, cumulus_filter_dbm, auto_batching)
         db_init_kwargs = {}
         if database:
             global DB
@@ -30,49 +31,16 @@ class DBManagerPostgresql(DBManagerBase):
         DB.init(**db_init_kwargs)
         DB.create_tables([Granule], safe=True)
         self.model = Granule()
-        self.cumulus_filter = cumulus_filter
-        if self.cumulus_filter:
-            self.cumulus_dbm = DBManagerCumulus(
-                db_type='cumulus', database=None, transaction_size=transaction_size, duplicate_handling='replace'
-            )
 
     def close_db(self):
         if self.db_type != ':memory:':
             DB.close()
 
-    def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
-        super().add_record(name, granule_id, collection_id, etag, last_modified, size)
 
-        if len(self.dict_list) >= self.transaction_size:
-            self.write_batch()
-
-        return self.transaction_size - len(self.dict_list)
-
-    def flush_dict(self):
-        self.write_batch()
-
-    def read_batch(self, collection_id, provider_path, batch_size):
-        batch = self.model.read_batch(collection_id, provider_path, batch_size)
-        self.queued_files_count += len(batch)
-        return batch
-
-    def write_batch(self):
-        if self.cumulus_filter:
-            discovered_granule_ids = tuple(x.get('granule_id') for x in self.dict_list)
-            new_granule_ids = self.cumulus_dbm.filter_against_cumulus(discovered_granule_ids)
-
-            index = 0
-            while index < len(self.dict_list):
-                record = self.dict_list[index]
-                if record.get('granule_id') not in new_granule_ids:
-                    self.dict_list.pop(index)
-                else:
-                    index += 1
-
-        self.discovered_files_count += getattr(self.model, f'db_{self.duplicate_handling}')(self.dict_list)
-        self.dict_list.clear()
-
-
+# TODO: The granule model needs to be refactored to prevent the current code duplication. This is complicated by
+#       the models necessity to have the database defined at a global scope and an incompatibility between field types
+#       for SQLite and Postgresql databases. Additionally the database must be defined in a global scope for the
+#       transaction logic in the write_many function.
 class Granule(Model):
     """
     Model representing a granule and the associated metadata
@@ -136,12 +104,12 @@ class Granule(Model):
         """
         return self.__insert_many(granule_dict, {'action': 'rollback'})
 
-    def read_batch(self, collection_id, provider_path, batch_size=1000):
+    def read_batch(self, collection_id, provider_full_url, batch_size=1000):
         """
         Fetches N files for up to batch_size granules for the provided collection_id and if the provider path
         is present in the full path of the file.
         :param collection_id: The id of the collection to fetch files for
-        :param provider_path: The location where the granule files were discovered from
+        :param provider_full_url: The location where the granule files were discovered from
         :param batch_size: The limit for the number of unique granules to fetch files for
         :return: Returns a list of records that had the status set from "discovered" to queued
         """
@@ -149,13 +117,13 @@ class Granule(Model):
             self.select(Granule.granule_id).dicts().where(
                 (Granule.status == 'discovered') &
                 (Granule.collection_id == collection_id) &
-                (Granule.name.contains(provider_path))
+                (Granule.name.contains(provider_full_url))
             ).order_by(Granule.discovered_date.asc()).limit(batch_size)
         )
 
         update = (self.update(status='queued').where(
             (Granule.granule_id.in_(sub_query)) &
-            (Granule.name.contains(provider_path))
+            (Granule.name.contains(provider_full_url))
         ).returning(Granule).dicts())
         print(f'Update query: {update}')
         updated_records = list(update.execute())
