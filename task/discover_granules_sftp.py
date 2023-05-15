@@ -162,20 +162,6 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
         sftp_client.chdir('../')
 
-    # def read_batch(self):
-    #     try:
-    #         batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-    #     finally:
-    #         self.dbm.close_db()
-    #
-    #     ret = {
-    #         'discovered_files_count': self.discovered_files_count,
-    #         'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
-    #         'batch': batch
-    #     }
-    #
-    #     return ret
-
 
 if __name__ == "__main__":
     pass
