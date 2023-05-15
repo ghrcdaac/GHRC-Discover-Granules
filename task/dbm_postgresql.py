@@ -12,7 +12,8 @@ DB_PSQL = PostgresqlExtDatabase(None)
 VAR_LIMIT_PSQL = 32766
 
 
-def get_db_manager_psql(database, duplicate_handling, transaction_size, cumulus_filter=None, auto_batching=True):
+def get_db_manager_psql(collection_id, provider_full_url, database, duplicate_handling, batch_limit, transaction_size,
+                        cumulus_filter=None, auto_batching=True):
     global DB_PSQL
     db_init_kwargs = {}
     if database:
@@ -26,8 +27,9 @@ def get_db_manager_psql(database, duplicate_handling, transaction_size, cumulus_
     DB_PSQL.init(**db_init_kwargs)
     DB_PSQL.create_tables([GranulePSQL], safe=True)
 
-    return QueryContainerPSQL(
-        GranulePSQL, DB_PSQL, auto_batching, transaction_size, duplicate_handling, cumulus_filter
+    return DBManagerPSQL(
+        collection_id, provider_full_url, GranulePSQL, DB_PSQL, auto_batching, batch_limit, transaction_size,
+        duplicate_handling, cumulus_filter
     )
 
 
@@ -46,12 +48,15 @@ class GranulePSQL(Model):
         table_name = TABLE_NAME
 
 
-class QueryContainerPSQL(DBManagerPeewee):
-    def __init__(self, model_class, database, auto_batching, transaction_size, duplicate_handling, cumulus_filter):
+class DBManagerPSQL(DBManagerPeewee):
+    def __init__(
+            self, collection_id, provider_full_url, model_class, database, auto_batching, batch_limit, transaction_size,
+            duplicate_handling, cumulus_filter
+    ):
         self.model_class = model_class
         super().__init__(
-            self.model_class, database, auto_batching, transaction_size, duplicate_handling, cumulus_filter,
-            VAR_LIMIT_PSQL, EXCLUDED, chunked
+            collection_id, provider_full_url, self.model_class, database, auto_batching, batch_limit, transaction_size,
+            duplicate_handling, cumulus_filter, VAR_LIMIT_PSQL, EXCLUDED, chunked
         )
 
     def db_replace(self):

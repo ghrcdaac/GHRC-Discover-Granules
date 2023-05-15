@@ -109,7 +109,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
             self.discover(sftp_client)
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 

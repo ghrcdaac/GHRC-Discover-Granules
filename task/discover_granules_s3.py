@@ -79,7 +79,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
             self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         except ValueError as e:
             rdg_logger.error(e)
             raise

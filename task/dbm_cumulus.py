@@ -10,13 +10,13 @@ from task.dbm_base import DBManagerBase
 VAR_LIMIT = 32766
 
 
-def get_db_manager_cumulus(database, duplicate_handling, transaction_size):
-    return DBManagerCumulus(database, duplicate_handling, transaction_size)
+def get_db_manager_cumulus(database, duplicate_handling, batch_limit, transaction_size):
+    return DBManagerCumulus(database, duplicate_handling, batch_limit, transaction_size)
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, database, duplicate_handling, transaction_size):
-        super().__init__(duplicate_handling, transaction_size)
+    def __init__(self, database, duplicate_handling, batch_limit, transaction_size):
+        super().__init__(duplicate_handling, batch_limit, transaction_size)
         if database:
             self.DB = database
         else:
@@ -47,7 +47,7 @@ class DBManagerCumulus(DBManagerBase):
 
         self.discovered_files_count += len(self.dict_list)
 
-    def read_batch(self, collection_id, provider_path, batch_size):
+    def read_batch(self):
         self.queued_files_count += len(self.dict_list)
         return self.dict_list
 

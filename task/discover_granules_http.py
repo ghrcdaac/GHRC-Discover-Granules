@@ -26,7 +26,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             session = requests.Session()
             self.discover(session)
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 
@@ -47,13 +47,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         rdg_logger.info(f'Discovering in {self.provider_url}')
         directory_list = []
         response = session.get(self.provider_url)
-        rdg_logger.info(response)
-        rdg_logger.info(response.text)
         html = BeautifulSoup(response.text, features='html.parser')
         urls = []
         for a_tag in html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
-            rdg_logger.info(f'url_segment: {url_segment}')
             full_path = f'{self.provider_url.rstrip("/")}/{url_segment}'
             urls.append(full_path)
 
@@ -77,7 +74,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                         last_modified=str(last_modified), size=size
                     )
 
-                elif (etag is None and last_modified is None) and re.search(self.dir_reg_ex, full_path):
+                elif (etag is None and last_modified is None) and check_reg_ex(self.dir_reg_ex, full_path):
                     directory_list.append(f'{full_path}/')
                     rdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:

@@ -29,7 +29,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
             self.discover(ftp_client)
             ftp_client.close()
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 

@@ -60,7 +60,10 @@ class DiscoverGranulesBase(ABC):
             'duplicate_handling': duplicates,
             'transaction_size': self.transaction_size,
             'database': db_file_path,
-            'db_type': db_type
+            'db_type': db_type,
+            'batch_limit': self.discover_tf.get('batch_limit'),
+            'collection_id': self.collection_id,
+            'provider_url': self.provider_url
         }
 
         if self.discover_tf.get('cumulus_filter', False):
@@ -212,7 +215,7 @@ class DiscoverGranulesBase(ABC):
 
     def read_batch(self):
         try:
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 
