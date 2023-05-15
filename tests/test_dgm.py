@@ -3,10 +3,10 @@ import unittest
 from unittest.mock import MagicMock
 
 from task.dbm_base import DBManagerBase
-from task.dgm import get_db_manager
-from task.dgm_cumulus import DBManagerCumulus
-from task.dgm_postgresql import DBManagerPostgresql
-from task.dgm_sqlite import DBManagerSQLite
+from task.dbm_get import get_db_manager
+from task.dbm_cumulus import DBManagerCumulus
+from task.dbm_postgresql import DBManagerPostgresql
+from task.dbm_sqlite import DBManagerSQLite
 
 
 class TestDGM(unittest.TestCase):

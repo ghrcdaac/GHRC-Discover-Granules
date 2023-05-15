@@ -1,6 +1,6 @@
 import unittest
 
-from task.dgm import get_db_manager
+from task.dbm_get import get_db_manager
 
 
 def generate_test_dict(collection_id, granule_count=1, file_count=1, collection_count=1, new_etag='', new_last_mod='',

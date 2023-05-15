@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import re
 from tempfile import mkdtemp
 
-from task.dgm import get_db_manager
+from task.dbm_get import get_db_manager
 from task.logger import rdg_logger
 
 

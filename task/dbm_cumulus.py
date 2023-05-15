@@ -7,12 +7,16 @@ import psycopg2
 
 from task.dbm_base import DBManagerBase
 
-VAR_LIMIT = 32768
+VAR_LIMIT = 32766
+
+
+def get_db_manager_cumulus(database, duplicate_handling, transaction_size):
+    return DBManagerCumulus(database, duplicate_handling, transaction_size)
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, db_type, database, duplicate_handling, transaction_size):
-        super().__init__(db_type, duplicate_handling, transaction_size)
+    def __init__(self, database, duplicate_handling, transaction_size):
+        super().__init__(duplicate_handling, transaction_size)
         if database:
             self.DB = database
         else:
