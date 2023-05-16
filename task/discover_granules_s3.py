@@ -71,8 +71,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
-        self.provider_url = f'{self.provider["protocol"]}://{self.host.strip("/")}/' \
-                            f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
         try:
@@ -81,7 +79,10 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
             self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
+        except ValueError as e:
+            rdg_logger.error(e)
+            raise
         finally:
             self.dbm.close_db()
 
@@ -131,20 +132,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                             f' did not match the filename {url_segment}.'
                         )
 
-    def read_batch(self):
-        try:
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        finally:
-            self.dbm.close_db()
-
-        ret = {
-            'discovered_files_count': self.discovered_files_count,
-            'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
-            'batch': batch
-        }
-
-        return ret
-
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """
         Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
@@ -163,20 +150,19 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = get_s3_client()
         if not destination_bucket:
             destination_bucket = f'{os.getenv("stackName")}-private'
-            rdg_logger.info(f'destination bucket: {destination_bucket}')
-            rdg_logger.info(f'key: {bucket_and_key[-1]}')
+            # rdg_logger.info(f'key: {bucket_and_key[-1]}')
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)
         except FileNotFoundError:
             rdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
 
-    def move_granule_wrapper(self, granule_list):
+    def move_granule_wrapper(self, granule_list_dicts):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for granule in granule_list:
+            for granule_dict in granule_list_dicts:
                 futures.append(
-                    executor.submit(self.move_granule, granule.get('name'))
+                    executor.submit(self.move_granule, granule_dict.get('name'))
                 )
 
             for future in concurrent.futures.as_completed(futures):

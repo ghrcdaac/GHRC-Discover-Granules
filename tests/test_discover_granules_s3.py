@@ -60,7 +60,7 @@ class TestDiscoverGranules(unittest.TestCase):
             }
         ]
         self.dg.discover(test_resp_iter)
-        discover_count = len(self.dg.dbm.dict_list)
+        discover_count = len(self.dg.dbm.list_dict)
         self.assertEqual(2, discover_count)
 
     def test_discover_granules_s3_file_regex(self):
@@ -86,7 +86,7 @@ class TestDiscoverGranules(unittest.TestCase):
         ]
 
         self.dg.discover(test_resp_iter)
-        discover_count = len(self.dg.dbm.dict_list)
+        discover_count = len(self.dg.dbm.list_dict)
         self.assertEqual(1, discover_count)
 
     def test_discover_granules_s3_dir_regex(self):
@@ -112,7 +112,7 @@ class TestDiscoverGranules(unittest.TestCase):
         ]
 
         self.dg.discover(test_resp_iter)
-        discover_count = len(self.dg.dbm.dict_list)
+        discover_count = len(self.dg.dbm.list_dict)
         self.assertEqual(1, discover_count)
 
     @patch('task.discover_granules_s3.get_s3_client')

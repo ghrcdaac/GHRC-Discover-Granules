@@ -20,10 +20,8 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
     """
     def __init__(self, event):
         super().__init__(event)
-        self.path = self.config.get('provider_path')
+        self.provider_path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
-        self.provider_url = f'{self.provider.get("protocol", "")}://{self.host.strip("/")}/' \
-                            f'{self.config.get("provider_path", "").strip("/")}/'
 
     def discover_granules(self):
         try:
@@ -31,7 +29,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
             self.discover(ftp_client)
             ftp_client.close()
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 
@@ -45,7 +43,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
 
     def discover(self, ftp_client):
         rdg_logger.info(f'Discovering in {self.provider_url}')
-        ftp_client.cwd(self.path)
+        ftp_client.cwd(self.provider_path)
         directory_list = []
         with io.StringIO() as buffer, redirect_stdout(buffer):
             ftp_client.retrlines('LIST')
@@ -56,8 +54,8 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
         if self.depth > 0:
             self.depth -= 1
             for directory in directory_list:
-                self.path = directory
-                print(f'new_path: {self.path}')
+                self.provider_path = directory
+                print(f'new_path: {self.provider_path}')
 
         ftp_client.cwd('../')
 
@@ -66,7 +64,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
         for row in output_rows:
             column_list = row.split()
             filename = column_list[-1]
-            if row.startswith('d') and check_reg_ex(self.dir_reg_ex, self.path):
+            if row.startswith('d') and check_reg_ex(self.dir_reg_ex, self.provider_path):
                 rdg_logger.info(f'{filename} was a directory')
                 directory_list.append(filename)
             else:

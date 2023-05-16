@@ -1,8 +1,10 @@
 import re
+import time
 
 import requests
 import urllib3
 from bs4 import BeautifulSoup
+import concurrent.futures
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import rdg_logger
@@ -17,8 +19,6 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
     def __init__(self, event):
         super().__init__(event)
-        self.provider_url = f'{self.provider["protocol"]}://{self.host.rstrip("/")}/' \
-                            f'{self.config["provider_path"].lstrip("/")}'
         self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
@@ -26,27 +26,13 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             session = requests.Session()
             self.discover(session)
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
+            batch = self.dbm.read_batch()
         finally:
             self.dbm.close_db()
 
         ret = {
             'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
             'queued_files_count': self.dbm.queued_files_count,
-            'batch': batch
-        }
-
-        return ret
-
-    def read_batch(self):
-        try:
-            batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
-        finally:
-            self.dbm.close_db()
-
-        ret = {
-            'discovered_files_count': self.discovered_files_count,
-            'queued_files_count': self.queued_files_count + self.dbm.queued_files_count,
             'batch': batch
         }
 
@@ -62,39 +48,37 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         directory_list = []
         response = session.get(self.provider_url)
         html = BeautifulSoup(response.text, features='html.parser')
+        urls = []
         for a_tag in html.findAll('a', href=True):
             url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
             full_path = f'{self.provider_url.rstrip("/")}/{url_segment}'
-            head_resp = session.head(full_path).headers
-            etag = head_resp.get('ETag')
-            last_modified = head_resp.get('Last-Modified')
-            size = int(head_resp.get('Content-Length', 0))
+            urls.append(full_path)
 
-            if (etag is not None or last_modified is not None) and (check_reg_ex(self.file_reg_ex, url_segment)):
-                rdg_logger.info(f'Discovered granule: {full_path}')
-                # The isinstance check is needed to prevent unit tests from trying to parse a MagicMock
-                # object which will cause a crash during unit tests
-                if isinstance(head_resp.get('Last-Modified'), str):
-                    res = re.search(self.granule_id_extraction, url_segment)
-                    if res:
-                        granule_id = res.group(1)
-                        self.dbm.add_record(
-                            name=full_path, granule_id=granule_id,
-                            collection_id=self.collection_id, etag=etag,
-                            last_modified=str(last_modified), size=size
-                        )
-                        rdg_logger.info(f'{url_segment} matched the granuleIdExtraction')
-                    else:
-                        rdg_logger.warning(
-                            f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
-                            f' did not match the filename {url_segment}.'
-                        )
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for url in urls:
+                futures.append(executor.submit(session.head, url))
 
-            elif (etag is None and last_modified is None) and (check_reg_ex(self.dir_reg_ex, full_path)):
-                directory_list.append(f'{full_path}/')
-            else:
-                rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory. '
-                                   f'The supplied regex [{self.file_reg_ex}] may not match.')
+            for future in concurrent.futures.as_completed(futures):
+                response = future.result()
+                full_path = response.url
+                headers = response.headers
+                etag = headers.get('ETag')
+                last_modified = headers.get('Last-Modified')
+                size = int(headers.get('Content-Length', 0))
+                granule_id = re.search(self.granule_id_extraction, full_path)
+                if granule_id:
+                    self.dbm.add_record(
+                        name=full_path, granule_id=granule_id.group(),
+                        collection_id=self.collection_id, etag=etag,
+                        last_modified=str(last_modified), size=size
+                    )
+
+                elif (etag is None and last_modified is None) and check_reg_ex(self.dir_reg_ex, full_path):
+                    directory_list.append(f'{full_path}/')
+                    rdg_logger.info(f'Directory found: {directory_list[-1]}')
+                else:
+                    rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
 
         if self.depth > 0:
             self.depth -= 1
