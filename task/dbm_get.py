@@ -11,8 +11,8 @@ def get_db_manager(
 
     if db_type == 'cumulus':
         dbm = get_db_manager_cumulus(
-            database=database, duplicate_handling=duplicate_handling, batch_limit=batch_limit,
-            transaction_size=transaction_size
+            collection_id=collection_id, database=database, duplicate_handling=duplicate_handling,
+            batch_limit=batch_limit, transaction_size=transaction_size
         )
     elif db_type == 'postgresql':
         dbm = get_db_manager_psql(

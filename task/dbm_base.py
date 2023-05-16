@@ -6,7 +6,7 @@ TABLE_NAME = 'granule'
 
 class DBManagerBase(ABC):
     def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=100000, **kwargs):
-        self.dict_list = []
+        self.list_dict = []
         self.discovered_files_count = 0
         self.queued_files_count = 0
         self.duplicate_handling = duplicate_handling
@@ -18,7 +18,7 @@ class DBManagerBase(ABC):
         raise NotImplementedError
 
     def add_record(self, name, granule_id, collection_id, etag, last_modified, size):
-        self.dict_list.append({
+        self.list_dict.append({
             'name': name,
             'etag': etag,
             'granule_id': granule_id,
@@ -77,18 +77,20 @@ class DBManagerPeewee(DBManagerBase):
         if self.cumulus_filter and self.duplicate_handling == 'skip':
             print('Using cumulus filter')
             discovered_granule_ids = tuple(x.get('granule_id') for x in self.list_dict)
-            new_granule_ids = self.cumulus_filter.filter_against_cumulus(discovered_granule_ids)
+            cumulus_granule_id_set = self.cumulus_filter.filter_against_cumulus(discovered_granule_ids)
 
+            print(f'Filtering discovered granules against cumulus granule IDs...')
             index = 0
             while index < len(self.list_dict):
                 record = self.list_dict[index]
-                if record.get('granule_id') not in new_granule_ids:
+                if record.get('granule_id') in cumulus_granule_id_set:
                     self.list_dict.pop(index)
                 else:
                     index += 1
+            print(f'Records remain after filtering: {len(self.list_dict)}')
 
-        print(f'Writing batch to database...')
         if len(self.list_dict) > 0:
+            print(f'Writing batch to database...')
             if self.duplicate_handling == 'skip':
                 records_inserted = self.db_skip()
             elif self.duplicate_handling == 'replace':
