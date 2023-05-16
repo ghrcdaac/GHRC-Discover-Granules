@@ -92,7 +92,7 @@ def setup_ssh_sftp_client(**kwargs):
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
     ssh_client.connect(**kwargs)
-    return ssh_client.open_sftp()
+    return ssh_client
 
 
 class DiscoverGranulesSFTP(DiscoverGranulesBase):
@@ -107,13 +107,15 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                             f'{self.config["provider_path"].lstrip("/")}'
 
     def discover_granules(self):
+        sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
         try:
-            sftp_client = setup_ssh_sftp_client(**create_ssh_sftp_config(**self.provider))
-            self.discover(sftp_client)
+            sftp_connection = sftp_client.open_sftp()
+            self.discover(sftp_connection)
             self.dbm.flush_dict()
             batch = self.dbm.read_batch(self.collection_id, self.provider_url, self.discover_tf.get('batch_limit'))
         finally:
             self.dbm.close_db()
+            sftp_client.close()
 
         ret = {
             'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
