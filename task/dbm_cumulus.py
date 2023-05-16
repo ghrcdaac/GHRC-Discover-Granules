@@ -7,12 +7,18 @@ import psycopg2
 
 from task.dbm_base import DBManagerBase
 
-VAR_LIMIT = 32768
+VAR_LIMIT = 32766
+
+
+def get_db_manager_cumulus(collection_id, database, duplicate_handling, batch_limit, transaction_size):
+    return DBManagerCumulus(collection_id, database, duplicate_handling, batch_limit, transaction_size)
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, db_type, database, duplicate_handling, transaction_size):
-        super().__init__(db_type, duplicate_handling, transaction_size)
+    def __init__(self, collection_id, database, duplicate_handling, batch_limit, transaction_size):
+        super().__init__(duplicate_handling, batch_limit, transaction_size)
+        self.collection_id = collection_id
+
         if database:
             self.DB = database
         else:
@@ -34,21 +40,21 @@ class DBManagerCumulus(DBManagerBase):
 
             # Remove the keys that have already been discovered
             index = 0
-            while index < len(self.dict_list):
-                granule_id = self.dict_list[index].get('granule_id')
+            while index < len(self.list_dict):
+                granule_id = self.list_dict[index].get('granule_id')
                 if granule_id in db_granule_ids:
-                    del self.dict_list[index]
+                    del self.list_dict[index]
                 else:
                     index += 1
 
-        self.discovered_files_count += len(self.dict_list)
+        self.discovered_files_count += len(self.list_dict)
 
-    def read_batch(self, collection_id, provider_path, batch_size):
-        self.queued_files_count += len(self.dict_list)
-        return self.dict_list
+    def read_batch(self):
+        self.queued_files_count += len(self.list_dict)
+        return self.list_dict
 
     def trim_results(self):
-        granule_ids = [x.get('granule_id') for x in self.dict_list]
+        granule_ids = [x.get('granule_id') for x in self.list_dict]
         print(f'granule_ids: {granule_ids}')
         results = []
         start_index = 0
@@ -72,3 +78,17 @@ class DBManagerCumulus(DBManagerBase):
         print(f'Rate: {int(len(results) / db_et)}/s')
 
         return results
+
+    def filter_against_cumulus(self, granule_ids_tuple):
+        print(f'checking cumulus for : {len(granule_ids_tuple)} granule IDs...')
+        results = []
+        with self.DB:
+            with self.DB.cursor() as curs:
+                query_string = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
+                print(f'Trim query: {query_string}')
+                curs.execute(query_string, (granule_ids_tuple,))
+                results.extend([x[0] for x in curs.fetchall()])
+
+        result_set = set(results)
+        print(f'granule IDs in cumulus: {len(result_set)}')
+        return result_set
