@@ -91,10 +91,10 @@ class DBManagerPeewee(DBManagerBase):
 
         if len(self.list_dict) > 0:
             print(f'Writing batch to database...')
-            if self.duplicate_handling == 'skip':
-                records_inserted = self.db_skip()
-            elif self.duplicate_handling == 'replace':
+            if self.cumulus_filter or self.duplicate_handling == 'replace':
                 records_inserted = self.db_replace()
+            elif self.duplicate_handling == 'skip':
+                records_inserted = self.db_skip()
             else:
                 pass
 
@@ -115,6 +115,7 @@ class DBManagerPeewee(DBManagerBase):
         """
         Inserts all the granules in the granule_dict unless they already exist
         """
+        print('using db_skip...')
         conflict_resolution = {
             'conflict_target': [self.model_class.name],
             'update': {

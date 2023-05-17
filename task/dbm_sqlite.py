@@ -61,6 +61,7 @@ class DBManagerSqlite(DBManagerPeewee):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         """
+        print('using db_replace...')
         conflict_handling = {'action': 'replace'}
         return self.insert_many(conflict_handling)
 

@@ -63,6 +63,7 @@ class DBManagerPSQL(DBManagerPeewee):
         """
         Inserts all the granules in the granule_dict overwriting duplicates if they exist
         """
+        print('using db_replace...')
         conflict_handling = {
             'conflict_target': [self.model_class.name],
             'action': 'update',
