@@ -45,7 +45,7 @@ class DiscoverGranulesBase(ABC):
 
         protocol = self.provider.get('protocol', '')
         host = self.host.strip('/')
-        provider_path = str(self.config.get('provider_path', ''))
+        provider_path = str(self.config.get('provider_path', '')).lstrip('/')
         if str(protocol).lower() != 's3' and not str(provider_path).endswith('/'):
             provider_path = f'{provider_path}/'
 
