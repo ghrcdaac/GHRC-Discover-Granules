@@ -42,8 +42,14 @@ class DiscoverGranulesBase(ABC):
 
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
-        self.provider_url = f'{self.provider.get("protocol", "")}://{self.host.strip("/")}/' \
-                            f'{self.config.get("provider_path", "").strip("/")}/'
+
+        protocol = self.provider.get('protocol', '')
+        host = self.host.strip('/')
+        provider_path = str(self.config.get('provider_path', ''))
+        if str(protocol).lower() != 's3' and not str(provider_path).endswith('/'):
+            provider_path = f'{provider_path}/'
+
+        self.provider_url = f'{protocol}://{host}/{provider_path}'
         rdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
         rdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
