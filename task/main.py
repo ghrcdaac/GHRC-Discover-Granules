@@ -77,7 +77,7 @@ def main(event, context):
         }
     )
 
-    rdg_logger.info(f'returning: {res}')
+    # rdg_logger.info(f'returning: {res}')
     return res
 
 
