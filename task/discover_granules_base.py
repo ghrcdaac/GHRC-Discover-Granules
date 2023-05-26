@@ -179,18 +179,20 @@ class DiscoverGranulesBase(ABC):
 
         return mapping
 
-    def lzards_output_generator(self, ret_dict):
+    def lzards_output_generator(self, granule_dict_list):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
-        :param ret_dict: Dictionary containing discovered granules, ETag, Last-Modified, and Size
+        :param granule_dict_list: List of dictionaries containing discovered granules, ETag, Last-Modified, and Size
         :return: A list of dictionaries that follows this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
         """
         strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
         mapping = self.create_file_mapping()
         ret_lst = []
-        for key, value in ret_dict.items():
-            filename = str(key).rsplit('/', 1)[-1]
+        # for key, value in ret_dict.items():
+        for granule in granule_dict_list:
+            name = granule.get('name')
+            filename = str(name).rsplit('/', 1)[-1]
             version = self.collection.get('version', '')
 
             bucket = ''
@@ -205,13 +207,13 @@ class DiscoverGranulesBase(ABC):
                     'granuleId': filename,
                     'dataType': self.collection.get('name', ''),
                     'version': version,
+                    'provider': 'private_bucket',
+                    'createdAt': time.time(),
                     'files': [
                         {
                             'bucket': f'{self.config_stack}-{bucket}',
-                            'key': key.replace(strip_str, ''),
-                            'size': value.get('Size'),
-                            'source': '',
-                            'type': '',
+                            'key': name.replace(strip_str, ''),
+                            'size': granule.get('size'),
                         }
                     ]
                 }

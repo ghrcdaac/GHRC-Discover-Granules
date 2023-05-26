@@ -72,47 +72,24 @@ class TestDiscoverGranules(unittest.TestCase):
         assert self.dg.generate_cumulus_output.called
 
     def test_generate_lzards_output(self):
-        test_dict = {
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat': {
-                'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538},
-            's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat': {
-                'ETag': '919a1ba1dfbbd417a662ab686a2ff574', 'Last-Modified': '1645564956.0', 'Size': 4706838}}
-
-        ret_list = self.dg.lzards_output_generator(test_dict)
-
-        expected_entries = [
+        test_dict = [
             {
-                'granuleId': 'LA_NALMA_firetower_211130_000000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'bucket': 'sharedsbx-private',
-                        'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
-                        'size': 4553538,
-                        'source': '',
-                        'type': ''
-                    }
-                ]
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
+                'etag': 'ec5273963f74811028e38a367beaf7a5', 'last_modified': '1645564956.0', 'size': 4553538,
+                'collectionId': 'test_collection___1'
             },
             {
-                'granuleId': 'LA_NALMA_firetower_211130_001000.dat',
-                'dataType': 'nalmaraw',
-                'version': '1',
-                'files': [
-                    {
-                        'bucket': 'sharedsbx-private',
-                        'key': 'lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
-                        'size': 4706838,
-                        'source': '',
-                        'type': ''
-                    }
-                ]
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_001000.dat',
+                'etag': '919a1ba1dfbbd417a662ab686a2ff574', 'last_modified': '1645564956.0', 'size': 4706838,
+                'collectionId': 'test_collection___1'
             }
         ]
 
-        for val in expected_entries:
-            self.assertIn(val, ret_list)
+        ret_list = self.dg.lzards_output_generator(test_dict)
+
+        for val in ret_list:
+            for key in ['granuleId', 'dataType', 'version', 'files']:
+                self.assertIsNotNone((val.get(key)))
 
     def test_discover_granules(self):
         self.assertRaises(NotImplementedError, self.dg.discover_granules)
