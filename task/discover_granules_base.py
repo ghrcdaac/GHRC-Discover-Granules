@@ -207,13 +207,13 @@ class DiscoverGranulesBase(ABC):
                     'granuleId': filename,
                     'dataType': self.collection.get('name', ''),
                     'version': version,
+                    'provider': 'private_bucket',
+                    'createdAt': time.time(),
                     'files': [
                         {
                             'bucket': f'{self.config_stack}-{bucket}',
                             'key': name.replace(strip_str, ''),
-                            'size': granule.get('Size'),
-                            'source': '',
-                            'type': '',
+                            'size': granule.get('size'),
                         }
                     ]
                 }
