@@ -182,7 +182,7 @@ class DiscoverGranulesBase(ABC):
     def lzards_output_generator(self, granule_dict_list):
         """
         Generates a single dictionary generator that yields the expected cumulus output for a granule
-        :param granule_dict_list: Dictionary containing discovered granules, ETag, Last-Modified, and Size
+        :param granule_dict_list: List of dictionaries containing discovered granules, ETag, Last-Modified, and Size
         :return: A list of dictionaries that follows this schema:
         https://github.com/nasa/cumulus/blob/master/tasks/lzards-backup/schemas/input.json
         """
