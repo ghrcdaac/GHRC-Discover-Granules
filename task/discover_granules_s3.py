@@ -127,10 +127,11 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         )
 
                     else:
-                        rdg_logger.warning(
-                            f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
-                            f' did not match the filename {url_segment}.'
-                        )
+                        # rdg_logger.warning(
+                        #     f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
+                        #     f' did not match the filename {url_segment}.'
+                        # )
+                        pass
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """

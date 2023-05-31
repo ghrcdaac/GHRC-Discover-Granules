@@ -44,7 +44,6 @@ def main(event, context):
 
     granule_list_dicts = res.pop('batch')
     res.update({'batch_size': len(granule_list_dicts)})
-    print(res)
 
     # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules
     # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
