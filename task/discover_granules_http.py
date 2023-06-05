@@ -76,9 +76,10 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
                 elif (etag is None and last_modified is None) and check_reg_ex(self.dir_reg_ex, full_path):
                     directory_list.append(f'{full_path}/')
-                    rdg_logger.info(f'Directory found: {directory_list[-1]}')
+                    # rdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:
-                    rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
+                    # rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
+                    pass
 
         if self.depth > 0:
             self.depth -= 1

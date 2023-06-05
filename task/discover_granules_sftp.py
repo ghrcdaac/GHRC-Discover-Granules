@@ -127,20 +127,20 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         sftp_client.chdir(self.path)
 
         listdir_res = sftp_client.listdir()
-        rdg_logger.info(listdir_res)
+        # rdg_logger.info(listdir_res)
 
         for dir_file in listdir_res:
-            rdg_logger.info(f'Evaluating: {str(dir_file)}')
+            # rdg_logger.info(f'Evaluating: {str(dir_file)}')
             file_stat = sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
             if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
-                rdg_logger.info(f'{dir_file} was a directory')
+                # rdg_logger.info(f'{dir_file} was a directory')
                 directory_list.append(dir_file)
             elif check_reg_ex(self.file_reg_ex, str(dir_file)):
                 reg_match = re.match(self.granule_id_extraction, str(dir_file))
                 if reg_match is not None:
                     granule_id = re.match(self.granule_id_extraction, str(dir_file)).group(1)
-                    rdg_logger.info(f'Checking {self.granule_id_extraction} against {str(dir_file)} resulted in {granule_id}')
+                    # rdg_logger.info(f'Checking {self.granule_id_extraction} against {str(dir_file)} resulted in {granule_id}')
                 else:
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name.')
@@ -152,8 +152,9 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     last_modified=str(file_stat.st_mtime), size=int(file_stat.st_size)
                 )
             else:
-                rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
-                                   f'The supplied regex [{self.file_reg_ex}] may not match.')
+                # rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
+                #                    f'The supplied regex [{self.file_reg_ex}] may not match.')
+                pass
 
         if self.depth > 0:
             self.depth -= 1
