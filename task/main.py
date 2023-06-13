@@ -34,7 +34,7 @@ def main(event, context):
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
-    rdg_logger.info(f'Event: {event}')
+    # rdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event)
     if dg_client.discovered_files_count == 0:

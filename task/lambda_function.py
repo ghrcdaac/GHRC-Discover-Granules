@@ -11,7 +11,7 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def handler(event, context):
-    rdg_logger.info(f'Full Event: {event}')
+    # rdg_logger.info(f'Full Event: {event}')
     if event.get('is_test', False):
         results = test_main(event, context)
     else:
