@@ -114,17 +114,17 @@ resource "aws_iam_role_policy_attachment" "secrets_manager_policy_attach" {
 
 resource "aws_db_subnet_group" "dg-db-subnet-group" {
   count = (var.db_type == "postgresql") ? 1 : 0
-  name = "dg-db-subnet-group"
+  name = "${var.prefix}-${var.db_identifier}-subnet-group"
   subnet_ids = var.subnet_ids
 
   tags = {
-    Name = "dg-db-subnet-group"
+    Name = "${var.prefix}-${var.db_identifier}-subnet-group"
   }
 }
 
 resource "aws_rds_cluster" "dg_db_cluster" {
   count = (var.db_type == "postgresql") ? 1 : 0
-  cluster_identifier = "dg-db-cluster"
+  cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster"
   engine = "aurora-postgresql"
   engine_mode = "serverless"
   enable_http_endpoint = true
@@ -152,7 +152,7 @@ resource "random_password" "master_password" {
 resource "aws_secretsmanager_secret" "dg_db_credentials" {
   count = (var.db_type == "postgresql") ? 1 : 0
   recovery_window_in_days = 0
-  name = "dg_db_credentials"
+  name = "${var.prefix}-${var.db_identifier}-credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "dg_db_credentials" {
