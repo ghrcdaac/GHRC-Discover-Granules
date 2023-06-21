@@ -74,12 +74,11 @@ class DBManagerPeewee(DBManagerBase):
 
     def write_batch(self):
         records_inserted = 0
-        if self.cumulus_filter and self.duplicate_handling == 'skip':
-            print('Using cumulus filter')
+        if self.cumulus_filter and self.duplicate_handling == 'skip' and self.list_dict:
+            print('Filtering discovered granules against cumulus granule IDs...')
             discovered_granule_ids = tuple(x.get('granule_id') for x in self.list_dict)
             cumulus_granule_id_set = self.cumulus_filter.filter_against_cumulus(discovered_granule_ids)
 
-            print(f'Filtering discovered granules against cumulus granule IDs...')
             index = 0
             while index < len(self.list_dict):
                 record = self.list_dict[index]
@@ -90,13 +89,16 @@ class DBManagerPeewee(DBManagerBase):
             print(f'Records remain after filtering: {len(self.list_dict)}')
 
         if len(self.list_dict) > 0:
-            print(f'Writing batch to database...')
-            if self.duplicate_handling == 'skip':
-                records_inserted = self.db_skip()
-            elif self.duplicate_handling == 'replace':
+            if self.cumulus_filter or self.duplicate_handling == 'replace':
+                print('Writing batch to database using replace...')
                 records_inserted = self.db_replace()
+            elif self.duplicate_handling == 'skip':
+                print('Writing batch to database using skip...')
+                records_inserted = self.db_skip()
             else:
-                pass
+                raise ValueError(f'Batch not inserted into the database. This should not have happened.'
+                                 f'duplicate_handling: {self.duplicate_handling} '
+                                 f'cumulus_filter: {self.cumulus_filter}')
 
             self.list_dict.clear()
 
