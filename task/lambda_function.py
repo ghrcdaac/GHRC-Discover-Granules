@@ -17,7 +17,7 @@ def handler(event, context):
     else:
         if run_cumulus_task:
             results = run_cumulus_task(main, event, context)
-            rdg_logger.info(f'result: {results}')
+            # rdg_logger.info(f'result: {results}')
         else:
             results = main(event, context)
     return results

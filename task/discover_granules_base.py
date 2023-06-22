@@ -17,7 +17,8 @@ class DiscoverGranulesBase(ABC):
     Base class for discovering granules
     """
 
-    def __init__(self, event, db_type=None, database=None):
+    def __init__(self, event, db_type=None, context=None):
+        self.lambda_context = context
         self.input = event.get('input', {})
         self.config = event.get('config', {})
         self.provider = self.config.get('provider', {})
@@ -77,8 +78,7 @@ class DiscoverGranulesBase(ABC):
             cumulus_kwargs.update({'db_type': 'cumulus', 'database': None})
             cumulus_dbm = get_db_manager(**cumulus_kwargs)
             kwargs.update({
-                'cumulus_filter_dbm': cumulus_dbm,
-                'duplicate_handling': 'replace'
+                'cumulus_filter_dbm': cumulus_dbm
             })
 
         self.dbm = get_db_manager(**kwargs)

@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 from unittest.mock import MagicMock, patch
 import unittest
@@ -10,13 +11,18 @@ from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+class FakeContext:
+    def get_remaining_time_in_millis(self):
+        return time.time()
+
+
 class TestDiscoverGranules(unittest.TestCase):
     """
     Tests Discover Granules
     """
 
     def setUp(self) -> None:
-        self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'))
+        self.dg = DiscoverGranulesS3(self.get_sample_event('skip_s3'), context=FakeContext())
 
     @staticmethod
     def get_sample_event(event_type='skip'):

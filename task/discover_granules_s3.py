@@ -43,7 +43,7 @@ def get_s3_client_with_keys(key_id_name, secret_key_name):
                          aws_secret_key=get_ssm_value(secret_key_name, ssm_client))
 
 
-def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None):
+def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None, start_after=''):
     """
     Returns an s3 paginator.
     :param host: The bucket.
@@ -58,7 +58,8 @@ def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None):
     return s3_paginator.paginate(
         Bucket=host,
         Prefix=prefix,
-        PaginationConfig=pagination_config
+        PaginationConfig=pagination_config,
+        StartAfter=start_after
     )
 
 
@@ -66,31 +67,45 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     """
     Class to discover granules from S3 provider
     """
-    def __init__(self, event):
-        super().__init__(event)
+    def __init__(self, event, context):
+        super().__init__(event, context=context)
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
+        self.last_key = self.discover_tf.get('last_key', '')
+        self.early_return_threshold = int(os.getenv('early_return_threshold', 0)) * 1000
 
     def discover_granules(self):
+        ret = {}
         try:
             rdg_logger.info(f'Discovering in {self.provider_url}')
             s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-            self.discover(get_s3_resp_iterator(self.host, self.prefix, s3_client))
+            start_after = self.discover_tf.get('last_key', '')
+            self.last_key = self.discover(get_s3_resp_iterator(
+                self.host, self.prefix, s3_client, start_after=start_after)
+            )
             self.dbm.flush_dict()
-            batch = self.dbm.read_batch()
+            if not self.last_key:
+                rdg_logger.info('Reading batch')
+                batch = self.dbm.read_batch()
+                # ret.update({'batch': batch})
+                ret.update({
+                    'batch': batch,
+                    'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
+                    'queued_files_count': self.dbm.queued_files_count
+                })
+            else:
+                ret.update({
+                    'last_key': self.last_key,
+                    'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
+                    'queued_files_count': 0
+                })
         except ValueError as e:
             rdg_logger.error(e)
             raise
         finally:
             self.dbm.close_db()
-
-        ret = {
-            'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
-            'queued_files_count': self.dbm.queued_files_count,
-            'batch': batch
-        }
 
         return ret
 
@@ -108,6 +123,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         """
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
+                last_s3_key = s3_object["Key"]
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
@@ -132,6 +148,14 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         #     f' did not match the filename {url_segment}.'
                         # )
                         pass
+
+                # Check Time
+                time_remaining = self.lambda_context.get_remaining_time_in_millis()
+                if time_remaining < self.early_return_threshold:
+                    rdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
+                    return last_s3_key
+
+        return None
 
     def move_granule(self, source_s3_uri, destination_bucket=None):
         """
