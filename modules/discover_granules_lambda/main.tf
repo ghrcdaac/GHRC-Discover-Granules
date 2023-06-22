@@ -20,6 +20,7 @@ resource "aws_lambda_function" "discover_granules" {
       bucket_name = var.s3_bucket_name
       s3_key_prefix = var.s3_key_prefix
       db_type = var.db_type
+      early_return_threshold = var.early_return_threshold
       efs_path = var.efs_path
       sqlite_transaction_size = var.sqlite_transaction_size
       sqlite_temp_store = var.sqlite_temp_store

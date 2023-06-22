@@ -1,7 +1,6 @@
 import concurrent.futures
 import os
 import re
-from time import sleep
 
 import boto3
 
@@ -74,6 +73,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
         self.last_key = self.discover_tf.get('last_key', '')
+        self.early_return_threshold = int(os.getenv('early_return_threshold', 0)) * 1000
 
     def discover_granules(self):
         ret = {}
@@ -151,7 +151,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
                 # Check Time
                 time_remaining = self.lambda_context.get_remaining_time_in_millis()
-                if time_remaining < 30000:
+                if time_remaining < self.early_return_threshold:
                     rdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
                     return last_s3_key
 

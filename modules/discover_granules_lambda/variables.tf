@@ -72,6 +72,11 @@ variable "timeout" {
   default     = 900
 }
 
+variable "early_return_threshold" {
+  description = "If the remaining execution time of the lambda goes below this an early return will be performed."
+  default = 30
+}
+
 # Sqlite Configuration
 variable "sqlite_transaction_size" {
   type = number
