@@ -99,8 +99,8 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
     """
     Class to discover granules from an SFTP provider
     """
-    def __init__(self, event):
-        super().__init__(event)
+    def __init__(self, event, context):
+        super().__init__(event, context=context)
         self.path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
 
@@ -127,10 +127,9 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
         sftp_client.chdir(self.path)
 
         listdir_res = sftp_client.listdir()
-        # rdg_logger.info(listdir_res)
-
         for dir_file in listdir_res:
-            # rdg_logger.info(f'Evaluating: {str(dir_file)}')
+            if not re.search(self.granule_id_extraction, str(dir_file)) or not check_reg_ex(self.dir_reg_ex, str(dir_file)):
+                continue
             file_stat = sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
             if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
@@ -143,7 +142,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     # rdg_logger.info(f'Checking {self.granule_id_extraction} against {str(dir_file)} resulted in {granule_id}')
                 else:
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
-                                     f'did not match the file name.')
+                                     f'did not match the file name: {str(dir_file)}')
 
                 full_path = f'{self.provider_url.rstrip("/")}/{dir_file}'
                 self.dbm.add_record(

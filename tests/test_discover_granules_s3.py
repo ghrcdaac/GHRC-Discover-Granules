@@ -12,7 +12,8 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class FakeContext:
-    def get_remaining_time_in_millis(self):
+    @staticmethod
+    def get_remaining_time_in_millis():
         return time.time()
 
 
