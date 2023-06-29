@@ -121,28 +121,31 @@ class DiscoverGranulesBase(ABC):
         """
         temp_dict = {}
         gid_regex = self.collection.get('granuleId')
-        strip_str = f'{self.provider.get("protocol")}://{self.provider.get("host")}/'
 
         for granule in granule_dict_list:
-            file_path_name = str(granule.get('name')).replace(strip_str, '').rsplit('/', 1)
-            filename = file_path_name[-1]
+            granule_name = granule.get('name')
+            res = granule_name.find(self.config.get('provider_path'))
+            absolute_path = granule_name[res:]
+            path_and_name = absolute_path.rsplit('/', maxsplit=1)
+            path = path_and_name[0]
+            filename = path_and_name[1]
 
             file_def = self.get_file_description(filename)
             file_type = file_def.get('type', '')
             bucket_type = file_def.get('bucket', '')
 
+            # TODO: This can be simplified to just use the granuleIdExtraction once collections use a corrected one
             if re.search(gid_regex, filename):
                 granule_id = filename
             else:
-                res = re.search(self.collection.get('granuleIdExtraction'), filename)
-                granule_id = res.group(1)
+                granule_id = re.search(self.collection.get('granuleIdExtraction'), filename).group()
 
             if granule_id not in temp_dict:
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
 
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
-                    filename, file_path_name[0], granule.get('size'),
+                    filename, path, granule.get('size'),
                     self.get_bucket_name(bucket_type), file_type
                 )
             )
