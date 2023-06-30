@@ -18,8 +18,8 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
     """
     Class to discover granules from an FTP provider
     """
-    def __init__(self, event):
-        super().__init__(event)
+    def __init__(self, event, context):
+        super().__init__(event, context=context)
         self.provider_path = self.config.get('provider_path')
         self.depth = self.discover_tf.get('depth')
 

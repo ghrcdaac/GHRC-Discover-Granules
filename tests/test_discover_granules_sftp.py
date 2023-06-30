@@ -58,7 +58,7 @@ class FakeKms:
 class TestDiscoverGranules(unittest.TestCase):
 
     def setUp(self, temp=None) -> None:
-        self.dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'))
+        self.dg_sftp = sftp.DiscoverGranulesSFTP(self.get_sample_event('sftp'), None)
     """
     will test discover granules
     """

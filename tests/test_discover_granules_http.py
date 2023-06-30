@@ -38,7 +38,7 @@ class TestDiscoverGranules(unittest.TestCase):
             "dir_reg_ex": ".*"
         }
         event = configure_event(provider, granule_id_extraction, provider_path, discover_tf)
-        self.dg = DiscoverGranulesHTTP(event)
+        self.dg = DiscoverGranulesHTTP(event, None)
 
     def configure_mock_session(self, mock_session, provider):
         mock_session.get.return_value = FakeResponse(self.get_html(provider))

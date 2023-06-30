@@ -1,5 +1,4 @@
 import re
-import time
 
 import requests
 import urllib3
@@ -17,8 +16,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
     Class to discover granules from HTTP/HTTPS provider
     """
 
-    def __init__(self, event):
-        super().__init__(event)
+    def __init__(self, event, context):
+        super().__init__(event, context=context)
         self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
