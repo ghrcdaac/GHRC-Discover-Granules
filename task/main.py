@@ -37,7 +37,7 @@ def main(event, context):
     # rdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event, context)
-    if dg_client.discovered_files_count == 0 or dg_client.last_key:
+    if dg_client.discovered_files_count == 0 or dg_client.bookmark:
         res = dg_client.discover_granules()
     else:
         res = dg_client.read_batch()

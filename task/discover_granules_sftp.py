@@ -155,10 +155,11 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 #                    f'The supplied regex [{self.file_reg_ex}] may not match.')
                 pass
 
-        if self.depth > 0:
+        if self.depth > 0 and len(directory_list) > 0:
             self.depth -= 1
             for directory in directory_list:
                 self.path = directory
+            self.depth += 1
 
         sftp_client.chdir('../')
 

@@ -142,25 +142,33 @@ class DBManagerPeewee(DBManagerBase):
 
     def read_batch(self):
         """
-        Fetches N files for up to batch_size granules for the provided collection_id and if the provider path
-        is present in the full path of the file.
+        Fetches up to batch_limit file records for the provided collection_id and if the provider path
+        is present in the full path of the file database name field.
         :return: Returns a list of records that had the status set from "discovered" to queued
         """
+
+        # Note: The presence of order_by in the subquery is to ensure the oldest granule IDs are fetched first but the
+        # order is not preserved in the wrapping query.
         sub_query = (
-            self.model_class.select(self.model_class.granule_id).dicts().where(
+            self.model_class.select(self.model_class.granule_id).where(
                 (self.model_class.status == 'discovered') &
                 (self.model_class.collection_id == self.collection_id) &
-                (self.model_class.name.contains(self.provider_full_url))
+                (self.model_class.name.startswith(self.provider_full_url))
             ).order_by(self.model_class.discovered_date.asc()).limit(self.batch_limit)
         )
 
         update = (self.model_class.update(status='queued').where(
             (self.model_class.granule_id.in_(sub_query)) &
-            (self.model_class.name.contains(self.provider_full_url))
+            (self.model_class.name.startswith(self.provider_full_url)) &
+            (self.model_class.collection_id == self.collection_id)
         ).returning(self.model_class).dicts())
+
         print(f'Update query: {update}')
+        st = time.time()
         updated_records = list(update.execute())
-        print(f'Records returned by query: {len(updated_records)}')
+        et = time.time() - st
+        print(f'Updated {len(updated_records)} records in {et} seconds.')
+        print(f'Rate: {int(len(updated_records) / et)}/s')
 
         self.queued_files_count += len(updated_records)
         return updated_records

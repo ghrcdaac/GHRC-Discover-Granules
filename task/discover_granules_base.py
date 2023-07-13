@@ -18,6 +18,7 @@ class DiscoverGranulesBase(ABC):
     """
 
     def __init__(self, event, db_type=None, context=None):
+        self.bookmark = None
         self.lambda_context = context
         self.input = event.get('input', {})
         self.config = event.get('config', {})
@@ -121,6 +122,7 @@ class DiscoverGranulesBase(ABC):
         """
         temp_dict = {}
         gid_regex = self.collection.get('granuleId')
+        gide_regex = self.collection.get('granuleIdExtraction')
 
         for granule in granule_dict_list:
             granule_name = granule.get('name')
@@ -135,14 +137,15 @@ class DiscoverGranulesBase(ABC):
             bucket_type = file_def.get('bucket', '')
 
             # TODO: This can be simplified to just use the granuleIdExtraction once collections use a corrected one
-            if re.search(gid_regex, filename):
-                granule_id = filename
+            gid_match = re.search(gide_regex, filename)
+            if gid_match:
+                granule_id = gid_match.group()
             else:
-                granule_id = re.search(self.collection.get('granuleIdExtraction'), filename).group()
+                granule_id = re.search(gid_regex, filename).group()
 
             if granule_id not in temp_dict:
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
-
+            # print(granule_id)
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
                     filename, path, granule.get('size'),

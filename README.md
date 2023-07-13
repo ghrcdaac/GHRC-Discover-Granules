@@ -17,8 +17,14 @@ cumulus discover granules schema: https://github.com/nasa/cumulus/blob/master/ta
 ETag: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag  
 Last-Modified: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified  
 
-## Supported Protocols
- - AWS S3, HTTP/HTTPS, and SFTP 
+## Features
+ - AWS S3, HTTP/HTTPS, and SFTP discovery support
+ - Recursive discovery for HTTP/S and SFTP
+ - Timeout aware S3 discovery capacity (1)
+ - Batching (1)
+ - Discovering granules in external buckets with provided access key
+
+(1): Requires state machine definition modifications mentioned below
 
 ## Versioning
 We are following `v<major>.<minor>.<patch>` versioning convention, where:
@@ -29,7 +35,7 @@ We are following `v<major>.<minor>.<patch>` versioning convention, where:
 
 # 🔨 Pre-requisite 
 ## Cumulus
-This module is meant to run within Cumulus stack. 
+This module is meant to run with the Cumulus stack. 
 If you don't have Cumulus stack deployed yet please consult [this repo](https://github.com/nasa/cumulus) 
 and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
 
@@ -37,9 +43,9 @@ and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-
 As of v3.0.0 the module supports three database configurations though the `db_type` terraform variable.   
 
 If migrating to v3.0.0+ bear in mind that the SQLite database that currently exists will not automatically be migrated
-to postgresql if you wish to use that configuration. Additioinally if an EFS mount was configured specifically to hold
-the SQLite database and it is no longer needed be sure to delete the infrastructure as it can accumulate costs storing
-unused files. 
+to postgresql if you wish to use that configuration. Additionally if an EFS mount was configured specifically to hold
+the SQLite database and it is no longer needed then be sure to delete the infrastructure as it can accumulate costs 
+storing unused files. 
 ### AWS RDS Aurora-Postgresql: `db_type="postgresql"` 
 An RDS instance will be created exclusively for this module. Much of the parameters are configurable through terraform 
 variables so that the deployment can be customized as needed. This deployment offers the most flexibility as it is still
@@ -55,7 +61,7 @@ There are limitations to this deployment type. The main performance impact is th
 an exclusive file lock that does not allow other readers for the duration of the lambda execution. An additional
 downside is that as the database grows in size the throughput of EFS may become a problem. This issue might be 
 minimized in later version of terraform where the EFS mount can be configured in elastic mode but the other two 
-deployment options are more suitable for mose use cases. 
+deployment options are more suitable for likely all cases. 
 
 ### Cumulus-Read-Only: `db_type="cumulus"`
 When running with `"duplicateHandling": "skip"` the code will check the discovered `granule_id`s against the cumulus
@@ -66,10 +72,10 @@ infrastructure, so bear this in mind when using `skip` with this configuration.
 It is also worth noting that this configuration does not support batching. 
 
 # How to
-In order to use the recursive discover granules the following block must be added to the collection definition inside 
-of the meta block:
+In order to use the GDG the following block must be added to the collection definition inside the meta block:
 ```json
 "discover_tf": {
+ "cumulus_filter" true,
  "depth": 0,
  "force_replace": false,
  "dir_reg_ex": "",
@@ -78,22 +84,25 @@ of the meta block:
  "batch_delay": 0
 }
 ``` 
-
+ - `cumulus_filter`: If set to `true` and the collection's duplicateHandling is set to `skip` GDG will attempt
+   to filter discovered granules against the cumulus database and only discover granules that do not exist.
+   
  - `depth`: How far you want the recursive search to go from the starting URL. The search will look for granules in each level
-and traverse directories until there are no directories or depth is reached. This value is only applicable to http/https
-providers.  
+and traverse directories until there are no directories or depth is reached. This has no meaning for S3 providers.  
 Note: The absolute value will be taken of this parameter so negative values are not intended to be used for upward traversal.
 
  - `force_replace`: This can be used to force Discover Granules to rediscover all granules even if previously discovered.
 The duplicateHandling flag being set to replace defaults to "skip" to handle reingesting previously discovered files that 
-have been updated.
+have been updated. This has no effect when using `cumulus_filter: true`
 
  - `dir_reg_ex`: Regular expression used to only search directories it matches
 
  - `file_reg_ex`: Regular expression used to only discover files it matches
 
- - `batch_limit`: Used to specify the size of the batches sent to QueueGranules when using the IsDone step in the DiscoverGranules workflow. Will default to 1000 if not provided. If you do not want to use batching provide a number larger than the expected number of granules to discover. This will effectively prevent batching. Note: this could cause memory issues for the DiscoverGranules or QueueGranules lambdas.
- - `batch_delay`: If this is provided, the workflow will transition into the `WaitStep` and wait for the specified duration before continuing to the next workflow step.
+ - `batch_limit`: Used to specify the size of the batches returned from the lambda. To take advantage of this the 
+   workflow definition will need to be modified to include a choice step to ensure all the granules are discovered
+   and queued.
+ - `batch_delay`: If this is provided, the workflow can use a `WaitStep` and wait for the specified duration before continuing to the next workflow step.
 
 In order to match against specific granules the granuleIdExtraction value must be used.  
 This is an example of a collection with the added block:
@@ -145,7 +154,7 @@ This is an example of a collection with the added block:
 ```
 
 The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell 
-discover-granules-tf-module how to handle granules that already exist exist in the configured database but also are discovered on the
+discover-granules-tf-module how to handle granules that already exist in the configured database but also are discovered on the
 current run. Discover granules handles the following possible values:
  - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
    this run
@@ -260,10 +269,10 @@ The step function returns a dictionary of granules that were discovered this run
 Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.
 
 # Batching
-As of v2.0.0 this module now supportes batching to the QueueGranules step. In order to take advantage of this, the 
+As of v2.0.0 this module now supports batching to the QueueGranules step. In order to take advantage of this, the 
 discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more 
-granules to queue from the discover process. It is important to note that batching cannot be used when using a deployment
-that relies on the cumulus database. The following is an example definition of the choice step. 
+granules to queue from the discover process. It is important to note that batching cannot be used when using 
+`db_type: "cumulus"`. The following is an example definition of the choice step. 
 
 IsDone Definition:  
 ```json
@@ -380,6 +389,16 @@ SkipStep:
   }
 }
 ```
+
+# Building
+There is a `build.sh` script for convenience that uses values from the host environment to build and deploy the lambda.
+To use this add the following environment variables:
+```shell
+export AWS_ACCOUNT_NUMBER=<ACCOUNT_NUMBER
+export AWS_REGION=<REGION>
+export PREFIX=<STACK_PREFIX
+```
+Once configured, a build and deployment can be done with `bash build.sh`
 
 # Testing
 There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
