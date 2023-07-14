@@ -25,24 +25,22 @@ class DiscoverGranulesBase(ABC):
         self.provider = self.config.get('provider', {})
         self.collection = self.config.get('collection', {})
         self.collection_id = f'{self.collection.get("name")}___{self.collection.get("version")}'
-        self.granule_id_extraction = self.collection.get('granuleIdExtraction', {})
+        self.granule_id = self.collection.get('granuleId')
+        self.granule_id_extraction = self.collection.get('granuleIdExtraction')
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
-
-        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        force_replace = self.discover_tf.get('force_replace', False)
-        use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
+        self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        self.force_replace = self.discover_tf.get('force_replace', False)
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
-        if duplicates == 'replace' and force_replace is False and not use_cumulus_filter:
-            duplicates = 'skip'
-
+        if self.duplicates == 'replace' and self.force_replace is False and not self.use_cumulus_filter:
+            self.duplicates = 'skip'
+        self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
 
@@ -66,7 +64,7 @@ class DiscoverGranulesBase(ABC):
         self.transaction_size = self.discover_tf.get('transaction_size', 100000)
 
         kwargs = {
-            'duplicate_handling': duplicates,
+            'duplicate_handling': self.duplicates,
             'transaction_size': self.transaction_size,
             'database': db_file_path,
             'db_type': db_type,
@@ -75,7 +73,7 @@ class DiscoverGranulesBase(ABC):
             'provider_url': self.provider_url
         }
 
-        if use_cumulus_filter:
+        if self.use_cumulus_filter:
             cumulus_kwargs = dict(kwargs)
             cumulus_kwargs.update({'db_type': 'cumulus', 'database': None})
             cumulus_dbm = get_db_manager(**cumulus_kwargs)
@@ -121,9 +119,6 @@ class DiscoverGranulesBase(ABC):
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
         temp_dict = {}
-        gid_regex = self.collection.get('granuleId')
-        gide_regex = self.collection.get('granuleIdExtraction')
-
         for granule in granule_dict_list:
             granule_name = granule.get('name')
             res = granule_name.find(self.config.get('provider_path'))
@@ -137,15 +132,14 @@ class DiscoverGranulesBase(ABC):
             bucket_type = file_def.get('bucket', '')
 
             # TODO: This can be simplified to just use the granuleIdExtraction once collections use a corrected one
-            gid_match = re.search(gide_regex, filename)
+            gid_match = re.search(self.granule_id_extraction, filename)
             if gid_match:
                 granule_id = gid_match.group()
             else:
-                granule_id = re.search(gid_regex, filename).group()
+                granule_id = re.search(self.granule_id, filename).group()
 
             if granule_id not in temp_dict:
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
-            # print(granule_id)
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
                     filename, path, granule.get('size'),
