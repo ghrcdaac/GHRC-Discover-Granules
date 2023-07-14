@@ -72,7 +72,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
-        self.bookmark = self.discover_tf.get('last_key', '')
+        self.bookmark = self.discover_tf.get('bookmark', '')
         self.early_return_threshold = int(os.getenv('early_return_threshold', 0)) * 1000
 
     def discover_granules(self):
@@ -81,7 +81,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
             rdg_logger.info(f'Discovering in {self.provider_url}')
             s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-            start_after = self.discover_tf.get('last_key', '')
+            start_after = self.discover_tf.get('bookmark', '')
             self.bookmark = self.discover(get_s3_resp_iterator(
                 self.host, self.prefix, s3_client, start_after=start_after)
             )
@@ -97,7 +97,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 })
             else:
                 ret.update({
-                    'last_key': self.bookmark,
+                    'bookmark': self.bookmark,
                     'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
                     'queued_files_count': 0
                 })

@@ -42,7 +42,7 @@ def main(event, context):
     else:
         res = dg_client.read_batch()
 
-    if not res.get('last_key', None):
+    if not res.get('bookmark', None):
         granule_list_dicts = res.pop('batch')
         res.update({'batch_size': len(granule_list_dicts)})
 
