@@ -37,10 +37,11 @@ class DiscoverGranulesBase(ABC):
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         self.force_replace = self.discover_tf.get('force_replace', False)
+        self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if self.duplicates == 'replace' and self.force_replace is False and not self.use_cumulus_filter:
             self.duplicates = 'skip'
-        self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
+
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
 
