@@ -8,7 +8,7 @@ import boto3
 import paramiko
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def get_private_key(private_key, local_dir=None):
@@ -123,7 +123,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     def discover(self, sftp_client):
         directory_list = []
-        rdg_logger.info(f'Discovering in {self.provider_url}')
+        gdg_logger.info(f'Discovering in {self.provider_url}')
         sftp_client.chdir(self.path)
 
         listdir_res = sftp_client.listdir()

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import concurrent.futures
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -43,7 +43,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         :return: Returns a dictionary containing the path, etag, and the last modified date of a granule
         {'http://path/to/granule/file.extension': { 'ETag': 'S3ETag', 'Last-Modified': '1645564956.0},...}
         """
-        rdg_logger.info(f'Discovering in {self.provider_url}')
+        gdg_logger.info(f'Discovering in {self.provider_url}')
         directory_list = []
         response = session.get(self.provider_url)
         html = BeautifulSoup(response.text, features='html.parser')
@@ -88,8 +88,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                     # rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
                     pass
 
-        rdg_logger.info(f'Granules found: {granule_count}')
-        rdg_logger.info(f'Directories found: {len(directory_list)}')
+        gdg_logger.info(f'Granules found: {granule_count}')
+        gdg_logger.info(f'Directories found: {len(directory_list)}')
 
         if self.depth > 0 and len(directory_list) > 0:
             self.depth -= 1

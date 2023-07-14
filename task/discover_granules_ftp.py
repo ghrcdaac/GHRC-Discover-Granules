@@ -4,7 +4,7 @@ from contextlib import redirect_stdout
 from ftplib import FTP
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def setup_ftp_client(**kwargs):
@@ -42,7 +42,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
         return ret
 
     def discover(self, ftp_client):
-        rdg_logger.info(f'Discovering in {self.provider_url}')
+        gdg_logger.info(f'Discovering in {self.provider_url}')
         ftp_client.cwd(self.provider_path)
         directory_list = []
         with io.StringIO() as buffer, redirect_stdout(buffer):

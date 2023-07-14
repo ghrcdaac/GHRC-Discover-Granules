@@ -2,7 +2,7 @@ import os
 import sys
 
 from task.test import test_main
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 from task.main import main
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):

@@ -5,7 +5,7 @@ import re
 from tempfile import mkdtemp
 
 from task.dbm_get import get_db_manager
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def check_reg_ex(regex, target):
@@ -51,8 +51,8 @@ class DiscoverGranulesBase(ABC):
             provider_path = f'{provider_path}/'
 
         self.provider_url = f'{protocol}://{host}/{provider_path}'
-        rdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
-        rdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
+        gdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
+        gdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
         db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'sqlite'))
         if db_type == 'sqlite':
@@ -88,10 +88,10 @@ class DiscoverGranulesBase(ABC):
     def generate_lambda_output(self, ret_dict):
         if self.config.get('workflow_name') == 'LZARDSBackup':
             output_lst = self.lzards_output_generator(ret_dict)
-            rdg_logger.info('LZARDS output generated')
+            gdg_logger.info('LZARDS output generated')
         else:
             output_lst = self.generate_cumulus_output(ret_dict)
-            rdg_logger.info('Cumulus output generated')
+            gdg_logger.info('Cumulus output generated')
 
         return output_lst
 

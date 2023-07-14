@@ -5,7 +5,7 @@ import re
 import boto3
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def get_ssm_value(id_name, ssm_client):
@@ -78,7 +78,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     def discover_granules(self):
         ret = {}
         try:
-            rdg_logger.info(f'Discovering in {self.provider_url}')
+            gdg_logger.info(f'Discovering in {self.provider_url}')
             s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
             start_after = self.discover_tf.get('bookmark', '')
@@ -87,7 +87,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
             )
             self.dbm.flush_dict()
             if not self.bookmark:
-                rdg_logger.info('Reading batch')
+                gdg_logger.info('Reading batch')
                 batch = self.dbm.read_batch()
                 # ret.update({'batch': batch})
                 ret.update({
@@ -102,7 +102,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     'queued_files_count': 0
                 })
         except ValueError as e:
-            rdg_logger.error(e)
+            gdg_logger.error(e)
             raise
         finally:
             self.dbm.close_db()
@@ -123,6 +123,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         """
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
+                gdg_logger
                 last_s3_key = s3_object["Key"]
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
                 sections = str(key).rsplit('/', 1)
@@ -152,7 +153,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 # Check Time
                 time_remaining = self.lambda_context.get_remaining_time_in_millis()
                 if time_remaining < self.early_return_threshold:
-                    rdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
+                    gdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
                     return last_s3_key
 
         return None
@@ -180,7 +181,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         try:
             os.remove(filename)
         except FileNotFoundError:
-            rdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
+            gdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
 
     def move_granule_wrapper(self, granule_list_dicts):
         with concurrent.futures.ThreadPoolExecutor() as executor:
