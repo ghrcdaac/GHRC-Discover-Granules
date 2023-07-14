@@ -123,7 +123,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         """
         for page in response_iterator:
             for s3_object in page.get('Contents', {}):
-                gdg_logger
                 last_s3_key = s3_object["Key"]
                 key = f'{self.provider.get("protocol")}://{self.provider.get("host")}/{s3_object["Key"]}'
                 sections = str(key).rsplit('/', 1)
