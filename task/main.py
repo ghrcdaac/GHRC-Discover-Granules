@@ -34,7 +34,7 @@ def main(event, context):
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
-    # rdg_logger.info(f'Event: {event}')
+    # gdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event, context)
     if dg_client.discovered_files_count == 0 or dg_client.bookmark:
@@ -83,7 +83,7 @@ def main(event, context):
                 'queued_granules_count': 0
             }
         )
-    # rdg_logger.info(f'returning: {res}')
+    # gdg_logger.info(f'returning: {res}')
     return res
 
 

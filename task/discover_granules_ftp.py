@@ -65,7 +65,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
             column_list = row.split()
             filename = column_list[-1]
             if row.startswith('d') and check_reg_ex(self.dir_reg_ex, self.provider_path):
-                # rdg_logger.info(f'{filename} was a directory')
+                # gdg_logger.info(f'{filename} was a directory')
                 directory_list.append(filename)
             else:
                 granule_id_match = re.search(self.granule_id_extraction, str(filename))
@@ -81,7 +81,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
                     else:
                         raise ValueError(f'FTP row format is not the expected length: {column_list}')
                 else:
-                    # rdg_logger.info(f'The granuleIdExtraction {self.granule_id_extraction} did not match the file name.')
+                    # gdg_logger.info(f'The granuleIdExtraction {self.granule_id_extraction} did not match the file name.')
                     pass
 
 

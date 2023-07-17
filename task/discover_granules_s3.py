@@ -143,7 +143,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         )
 
                     else:
-                        # rdg_logger.warning(
+                        # gdg_logger.warning(
                         #     f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
                         #     f' did not match the filename {url_segment}.'
                         # )
@@ -175,7 +175,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = get_s3_client()
         if not destination_bucket:
             destination_bucket = f'{os.getenv("stackName")}-private'
-            # rdg_logger.info(f'key: {bucket_and_key[-1]}')
+            # gdg_logger.info(f'key: {bucket_and_key[-1]}')
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)

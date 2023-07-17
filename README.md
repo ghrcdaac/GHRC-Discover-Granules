@@ -414,5 +414,5 @@ Notes:
  - You will need to update the --function-name to the appropriate value for the stack you are working in. 
 You can download the database lookup file stored in S3, modify it for testing, and upload it as needed.
  - The ETag as given by AWS is used as the md5sum. AWS calculates the ETag for multipart downloads somewhat differently
-than normal uploads. This probably won't matter in most cases as RDG just uses the Etag as a unique identifier. 
+than normal uploads. This probably won't matter in most cases as GDG just uses the Etag as a unique identifier. 
 If a verification of the Etag needs to be done then look into how AWS S3 calculates a multipart file upload checksum.  

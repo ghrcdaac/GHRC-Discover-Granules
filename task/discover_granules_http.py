@@ -53,11 +53,11 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
             href = a_tag.get('href')
             if href not in self.provider_url:
                 url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
-                # rdg_logger.info(f'segment: {url_segment}')
+                # gdg_logger.info(f'segment: {url_segment}')
                 full_path = f'{self.provider_url.rstrip("/")}/{url_segment}'
                 urls.append(full_path)
             else:
-                # rdg_logger.info(f'ignoring parent directory: {href}')
+                # gdg_logger.info(f'ignoring parent directory: {href}')
                 pass
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -83,9 +83,9 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
                 elif (not etag and not last_modified) and check_reg_ex(self.dir_reg_ex, full_path):
                     directory_list.append(f'{full_path}/')
-                    # rdg_logger.info(f'Directory found: {directory_list[-1]}')
+                    # gdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:
-                    # rdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
+                    # gdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
                     pass
 
         gdg_logger.info(f'Granules found: {granule_count}')
