@@ -11,7 +11,7 @@
     "provider_path": "lma/nalma/raw/short_test",
     "collection": {
       "process": "metadataextractor",
-      "granuleIdExtraction": "((.*_NALMA_).*)",
+      "granuleIdExtraction": "(.*_NALMA_\\w*)",
       "version": "1",
       "meta": {
         "discover_tf": {

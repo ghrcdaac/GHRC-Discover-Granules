@@ -5,7 +5,7 @@ import re
 import boto3
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def get_ssm_value(id_name, ssm_client):
@@ -72,22 +72,22 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         self.key_id_name = self.meta.get('aws_key_id_name')
         self.secret_key_name = self.meta.get('aws_secret_key_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
-        self.last_key = self.discover_tf.get('last_key', '')
+        self.bookmark = self.discover_tf.get('bookmark', '')
         self.early_return_threshold = int(os.getenv('early_return_threshold', 0)) * 1000
 
     def discover_granules(self):
         ret = {}
         try:
-            rdg_logger.info(f'Discovering in {self.provider_url}')
+            gdg_logger.info(f'Discovering in {self.provider_url}')
             s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
                 else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-            start_after = self.discover_tf.get('last_key', '')
-            self.last_key = self.discover(get_s3_resp_iterator(
+            start_after = self.discover_tf.get('bookmark', '')
+            self.bookmark = self.discover(get_s3_resp_iterator(
                 self.host, self.prefix, s3_client, start_after=start_after)
             )
             self.dbm.flush_dict()
-            if not self.last_key:
-                rdg_logger.info('Reading batch')
+            if not self.bookmark:
+                gdg_logger.info('Reading batch')
                 batch = self.dbm.read_batch()
                 # ret.update({'batch': batch})
                 ret.update({
@@ -97,12 +97,12 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 })
             else:
                 ret.update({
-                    'last_key': self.last_key,
+                    'bookmark': self.bookmark,
                     'discovered_files_count': self.dbm.discovered_files_count + self.discovered_files_count,
                     'queued_files_count': 0
                 })
         except ValueError as e:
-            rdg_logger.error(e)
+            gdg_logger.error(e)
             raise
         finally:
             self.dbm.close_db()
@@ -143,7 +143,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         )
 
                     else:
-                        # rdg_logger.warning(
+                        # gdg_logger.warning(
                         #     f'The collection\'s granuleIdExtraction {self.granule_id_extraction}'
                         #     f' did not match the filename {url_segment}.'
                         # )
@@ -152,7 +152,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 # Check Time
                 time_remaining = self.lambda_context.get_remaining_time_in_millis()
                 if time_remaining < self.early_return_threshold:
-                    rdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
+                    gdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
                     return last_s3_key
 
         return None
@@ -175,12 +175,12 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         internal_s3_client = get_s3_client()
         if not destination_bucket:
             destination_bucket = f'{os.getenv("stackName")}-private'
-            # rdg_logger.info(f'key: {bucket_and_key[-1]}')
+            # gdg_logger.info(f'key: {bucket_and_key[-1]}')
         internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
         try:
             os.remove(filename)
         except FileNotFoundError:
-            rdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
+            gdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
 
     def move_granule_wrapper(self, granule_list_dicts):
         with concurrent.futures.ThreadPoolExecutor() as executor:

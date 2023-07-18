@@ -104,5 +104,63 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertTrue(check_reg_ex(None, 'test_text'))
 
 
+class TestDiscoverGranulesMultiFile(unittest.TestCase):
+    """
+    Tests discover Granules
+    """
+
+    @patch.multiple(DiscoverGranulesBase, __abstractmethods__=set())
+    def setUp(self) -> None:
+        event = get_event('s3_multi_file_granule')
+        self.dg = DiscoverGranulesBase(event)  # pylint: disable=abstract-class-instantiated
+        self.dg.get_session = MagicMock()
+
+    @mock.patch('time.time', mock.MagicMock(return_value=0))
+    def test_generate_cumulus_output_multi_file_granules(self):
+        test_dict = [
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.file_1.dat',
+                'etag': 'ec5273963f74811028e38a367beaf7a5', 'last_modified': '1645564956.0', 'size': 4553538
+            },
+            {
+                'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.file_2.dat',
+                'etag': '919a1ba1dfbbd417a662ab686a2ff574', 'last_modified': '1645564956.0', 'size': 4706838
+            }
+        ]
+
+        ret_list = self.dg.generate_cumulus_output(test_dict)
+        print(f'ret_list: {ret_list}')
+
+        expected = [
+            {
+                'granuleId': 'LA_NALMA_firetower_211130_000000',
+                'dataType': 'nalmaraw',
+                'version': '1',
+                'files': [
+                    {
+                        'name': 'LA_NALMA_firetower_211130_000000.file_1.dat',
+                        'path': 'lma/nalma/raw/short_test',
+                        'size': 4553538,
+                        'time': 0,
+                        'url_path': 'nalmaraw__1',
+                        'bucket': 'sharedsbx-private',
+                        'type': ''
+                    },
+                    {
+                        'name': 'LA_NALMA_firetower_211130_000000.file_2.dat',
+                        'path': 'lma/nalma/raw/short_test',
+                        'size': 4706838,
+                        'time': 0,
+                        'url_path': 'nalmaraw__1',
+                        'bucket': 'sharedsbx-private',
+                        'type': ''
+                    }
+                ]
+            }
+        ]
+
+        self.assertEqual(ret_list, expected)
+
+
 if __name__ == "__main__":
     unittest.main()

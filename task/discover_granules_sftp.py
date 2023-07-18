@@ -8,7 +8,7 @@ import boto3
 import paramiko
 
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def get_private_key(private_key, local_dir=None):
@@ -123,7 +123,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
 
     def discover(self, sftp_client):
         directory_list = []
-        rdg_logger.info(f'Discovering in {self.provider_url}')
+        gdg_logger.info(f'Discovering in {self.provider_url}')
         sftp_client.chdir(self.path)
 
         listdir_res = sftp_client.listdir()
@@ -133,13 +133,13 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             file_stat = sftp_client.stat(dir_file)
             file_type = str(file_stat)[0]
             if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
-                # rdg_logger.info(f'{dir_file} was a directory')
+                # gdg_logger.info(f'{dir_file} was a directory')
                 directory_list.append(dir_file)
             elif check_reg_ex(self.file_reg_ex, str(dir_file)):
                 reg_match = re.match(self.granule_id_extraction, str(dir_file))
                 if reg_match is not None:
                     granule_id = re.match(self.granule_id_extraction, str(dir_file)).group(1)
-                    # rdg_logger.info(f'Checking {self.granule_id_extraction} against {str(dir_file)} resulted in {granule_id}')
+                    # gdg_logger.info(f'Checking {self.granule_id_extraction} against {str(dir_file)} resulted in {granule_id}')
                 else:
                     raise ValueError(f'The granuleIdExtraction {self.granule_id_extraction} '
                                      f'did not match the file name: {str(dir_file)}')
@@ -151,14 +151,15 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                     last_modified=str(file_stat.st_mtime), size=int(file_stat.st_size)
                 )
             else:
-                # rdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
+                # gdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
                 #                    f'The supplied regex [{self.file_reg_ex}] may not match.')
                 pass
 
-        if self.depth > 0:
+        if self.depth > 0 and len(directory_list) > 0:
             self.depth -= 1
             for directory in directory_list:
                 self.path = directory
+            self.depth += 1
 
         sftp_client.chdir('../')
 

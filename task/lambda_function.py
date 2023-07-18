@@ -2,7 +2,7 @@ import os
 import sys
 
 from task.test import test_main
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 from task.main import main
 
 if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
@@ -11,13 +11,13 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 
 
 def handler(event, context):
-    # rdg_logger.info(f'Full Event: {event}')
+    # gdg_logger.info(f'Full Event: {event}')
     if event.get('is_test', False):
         results = test_main(event, context)
     else:
         if run_cumulus_task:
             results = run_cumulus_task(main, event, context)
-            # rdg_logger.info(f'result: {results}')
+            # gdg_logger.info(f'result: {results}')
         else:
             results = main(event, context)
     return results

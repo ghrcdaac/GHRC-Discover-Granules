@@ -5,7 +5,7 @@ import re
 from tempfile import mkdtemp
 
 from task.dbm_get import get_db_manager
-from task.logger import rdg_logger
+from task.logger import gdg_logger
 
 
 def check_reg_ex(regex, target):
@@ -18,29 +18,29 @@ class DiscoverGranulesBase(ABC):
     """
 
     def __init__(self, event, db_type=None, context=None):
+        self.bookmark = None
         self.lambda_context = context
         self.input = event.get('input', {})
         self.config = event.get('config', {})
         self.provider = self.config.get('provider', {})
         self.collection = self.config.get('collection', {})
         self.collection_id = f'{self.collection.get("name")}___{self.collection.get("version")}'
-        self.granule_id_extraction = self.collection.get('granuleIdExtraction', {})
+        self.granule_id = self.collection.get('granuleId')
+        self.granule_id_extraction = self.collection.get('granuleIdExtraction')
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
         self.file_reg_ex = self.collection.get('granuleIdExtraction', None)
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
-
-        duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        force_replace = self.discover_tf.get('force_replace', False)
-        use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
+        self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        self.force_replace = self.discover_tf.get('force_replace', False)
+        self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
-        if duplicates == 'replace' and force_replace is False and not use_cumulus_filter:
-            duplicates = 'skip'
+        if self.duplicates == 'replace' and self.force_replace is False and not self.use_cumulus_filter:
+            self.duplicates = 'skip'
 
         self.discovered_files_count = self.discover_tf.get('discovered_files_count', 0)
         self.queued_files_count = self.discover_tf.get('queued_files_count', 0)
@@ -52,8 +52,8 @@ class DiscoverGranulesBase(ABC):
             provider_path = f'{provider_path}/'
 
         self.provider_url = f'{protocol}://{host}/{provider_path}'
-        rdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
-        rdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
+        gdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
+        gdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
         db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'sqlite'))
         if db_type == 'sqlite':
@@ -65,7 +65,7 @@ class DiscoverGranulesBase(ABC):
         self.transaction_size = self.discover_tf.get('transaction_size', 100000)
 
         kwargs = {
-            'duplicate_handling': duplicates,
+            'duplicate_handling': self.duplicates,
             'transaction_size': self.transaction_size,
             'database': db_file_path,
             'db_type': db_type,
@@ -74,7 +74,7 @@ class DiscoverGranulesBase(ABC):
             'provider_url': self.provider_url
         }
 
-        if use_cumulus_filter:
+        if self.use_cumulus_filter:
             cumulus_kwargs = dict(kwargs)
             cumulus_kwargs.update({'db_type': 'cumulus', 'database': None})
             cumulus_dbm = get_db_manager(**cumulus_kwargs)
@@ -89,10 +89,10 @@ class DiscoverGranulesBase(ABC):
     def generate_lambda_output(self, ret_dict):
         if self.config.get('workflow_name') == 'LZARDSBackup':
             output_lst = self.lzards_output_generator(ret_dict)
-            rdg_logger.info('LZARDS output generated')
+            gdg_logger.info('LZARDS output generated')
         else:
             output_lst = self.generate_cumulus_output(ret_dict)
-            rdg_logger.info('Cumulus output generated')
+            gdg_logger.info('Cumulus output generated')
 
         return output_lst
 
@@ -120,8 +120,6 @@ class DiscoverGranulesBase(ABC):
         https://github.com/nasa/cumulus/blob/master/tasks/sync-granule/schemas/input.json
         """
         temp_dict = {}
-        gid_regex = self.collection.get('granuleId')
-
         for granule in granule_dict_list:
             granule_name = granule.get('name')
             res = granule_name.find(self.config.get('provider_path'))
@@ -135,14 +133,14 @@ class DiscoverGranulesBase(ABC):
             bucket_type = file_def.get('bucket', '')
 
             # TODO: This can be simplified to just use the granuleIdExtraction once collections use a corrected one
-            if re.search(gid_regex, filename):
-                granule_id = filename
+            gid_match = re.search(self.granule_id_extraction, filename)
+            if gid_match:
+                granule_id = gid_match.group()
             else:
-                granule_id = re.search(self.collection.get('granuleIdExtraction'), filename).group()
+                granule_id = re.search(self.granule_id, filename).group()
 
             if granule_id not in temp_dict:
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
-
             temp_dict[granule_id].get('files').append(
                 self.generate_cumulus_file(
                     filename, path, granule.get('size'),
