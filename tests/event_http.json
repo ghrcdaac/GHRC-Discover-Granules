@@ -101,7 +101,7 @@
     "duplicateGranuleHandling": "replace"
   },
   "cumulus_config": {
-    "state_machine": "arn:aws:states:us-west-2:322322076095:stateMachine:sharedsbx-DiscoverGranules",
+    "state_machine": "arn:aws:states:us-west-2:<ACCOUNT_NUMBER>:stateMachine:sharedsbx-DiscoverGranules",
     "execution_name": "rssmif17d-df72958a-6577-4b01-8f4b-66c8b4b6e797"
   }
 }

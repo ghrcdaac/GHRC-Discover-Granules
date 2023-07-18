@@ -394,9 +394,9 @@ SkipStep:
 There is a `build.sh` script for convenience that uses values from the host environment to build and deploy the lambda.
 To use this add the following environment variables:
 ```shell
-export AWS_ACCOUNT_NUMBER=<ACCOUNT_NUMBER
+export AWS_ACCOUNT_NUMBER=<ACCOUNT_NUMBER>
 export AWS_REGION=<REGION>
-export PREFIX=<STACK_PREFIX
+export PREFIX=<STACK_PREFIX>
 ```
 Once configured, a build and deployment can be done with `bash build.sh`
 
