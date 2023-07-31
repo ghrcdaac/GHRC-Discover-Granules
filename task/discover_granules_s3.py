@@ -7,6 +7,8 @@ import boto3
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import gdg_logger
 
+ONE_MEBIBIT = 1048576
+
 
 def get_ssm_value(id_name, ssm_client):
     """
@@ -50,6 +52,7 @@ def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None, start_
     :param prefix: The path for the s3 granules.
     :param s3_client: Initialized boto3 S3 client
     :param pagination_config: Configuration for s3 pagination
+    :param start_after: S3 key to start pagination
     """
     if pagination_config is None:
         pagination_config = {'page_size': 1000}
@@ -157,37 +160,97 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
         return None
 
-    def move_granule(self, source_s3_uri, destination_bucket=None):
+    def move_granule(
+            self, s3_client_source, s3_client_destination, granule_dict,
+            destination_bucket=f'{os.getenv("stackName")}-private'
+    ):
         """
-        Moves a granule from an external provider bucket to the ec2 mount location so that it can be uploaded to an
-        internal S3 bucket.
-        :param source_s3_uri: The external location to copy from
+        Copies a file from a source S3 client to a destination S3 client
+        :param s3_client_source: Source S3 client
+        :param s3_client_destination: Destination S3 client
+        :param granule_dict: granule dictionary contained needed name and size fields
         :param destination_bucket: The location to copy the file to
         """
-        # Download granule from external S3 bucket with provided keys
-        external_s3_client = get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
-        bucket_and_key = source_s3_uri.replace('s3://', '').split('/', 1)
-        download_path = os.getenv('efs_path')
-        filename = f'{download_path}/{bucket_and_key[-1].rsplit("/" , 1)[-1]}'
-        external_s3_client.download_file(Bucket=bucket_and_key[0], Filename=filename, Key=bucket_and_key[-1])
+        source_s3_uri = granule_dict.get('name')
+        size = int(granule_dict.get('size'))
 
-        # Upload from ec2 to internal S3 then delete the copied file
-        internal_s3_client = get_s3_client()
-        if not destination_bucket:
-            destination_bucket = f'{os.getenv("stackName")}-private'
-            # gdg_logger.info(f'key: {bucket_and_key[-1]}')
-        internal_s3_client.upload_file(Bucket=destination_bucket, Filename=filename, Key=bucket_and_key[-1])
-        try:
-            os.remove(filename)
-        except FileNotFoundError:
-            gdg_logger.warning(f'Failed to delete {filename}. File does not exist.')
+        bucket_key_regex = re.compile('(?:s3://)([^/]*)/(.*)')
+        regex_res = bucket_key_regex.search(source_s3_uri)
+        source_bucket = regex_res.group(1)
+        key = regex_res.group(2)
+
+        s3_stream = s3_client_source.get_object(
+            Bucket=source_bucket,
+            Key=key
+        ).get('Body')
+
+        # The default part size is 8MB. Further testing needs to be done to determine optimal size.
+        if size >= (ONE_MEBIBIT * 8):
+            self.multipart_upload(s3_stream, s3_client_destination, destination_bucket, key)
+        else:
+            s3_client_destination.put_object(Bucket=destination_bucket, Body=s3_stream.read(), Key=key)
+
+    @staticmethod
+    def multipart_upload(stream_iter, destination_client, bucket, key):
+        mp_upload_args = {
+            'Key': key,
+            'Bucket': bucket
+        }
+
+        # gdg_logger.info(f'Creating multipart upload: {mp_upload_args}')
+        rsp = destination_client.create_multipart_upload(**mp_upload_args)
+        mp_upload_args.update({'UploadId': rsp.get('UploadId')})
+
+        parts = []
+        part_number = 1
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for chunk in stream_iter:
+                upload_part_args = {**mp_upload_args, **{'Body': chunk, 'PartNumber': part_number}}
+                part_dict = {
+                    'PartNumber': part_number
+                }
+
+                futures.append(
+                    executor.submit(destination_client.upload_part, **upload_part_args)
+                )
+                parts.append(part_dict)
+                part_number += 1
+
+            futures_res = concurrent.futures.wait(futures)
+            if futures_res.not_done:
+                raise ValueError('Not all futures completed.')
+            else:
+                for future_index in range(len(futures)):
+                    etag = futures[future_index].result().get('ETag')
+                    parts[future_index].update({'ETag': etag})
+
+        mp_upload_args.update({'MultipartUpload': {'Parts': parts}})
+        rsp = destination_client.complete_multipart_upload(**mp_upload_args)
+
+        # TODO: Make this option configurable
+        # Copy over self to convert multipart upload ETag to normal ETag. The performance impact of this is negligible
+        # cp_rsp = destination_client.copy_object(
+        #     Bucket='sharedsbx-private',
+        #     Key=key,
+        #     CopySource={
+        #         'Bucket': 'sharedsbx-private',
+        #         'Key': key
+        #     }
+        # )
+        # print(cp_rsp)
+
+        return rsp
 
     def move_granule_wrapper(self, granule_list_dicts):
+        gdg_logger.info(f'Moving granules to internal bucket')
+        external_s3_client = get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        internal_s3_client = get_s3_client()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for granule_dict in granule_list_dicts:
                 futures.append(
-                    executor.submit(self.move_granule, granule_dict.get('name'))
+                    executor.submit(self.move_granule, external_s3_client, internal_s3_client, granule_dict)
                 )
 
             for future in concurrent.futures.as_completed(futures):

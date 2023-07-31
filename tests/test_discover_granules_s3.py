@@ -6,7 +6,8 @@ import time
 from unittest.mock import MagicMock, patch
 import unittest
 from dateutil.tz import tzutc
-from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys
+from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys, \
+    ONE_MEBIBIT
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -122,31 +123,29 @@ class TestDiscoverGranules(unittest.TestCase):
         discover_count = len(self.dg.dbm.list_dict)
         self.assertEqual(1, discover_count)
 
-    @patch('task.discover_granules_s3.get_s3_client')
-    @patch('task.discover_granules_s3.get_s3_client_with_keys')
-    @patch('task.discover_granules_s3.get_ssm_value')
-    def test_move_granule(self, mock_ssm, mock_get_client_with_keys, mock_get_client):
+    @patch('boto3.client')
+    def test_move_granule(self, mock_client):
+        mock_client = MagicMock()
         os.environ['stackName'] = 'unit-test'
-        os.environ['efs_path'] = 'tmp'
-        t = 's3://some_provider/at/a/path/that/is/fake.txt'
-        self.dg.move_granule(t)
-        del os.environ['efs_path']
+        granule_dict = {
+            'name': 's3://some_provider/at/a/path/that/is/fake.txt',
+            'size': ONE_MEBIBIT
+        }
+        self.dg.move_granule(mock_client, mock_client, granule_dict)
 
-    @patch('os.remove')
-    @patch('task.discover_granules_s3.get_s3_client')
-    @patch('task.discover_granules_s3.get_s3_client_with_keys')
-    @patch('task.discover_granules_s3.get_ssm_value')
-    def test_move_granule_file_exception(self, mock_ssm, mock_get_client_with_keys, mock_get_client, mock_os):
-        mock_os.side_effect = MagicMock(side_effect=FileNotFoundError)
+    @patch('boto3.client')
+    def test_move_granule_multipart(self, mock_client):
+        mock_client = MagicMock()
         os.environ['stackName'] = 'unit-test'
-        os.environ['efs_path'] = 'tmp'
-        t = 's3://some_provider/at/a/path/that/is/fake.txt'
-        self.dg.move_granule(t)
-        self.assertRaises(FileNotFoundError)
-        del os.environ['efs_path']
+        granule_dict = {
+            'name': 's3://some_provider/at/a/path/that/is/fake.txt',
+            'size': (ONE_MEBIBIT * 8)
+        }
+        self.dg.move_granule(mock_client, mock_client, granule_dict)
 
-    def test_move_granule_wrapper(self):
-        test_dict = [
+    @patch('boto3.client')
+    def test_move_granule_wrapper(self, mock_client):
+        test_list_dict = [
             {
                 'name': 's3://sharedsbx-private/lma/nalma/raw/short_test/LA_NALMA_firetower_211130_000000.dat',
                 'ETag': 'ec5273963f74811028e38a367beaf7a5', 'Last-Modified': '1645564956.0', 'Size': 4553538
@@ -158,7 +157,7 @@ class TestDiscoverGranules(unittest.TestCase):
         ]
 
         self.dg.move_granule = MagicMock()
-        self.dg.move_granule_wrapper(test_dict)
+        self.dg.move_granule_wrapper(test_list_dict)
         self.assertEqual(self.dg.move_granule.call_count, 2)
 
 

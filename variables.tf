@@ -11,14 +11,6 @@ variable "cumulus_lambda_role_name" {
   type = string
 }
 
-variable "efs_access_point_arn" {
-  type = string
-}
-
-variable "efs_path" {
-  type = string
-}
-
 variable "env_variables" {
   type    = map(string)
   default = {}

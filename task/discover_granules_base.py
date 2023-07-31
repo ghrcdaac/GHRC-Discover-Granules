@@ -59,7 +59,7 @@ class DiscoverGranulesBase(ABC):
         if db_type == 'sqlite':
             db_suffix = self.meta.get('collection_type', 'static')
             db_filename = f'discover_granules_{db_suffix}.db'
-            db_file_path = f'{os.getenv("efs_path", mkdtemp())}/{db_filename}'
+            db_file_path = f'{mkdtemp()}/{db_filename}'
         else:
             db_file_path = None
         self.transaction_size = self.discover_tf.get('transaction_size', 100000)

@@ -40,28 +40,13 @@ If you don't have Cumulus stack deployed yet please consult [this repo](https://
 and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
 
 ## Database Configuration Options
-As of v3.0.0 the module supports three database configurations though the `db_type` terraform variable.   
+As of v4.0.0 the module supports two database configurations though the `db_type` terraform variable.   
 
-If migrating to v3.0.0+ bear in mind that the SQLite database that currently exists will not automatically be migrated
-to postgresql if you wish to use that configuration. Additionally if an EFS mount was configured specifically to hold
-the SQLite database and it is no longer needed then be sure to delete the infrastructure as it can accumulate costs 
-storing unused files. 
 ### AWS RDS Aurora-Postgresql: `db_type="postgresql"` 
 An RDS instance will be created exclusively for this module. Much of the parameters are configurable through terraform 
 variables so that the deployment can be customized as needed. This deployment offers the most flexibility as it is still
-possible to use the SQLite in EFS if it was already being used or it is possible to use the cumulus database as read 
-only for smaller discovery efforts. It is important to note that if the `db_type` variable is changed on subsequent 
-deployments the contents of the postgresql database will be lost.
-### SQLite: `db_type="sqlite"`
-It is recommended to set up an EFS partition in EC2 to store the SQLite database. Persistent memory will not be possible
-without doing this, but would still be possible to run one off discovery processes. See the following repo for 
-setting it up: 
-https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip  
-There are limitations to this deployment type. The main performance impact is that the database must be locked with
-an exclusive file lock that does not allow other readers for the duration of the lambda execution. An additional
-downside is that as the database grows in size the throughput of EFS may become a problem. This issue might be 
-minimized in later version of terraform where the EFS mount can be configured in elastic mode but the other two 
-deployment options are more suitable for likely all cases. 
+possible to use the cumulus database as read only for smaller discovery efforts. It is important to note that if the
+`db_type` variable is changed on subsequent deployments the contents of the postgresql database will be lost.
 
 ### Cumulus-Read-Only: `db_type="cumulus"`
 When running with `"duplicateHandling": "skip"` the code will check the discovered `granule_id`s against the cumulus
@@ -359,7 +344,7 @@ made to discover all granules for a provider and writes this to the configured d
 complete the module will fetch records from the database, limited by the batch_limit parameter, and generate the 
 appropriate output for the QueueGranules step. The code internally keeps up with the number of discovered and queued 
 granules and will keep looping between the `IsDone` step and `DiscoverGranules` step until all granules have been marked 
-as queued in the SQLite database. 
+as queued in the database. 
 
 # Skip Ingest
 It is possible to skip the queue granules step and it can be convenient to do so for some situations. The following

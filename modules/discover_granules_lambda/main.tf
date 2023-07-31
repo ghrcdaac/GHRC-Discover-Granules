@@ -21,7 +21,6 @@ resource "aws_lambda_function" "discover_granules" {
       s3_key_prefix = var.s3_key_prefix
       db_type = var.db_type
       early_return_threshold = var.early_return_threshold
-      efs_path = var.efs_path
       sqlite_transaction_size = var.sqlite_transaction_size
       sqlite_temp_store = var.sqlite_temp_store
       sqlite_cache_size = var.sqlite_cache_size
@@ -33,11 +32,6 @@ resource "aws_lambda_function" "discover_granules" {
   vpc_config {
     security_group_ids = var.security_group_ids
     subnet_ids = var.subnet_ids
-  }
-
-  file_system_config {
-    local_mount_path = var.efs_path
-    arn = var.efs_access_point_arn
   }
 
   depends_on = [
