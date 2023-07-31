@@ -1,4 +1,4 @@
-[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/GHRC-Discover-Granules/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
+[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/GHRC-Discover-Granules/badge.svg)](https://coveralls.io/github/ghrcdaac/GHRC-Discover-Granules)
 ![Build Status](https://github.com/ghrcdaac/GHRC-Discover-Granules/actions/workflows/python-package.yml/badge.svg?branch=master)
 ```text
     _____ _    _ _____   _____      _____  _                                     _____                       _           
