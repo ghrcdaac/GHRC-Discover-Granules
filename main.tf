@@ -7,7 +7,7 @@ terraform {
 }
 
 module "aws_lambda_function" {
-  source                    = "./modules/discover_granules_lambda"
+  source                    = "./modules/ghrc_discover_granules_lambda"
   prefix                    = var.prefix
   region                    = var.region
   s3_bucket_name            = var.s3_bucket_name

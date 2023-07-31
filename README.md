@@ -1,11 +1,12 @@
-[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/discover-granules-tf-module/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
-![Build Status](https://github.com/ghrcdaac/discover-granules-tf-module/actions/workflows/python-package.yml/badge.svg?branch=master)
-```
- ____ ___ ____   ____ _____     _______ ____        ____ ____      _    _   _ _   _ _     _____ ____      _____ _____
-|  _ \_ _/ ___| / ___/ _ \ \   / / ____|  _ \      / ___|  _ \    / \  | \ | | | | | |   | ____/ ___|    |_   _|  ___|
-| | | | |\___ \| |  | | | \ \ / /|  _| | |_) |____| |  _| |_) |  / _ \ |  \| | | | | |   |  _| \___ \ _____| | | |_
-| |_| | | ___) | |__| |_| |\ V / | |___|  _ <_____| |_| |  _ <  / ___ \| |\  | |_| | |___| |___ ___) |_____| | |  _|
-|____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
+[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/GHRC-Discover-Granules/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
+![Build Status](https://github.com/ghrcdaac/GHRC-Discover-Granules/actions/workflows/python-package.yml/badge.svg?branch=master)
+```text
+    _____ _    _ _____   _____      _____  _                                     _____                       _           
+  / ____| |  | |  __ \ / ____|    |  __ \(_)                                   / ____|                     | |          
+ | |  __| |__| | |__) | |   ______| |  | |_ ___  ___ _____   _____ _ __ ______| |  __ _ __ __ _ _ __  _   _| | ___  ___ 
+ | | |_ |  __  |  _  /| |  |______| |  | | / __|/ __/ _ \ \ / / _ \ '__|______| | |_ | '__/ _` | '_ \| | | | |/ _ \/ __|
+ | |__| | |  | | | \ \| |____     | |__| | \__ \ (_| (_) \ V /  __/ |         | |__| | | | (_| | | | | |_| | |  __/\__ \
+  \_____|_|  |_|_|  \_\\_____|    |_____/|_|___/\___\___/ \_/ \___|_|          \_____|_|  \__,_|_| |_|\__,_|_|\___||___/
 ```
 # Overview
 The discover granules terraform module uses a lambda function to discover granules at HTTP/HTTPS, SFTP and S3 providers. 
@@ -139,7 +140,7 @@ This is an example of a collection with the added block:
 ```
 
 The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell 
-discover-granules-tf-module how to handle granules that already exist in the configured database but also are discovered on the
+ghrc-discover-granules how to handle granules that already exist in the configured database but also are discovered on the
 current run. Discover granules handles the following possible values:
  - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
    this run
@@ -192,7 +193,7 @@ GHRCDiscoverGranules definition:
       }
     },
     "Type": "Task",
-    "Resource": "${discover_granules_tf_arn}",
+    "Resource": "${ghrc-discover-granules_arn}",
     "Retry": [
       {
         "ErrorEquals": [
@@ -386,13 +387,13 @@ export PREFIX=<STACK_PREFIX>
 Once configured, a build and deployment can be done with `bash build.sh`
 
 # Testing
-There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
+There is a createPackage.py script located at the top level of the ghrc-discover-granules repo that can use used to
 create a zip and then the dev stack repo can be pointed to this zip file. Change the source of the 
-"discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.   
+"ghrc-discover-granules" to point to the zip in your ghrc-discover-granules local repo.   
 Alternatively, you can just directly deploy the updated lambda via the following AWS CLI command:
 ```commandline
 python createPackage.py && aws lambda update-function-code --function-name 
-arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-ghrc-discover-granules-module --zip-file fileb://package.zip 
 --publish
 ```
 Notes:

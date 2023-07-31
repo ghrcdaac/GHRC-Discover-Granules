@@ -78,7 +78,7 @@ variable "sqlite_cache_size" {
 # RDS Configuration
 variable "db_identifier" {
   type = string
-  default = "dgdb"
+  default = "gdgdb"
 }
 
 variable "db_instance_class" {
@@ -88,7 +88,7 @@ variable "db_instance_class" {
 
 variable "db_username" {
   type = string
-  default = "dgdbadmin"
+  default = "gdgdbadmin"
 }
 
 variable "db_allocated_storage" {
