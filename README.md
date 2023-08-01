@@ -1,11 +1,12 @@
-[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/discover-granules-tf-module/badge.svg)](https://coveralls.io/github/ghrcdaac/discover-granules-tf-module)
-![Build Status](https://github.com/ghrcdaac/discover-granules-tf-module/actions/workflows/python-package.yml/badge.svg?branch=master)
-```
- ____ ___ ____   ____ _____     _______ ____        ____ ____      _    _   _ _   _ _     _____ ____      _____ _____
-|  _ \_ _/ ___| / ___/ _ \ \   / / ____|  _ \      / ___|  _ \    / \  | \ | | | | | |   | ____/ ___|    |_   _|  ___|
-| | | | |\___ \| |  | | | \ \ / /|  _| | |_) |____| |  _| |_) |  / _ \ |  \| | | | | |   |  _| \___ \ _____| | | |_
-| |_| | | ___) | |__| |_| |\ V / | |___|  _ <_____| |_| |  _ <  / ___ \| |\  | |_| | |___| |___ ___) |_____| | |  _|
-|____/___|____/ \____\___/  \_/  |_____|_| \_\     \____|_| \_\/_/   \_\_| \_|\___/|_____|_____|____/      |_| |_|
+[![Coverage Status](https://coveralls.io/repos/github/ghrcdaac/GHRC-Discover-Granules/badge.svg)](https://coveralls.io/github/ghrcdaac/GHRC-Discover-Granules)
+![Build Status](https://github.com/ghrcdaac/GHRC-Discover-Granules/actions/workflows/python-package.yml/badge.svg?branch=master)
+```text
+    _____ _    _ _____   _____      _____  _                                     _____                       _           
+  / ____| |  | |  __ \ / ____|    |  __ \(_)                                   / ____|                     | |          
+ | |  __| |__| | |__) | |   ______| |  | |_ ___  ___ _____   _____ _ __ ______| |  __ _ __ __ _ _ __  _   _| | ___  ___ 
+ | | |_ |  __  |  _  /| |  |______| |  | | / __|/ __/ _ \ \ / / _ \ '__|______| | |_ | '__/ _` | '_ \| | | | |/ _ \/ __|
+ | |__| | |  | | | \ \| |____     | |__| | \__ \ (_| (_) \ V /  __/ |         | |__| | | | (_| | | | | |_| | |  __/\__ \
+  \_____|_|  |_|_|  \_\\_____|    |_____/|_|___/\___\___/ \_/ \___|_|          \_____|_|  \__,_|_| |_|\__,_|_|\___||___/
 ```
 # Overview
 The discover granules terraform module uses a lambda function to discover granules at HTTP/HTTPS, SFTP and S3 providers. 
@@ -40,28 +41,13 @@ If you don't have Cumulus stack deployed yet please consult [this repo](https://
 and follow the [documentation](https://nasa.github.io/cumulus/docs/cumulus-docs-readme) to provision it.  
 
 ## Database Configuration Options
-As of v3.0.0 the module supports three database configurations though the `db_type` terraform variable.   
+As of v4.0.0 the module supports two database configurations though the `db_type` terraform variable.   
 
-If migrating to v3.0.0+ bear in mind that the SQLite database that currently exists will not automatically be migrated
-to postgresql if you wish to use that configuration. Additionally if an EFS mount was configured specifically to hold
-the SQLite database and it is no longer needed then be sure to delete the infrastructure as it can accumulate costs 
-storing unused files. 
 ### AWS RDS Aurora-Postgresql: `db_type="postgresql"` 
 An RDS instance will be created exclusively for this module. Much of the parameters are configurable through terraform 
 variables so that the deployment can be customized as needed. This deployment offers the most flexibility as it is still
-possible to use the SQLite in EFS if it was already being used or it is possible to use the cumulus database as read 
-only for smaller discovery efforts. It is important to note that if the `db_type` variable is changed on subsequent 
-deployments the contents of the postgresql database will be lost.
-### SQLite: `db_type="sqlite"`
-It is recommended to set up an EFS partition in EC2 to store the SQLite database. Persistent memory will not be possible
-without doing this, but would still be possible to run one off discovery processes. See the following repo for 
-setting it up: 
-https://github.com/ghrcdaac/terraform-aws-efs-mount/releases/download/v0.1.4/terraform-aws-efs-mount.zip  
-There are limitations to this deployment type. The main performance impact is that the database must be locked with
-an exclusive file lock that does not allow other readers for the duration of the lambda execution. An additional
-downside is that as the database grows in size the throughput of EFS may become a problem. This issue might be 
-minimized in later version of terraform where the EFS mount can be configured in elastic mode but the other two 
-deployment options are more suitable for likely all cases. 
+possible to use the cumulus database as read only for smaller discovery efforts. It is important to note that if the
+`db_type` variable is changed on subsequent deployments the contents of the postgresql database will be lost.
 
 ### Cumulus-Read-Only: `db_type="cumulus"`
 When running with `"duplicateHandling": "skip"` the code will check the discovered `granule_id`s against the cumulus
@@ -154,7 +140,7 @@ This is an example of a collection with the added block:
 ```
 
 The last relevant value in the collection definition is "duplicateHandling".  The value is used to tell 
-discover-granules-tf-module how to handle granules that already exist in the configured database but also are discovered on the
+ghrc-discover-granules how to handle granules that already exist in the configured database but also are discovered on the
 current run. Discover granules handles the following possible values:
  - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
    this run
@@ -207,7 +193,7 @@ GHRCDiscoverGranules definition:
       }
     },
     "Type": "Task",
-    "Resource": "${discover_granules_tf_arn}",
+    "Resource": "${ghrc-discover-granules_arn}",
     "Retry": [
       {
         "ErrorEquals": [
@@ -359,7 +345,7 @@ made to discover all granules for a provider and writes this to the configured d
 complete the module will fetch records from the database, limited by the batch_limit parameter, and generate the 
 appropriate output for the QueueGranules step. The code internally keeps up with the number of discovered and queued 
 granules and will keep looping between the `IsDone` step and `DiscoverGranules` step until all granules have been marked 
-as queued in the SQLite database. 
+as queued in the database. 
 
 # Skip Ingest
 It is possible to skip the queue granules step and it can be convenient to do so for some situations. The following
@@ -401,13 +387,13 @@ export PREFIX=<STACK_PREFIX>
 Once configured, a build and deployment can be done with `bash build.sh`
 
 # Testing
-There is a createPackage.py script located at the top level of the discover-granules-tf-module repo that can use used to
+There is a createPackage.py script located at the top level of the ghrc-discover-granules repo that can use used to
 create a zip and then the dev stack repo can be pointed to this zip file. Change the source of the 
-"discover-granules-tf-module" to point to the zip in your discover-granules-tf-module local repo.   
+"ghrc-discover-granules" to point to the zip in your ghrc-discover-granules local repo.   
 Alternatively, you can just directly deploy the updated lambda via the following AWS CLI command:
 ```commandline
 python createPackage.py && aws lambda update-function-code --function-name 
-arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-discover-granules-tf-module --zip-file fileb://package.zip 
+arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-ghrc-discover-granules-module --zip-file fileb://package.zip 
 --publish
 ```
 Notes:

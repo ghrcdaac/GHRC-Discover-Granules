@@ -11,14 +11,6 @@ variable "cumulus_lambda_role_name" {
   type = string
 }
 
-variable "efs_access_point_arn" {
-  type = string
-}
-
-variable "efs_path" {
-  type = string
-}
-
 variable "env_variables" {
   type    = map(string)
   default = {}
@@ -86,7 +78,7 @@ variable "sqlite_cache_size" {
 # RDS Configuration
 variable "db_identifier" {
   type = string
-  default = "dgdb"
+  default = "gdgdb"
 }
 
 variable "db_instance_class" {
@@ -96,7 +88,7 @@ variable "db_instance_class" {
 
 variable "db_username" {
   type = string
-  default = "dgdbadmin"
+  default = "gdgdbadmin"
 }
 
 variable "db_allocated_storage" {

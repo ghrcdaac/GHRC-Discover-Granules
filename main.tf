@@ -7,7 +7,7 @@ terraform {
 }
 
 module "aws_lambda_function" {
-  source                    = "./modules/discover_granules_lambda"
+  source                    = "./modules/ghrc_discover_granules_lambda"
   prefix                    = var.prefix
   region                    = var.region
   s3_bucket_name            = var.s3_bucket_name
@@ -19,8 +19,6 @@ module "aws_lambda_function" {
   layers                    = var.layers
   timeout                   = var.timeout
   memory_size               = var.memory_size
-  efs_access_point_arn      = var.efs_access_point_arn
-  efs_path                  = var.efs_path
 
   # DB Config
   db_type = var.db_type

@@ -4,8 +4,8 @@ locals {
   }
 }
 
-resource "aws_lambda_function" "discover_granules" {
-  function_name = "${var.prefix}-discover-granules-tf-module"
+resource "aws_lambda_function" "ghrc_discover_granules" {
+  function_name = "${var.prefix}-ghrc-discover-granules"
   source_code_hash = filebase64sha256("${path.module}/../../package.zip")
   handler = "task.lambda_function.handler"
   runtime = "python3.8"
@@ -21,11 +21,10 @@ resource "aws_lambda_function" "discover_granules" {
       s3_key_prefix = var.s3_key_prefix
       db_type = var.db_type
       early_return_threshold = var.early_return_threshold
-      efs_path = var.efs_path
       sqlite_transaction_size = var.sqlite_transaction_size
       sqlite_temp_store = var.sqlite_temp_store
       sqlite_cache_size = var.sqlite_cache_size
-      postgresql_secret_arn = length(aws_secretsmanager_secret.dg_db_credentials) > 0 ? aws_secretsmanager_secret.dg_db_credentials[0].arn : ""
+      postgresql_secret_arn = length(aws_secretsmanager_secret.gdg_db_credentials) > 0 ? aws_secretsmanager_secret.gdg_db_credentials[0].arn : ""
       cumulus_credentials_arn = var.cumulus_user_credentials_secret_arn
     }, var.env_variables)
   }
@@ -35,13 +34,8 @@ resource "aws_lambda_function" "discover_granules" {
     subnet_ids = var.subnet_ids
   }
 
-  file_system_config {
-    local_mount_path = var.efs_path
-    arn = var.efs_access_point_arn
-  }
-
   depends_on = [
-    aws_secretsmanager_secret.dg_db_credentials]
+    aws_secretsmanager_secret.gdg_db_credentials]
 }
 
 resource "aws_iam_policy" "ssm_policy" {
@@ -101,7 +95,7 @@ resource "aws_iam_policy" "secrets_manager_read" {
         Action = [
           "secretsmanager:GetSecretValue"],
         Resource = [
-          aws_secretsmanager_secret.dg_db_credentials[0].arn]
+          aws_secretsmanager_secret.gdg_db_credentials[0].arn]
       }
     ]
   })
@@ -113,7 +107,7 @@ resource "aws_iam_role_policy_attachment" "secrets_manager_policy_attach" {
   role = var.cumulus_lambda_role_name
 }
 
-resource "aws_db_subnet_group" "dg-db-subnet-group" {
+resource "aws_db_subnet_group" "gdg-db-subnet-group" {
   count = (var.db_type == "postgresql") ? 1 : 0
   name = "${var.prefix}-${var.db_identifier}-subnet-group"
   subnet_ids = var.subnet_ids
@@ -123,7 +117,7 @@ resource "aws_db_subnet_group" "dg-db-subnet-group" {
   }
 }
 
-resource "aws_rds_cluster" "dg_db_cluster" {
+resource "aws_rds_cluster" "gdg_db_cluster" {
   count = (var.db_type == "postgresql") ? 1 : 0
   cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster"
   engine = "aurora-postgresql"
@@ -137,7 +131,7 @@ resource "aws_rds_cluster" "dg_db_cluster" {
   master_username = var.db_username
   master_password = random_password.master_password[0].result
   backup_retention_period = 1
-  db_subnet_group_name = aws_db_subnet_group.dg-db-subnet-group[0].name
+  db_subnet_group_name = aws_db_subnet_group.gdg-db-subnet-group[0].name
   skip_final_snapshot = true
   apply_immediately = true
   vpc_security_group_ids = var.security_group_ids
@@ -150,25 +144,25 @@ resource "random_password" "master_password" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
-resource "aws_secretsmanager_secret" "dg_db_credentials" {
+resource "aws_secretsmanager_secret" "gdg_db_credentials" {
   count = (var.db_type == "postgresql") ? 1 : 0
   recovery_window_in_days = 0
   name = "${var.prefix}-${var.db_identifier}-credentials"
 }
 
-resource "aws_secretsmanager_secret_version" "dg_db_credentials" {
+resource "aws_secretsmanager_secret_version" "gdg_db_credentials" {
   count = (var.db_type == "postgresql") ? 1 : 0
   depends_on = [
-    aws_secretsmanager_secret.dg_db_credentials,
-    aws_rds_cluster.dg_db_cluster,
+    aws_secretsmanager_secret.gdg_db_credentials,
+    aws_rds_cluster.gdg_db_cluster,
     random_password.master_password
   ]
-  secret_id = aws_secretsmanager_secret.dg_db_credentials[0].id
+  secret_id = aws_secretsmanager_secret.gdg_db_credentials[0].id
   secret_string = jsonencode({
-    "user": aws_rds_cluster.dg_db_cluster[0].master_username,
+    "user": aws_rds_cluster.gdg_db_cluster[0].master_username,
     "password": random_password.master_password[0].result,
-    "host": aws_rds_cluster.dg_db_cluster[0].endpoint,
-    "port": aws_rds_cluster.dg_db_cluster[0].port,
-    "database": aws_rds_cluster.dg_db_cluster[0].database_name
+    "host": aws_rds_cluster.gdg_db_cluster[0].endpoint,
+    "port": aws_rds_cluster.gdg_db_cluster[0].port,
+    "database": aws_rds_cluster.gdg_db_cluster[0].database_name
   })
 }
