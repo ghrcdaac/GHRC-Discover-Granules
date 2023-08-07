@@ -154,6 +154,10 @@ class TestDGM(unittest.TestCase):
         batch = self.dbm.read_batch()
         self.assertEqual(granule_count * file_count, len(batch))
 
+    def test_for_update(self):
+        query = self.dbm.add_for_update(self.dbm.model_class.select())
+        self.assertIs(str(query).find('FOR UPDATE'), -1)
+
 
 if __name__ == "__main__":
     unittest.main()
