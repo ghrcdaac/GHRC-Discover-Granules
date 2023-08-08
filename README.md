@@ -264,70 +264,38 @@ IsDone Definition:
 ```json
 {
   "IsDone": {
-    "Type": "Choice",
-    "Choices": [
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
-          }
-        ],
-        "Next": "WorkflowSucceeded"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.batch_delay",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
-          }
-        ],
-        "Next": "WaitStep"
-      },
-      {
-        "And": [
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.discovered_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "IsPresent": true
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.batch_delay",
-            "IsPresent": false
-          },
-          {
-            "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
-            "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
-          }
-        ],
-        "Next": "GHRCDiscoverGranulesLambda"
-      }
-    ],
-    "Default": "WorkflowFailed"
-  }
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+              "NumericEqualsPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+            },
+            {
+              "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+              "NumericGreaterThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count"
+            },
+            {
+              "Variable": "$.meta.collection.meta.discover_tf.batch_size",
+              "NumericEquals": 0
+            }
+          ],
+          "Next": "WorkflowSucceeded"
+        },
+        {
+          "Variable": "$.meta.collection.meta.discover_tf.batch_delay",
+          "IsPresent": true,
+          "Next": "WaitStep"
+        },
+        {
+          "Variable": "$.meta.collection.meta.discover_tf.queued_files_count",
+          "NumericLessThanPath": "$.meta.collection.meta.discover_tf.discovered_files_count",
+          "Next": "GHRCDiscoverGranulesLambda"
+        }
+      ],
+      "Default": "WorkflowFailed"
+    }
 }
 ```
 WaitStep:
