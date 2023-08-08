@@ -9,7 +9,7 @@
   \_____|_|  |_|_|  \_\\_____|    |_____/|_|___/\___\___/ \_/ \___|_|          \_____|_|  \__,_|_| |_|\__,_|_|\___||___/
 ```
 # Overview
-The discover granules terraform module uses a lambda function to discover granules at HTTP/HTTPS, SFTP and S3 providers. 
+The GHRC Discover Granules terraform module uses a lambda function to discover granules at HTTP/HTTPS, SFTP and S3 providers. 
 
 The code retrieves the granule names, ETag, Last-Modified, and size values from the provider location and generates
 output to be used in the Cumulus QueueGranules lambda. An attempt is made to generate output that mirrors that of the 
@@ -58,16 +58,19 @@ infrastructure, so bear this in mind when using `skip` with this configuration.
 It is also worth noting that this configuration does not support batching. 
 
 # How to
-In order to use the GDG the following block must be added to the collection definition inside the meta block:
+In order to use the GDG the following block must be added to the collection definition inside the `meta.collection.meta`
+block:
 ```json
-"discover_tf": {
- "cumulus_filter" true,
- "depth": 0,
- "force_replace": false,
- "dir_reg_ex": "",
- "file_reg_ex": "",
- "batch_limit": 1000,
- "batch_delay": 0
+{
+  "discover_tf": {
+    "cumulus_filter": true,
+    "depth": 0,
+    "force_replace": false,
+    "dir_reg_ex": "",
+    "file_reg_ex": "",
+    "batch_limit": 1000,
+    "batch_delay": 0
+  }
 }
 ``` 
  - `cumulus_filter`: If set to `true` and the collection's duplicateHandling is set to `skip` GDG will attempt
@@ -145,6 +148,73 @@ current run. Discover granules handles the following possible values:
  - skip: Overwrite the ETag or Last-Modified values pulled from S3 if they differ from what the provider returns for 
    this run
  - replace: Existing granule records in the database will be ignored and discovered as if they were new
+
+# Lambda Output
+The following is an example of the modified `discover_tf` block that the GDG lambda will produce:
+```json
+{
+  "discover_tf": {
+    "depth": 0,
+    "dir_reg_ex": ".*",
+    "batch_delay": 1,
+    "batch_limit": 1234,
+    "force_replace": false,
+    "cumulus_filter": true,
+    "skip_queue_granules": true,
+    "batch_size": 1234,
+    "discovered_files_count": 35563,
+    "queued_files_count": 1234,
+    "queued_granules_count": 1234,
+    "bookmark": null
+  }
+}
+```
+This will be present at `meta.collection.meta.discover_tf`
+
+# Payload Output
+The module generates output that should match the output for the Cumulus DiscoverGranules 
+lambda: https://github.com/nasa/cumulus/tree/master/tasks/discover-granules   
+Here is a sample excerpt from the database:  
+```
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7_d3d.gz,"bf74b470603fd71:0",2021-05-02 14:35:47+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7.gz,"4d338a972940d71:0",2021-05-03 14:35:41+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7_d3d.gz,"c6f29b982940d71:0",2021-05-03 14:35:42+00:00  
+http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210503v7.gz,"65f3f5cff040d71:0",2021-05-04 14:21:45+00:00  
+```
+
+The step function returns a list of dictionaries of granules that were discovered this run. 
+This is an example of one of the dictionary entries:   
+```json
+[
+  {
+    "granuleId": "f16_20210601v7.gz",
+    "dataType": "rssmif16d",
+    "version": "7",
+    "files": [
+      {
+        "name": "f16_20210601v7.gz",
+        "path": "/ssmi/f16/bmaps_v07/y2021/m06/",
+        "size": "",
+        "time": 1622743794.0,
+        "bucket": "some-bucket",
+        "url_path": "rssmif16d__7",
+        "type": ""
+      }
+    ]
+  }
+]
+```
+Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.
+
+This will be added to the input event at `payload.granules`
+
+# Concurrent Workflow Executions
+While it is not intended, it is possible to run multiple workflows for the same collection. There should not be any
+errors or failures while doing this but just know that the file counts in the GDG lambda output may end up in 
+unusual states. For example, the workflow can complete with the `queued_files_count` being less than or greater than the 
+`discovered_file_count` or the lambda could do a superfluous execution that will return an empty payload before 
+completing. 
    
 # Step Configuration
 The following definition is an example of defining the lambda as a step in an AWS state machine. This configuration is read by the CMA which can be read about here: https://nasa.github.io/cumulus/docs/workflows/input_output
@@ -220,44 +290,10 @@ GHRCDiscoverGranules definition:
 }
 ```
 
-# Output
-The module generates output that should match the output for the Cumulus DiscoverGranules 
-lambda: https://github.com/nasa/cumulus/tree/master/tasks/discover-granules   
-Here is a sample excerpt from the database:  
-```sql
-http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7.gz,"e636b16d603fd71:0",2021-05-02 14:35:42+00:00  
-http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210501v7_d3d.gz,"bf74b470603fd71:0",2021-05-02 14:35:47+00:00  
-http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7.gz,"4d338a972940d71:0",2021-05-03 14:35:41+00:00  
-http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210502v7_d3d.gz,"c6f29b982940d71:0",2021-05-03 14:35:42+00:00  
-http://data.remss.com/ssmi/f16/bmaps_v07/y2021/m05/f16_20210503v7.gz,"65f3f5cff040d71:0",2021-05-04 14:21:45+00:00  
-```
-
-
-The step function returns a dictionary of granules that were discovered this run. This is an example of one of the dictionary entries:   
-```json
-{
-  "granuleId": "f16_20210601v7.gz",
-  "dataType": "rssmif16d",
-  "version": "7",
-  "files": [
-    {
-      "name": "f16_20210601v7.gz",
-      "path": "/ssmi/f16/bmaps_v07/y2021/m06/",
-      "size": "",
-      "time": 1622743794.0,
-      "bucket": "some-bucket",
-      "url_path": "rssmif16d__7",
-      "type": ""
-    }
-  ]
-}
-```
-Note: The actual output uses single quotes but double quotes were used here to avoid syntax error highlighting.
-
 # Batching
 As of v2.0.0 this module now supports batching to the QueueGranules step. In order to take advantage of this, the 
-discover granules workflow must be modified to include a post-QueueGranules step to check whether there are more 
-granules to queue from the discover process. It is important to note that batching cannot be used when using 
+Discover Granules workflow must be modified to include a post-QueueGranules step to check whether there are more 
+granules to queue from the discovery process. It is important to note that batching cannot be used when using 
 `db_type: "cumulus"`. The following is an example definition of the choice step. 
 
 IsDone Definition:  
@@ -346,7 +382,7 @@ SkipStep:
 
 # Building
 There is a `build.sh` script for convenience that uses values from the host environment to build and deploy the lambda.
-To use this add the following environment variables:
+To use this, add the following environment variables:
 ```shell
 export AWS_ACCOUNT_NUMBER=<ACCOUNT_NUMBER>
 export AWS_REGION=<REGION>
@@ -359,7 +395,7 @@ There is a createPackage.py script located at the top level of the ghrc-discover
 create a zip and then the dev stack repo can be pointed to this zip file. Change the source of the 
 "ghrc-discover-granules" to point to the zip in your ghrc-discover-granules local repo.   
 Alternatively, you can just directly deploy the updated lambda via the following AWS CLI command:
-```commandline
+```
 python createPackage.py && aws lambda update-function-code --function-name 
 arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-ghrc-discover-granules-module --zip-file fileb://package.zip 
 --publish
