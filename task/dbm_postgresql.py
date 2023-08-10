@@ -76,6 +76,16 @@ class DBManagerPSQL(DBManagerPeewee):
         }
         return self.insert_many(conflict_handling)
 
+    @staticmethod
+    def add_for_update(select_query):
+        """
+        Add the FOR UPDATE clause to PSQL queries to ensure the rows being updates cannot be updated by another
+        connected client.
+        :param select_query: The subquery for an update query.
+        :return: The select query with the added FOR UPDATE clause
+        """
+        return select_query.for_update()
+
 
 if __name__ == '__main__':
     pass

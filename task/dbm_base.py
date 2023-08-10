@@ -140,13 +140,21 @@ class DBManagerPeewee(DBManagerBase):
         """
         return self.insert_many({'action': 'rollback'})
 
+    @staticmethod
+    def add_for_update(select_query):
+        """
+        SELECT * FOR UPDATE is not supported for SQLite so just return the query.
+        :param select_query: The subquery for an update query.
+        :return: The unmodified subquery
+        """
+        return select_query
+
     def read_batch(self):
         """
         Fetches up to batch_limit file records for the provided collection_id and if the provider path
         is present in the full path of the file database name field.
         :return: Returns a list of records that had the status set from "discovered" to queued
         """
-
         # Note: The presence of order_by in the subquery is to ensure the oldest granule IDs are fetched first but the
         # order is not preserved in the wrapping query.
         sub_query = (
@@ -156,6 +164,8 @@ class DBManagerPeewee(DBManagerBase):
                 (self.model_class.name.startswith(self.provider_full_url))
             ).order_by(self.model_class.discovered_date.asc()).limit(self.batch_limit)
         )
+
+        sub_query = self.add_for_update(sub_query)
 
         update = (self.model_class.update(status='queued').where(
             (self.model_class.granule_id.in_(sub_query)) &
