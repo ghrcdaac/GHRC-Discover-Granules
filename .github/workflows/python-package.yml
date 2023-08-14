@@ -41,7 +41,7 @@ jobs:
   create_release:
     needs: build
     if: contains(github.ref, '/tags/v')
-    runs-on: ubuntu-22.04.2
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.8' ]
@@ -60,7 +60,7 @@ jobs:
         - name: Build a release
           run: |
             python --version
-            python createPackage.py
+            bash build.sh
             bash create_release.sh $SOURCE_TAG
           env:
             SOURCE_TAG: ${{ steps.tag_name.outputs.SOURCE_TAG }}
