@@ -15,7 +15,6 @@ export RELEASE_NAME=`basename $GITHUB_REPO`
 
 ## Build TF modules that require source building
 function create_zip_file() {
-
   BUILD_DIR=/tmp/${RELEASE_NAME}
   DESTINATION_DIR=${PWD}/dist
   rm -rf ${DESTINATION_DIR}
