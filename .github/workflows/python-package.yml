@@ -41,7 +41,7 @@ jobs:
   create_release:
     needs: build
     if: contains(github.ref, '/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04.2
     strategy:
       matrix:
         python-version: ['3.8' ]
