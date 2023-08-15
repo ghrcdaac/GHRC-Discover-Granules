@@ -162,10 +162,10 @@ class DBManagerPeewee(DBManagerBase):
                 (self.model_class.status == 'discovered') &
                 (self.model_class.collection_id == self.collection_id) &
                 (self.model_class.name.startswith(self.provider_full_url))
-            ).order_by(self.model_class.discovered_date.asc()).limit(self.batch_limit)
+            ).order_by(self.model_class.discovered_date.asc())
         )
 
-        sub_query = self.add_for_update(sub_query)
+        sub_query = self.add_for_update(sub_query).limit(self.batch_limit)
 
         update = (self.model_class.update(status='queued').where(
             (self.model_class.granule_id.in_(sub_query)) &
