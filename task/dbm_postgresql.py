@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 import boto3
 from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, DateTimeField, IntegerField, EXCLUDED, \
@@ -76,6 +77,33 @@ class DBManagerPSQL(DBManagerPeewee):
         }
         return self.insert_many(conflict_handling)
 
+    def read_batch(self):
+        st = time.time()
+        sub_query = "SELECT granule.granule_id FROM granule WHERE (granule.status = (%s) AND granule.collection_id = (%s) AND granule.name LIKE (%s)) ORDER BY granule.discovered_date LIMIT (%s) FOR UPDATE"
+        update_query = f"UPDATE granule SET status = 'queued' WHERE granule_id in ({sub_query}) RETURNING *"
+        print(f'query: {update_query}')
+        with self.database.cursor() as cur:
+            cur.execute(update_query, ('discovered', self.collection_id, f'{self.provider_full_url}%%', self.batch_limit))
+            res = cur.fetchall()
+
+        self.database.commit()
+        td = []
+        column_names = [
+            'name', 'granule_id', 'collection_id', 'status', 'etag', 'last_modified', 'discovered_date', 'size'
+        ]
+        for x in res:
+            temp_dict = {}
+            for value, column_name in zip(x, column_names):
+                temp_dict.update({column_name: value})
+            td.append(temp_dict)
+
+        et = time.time() - st
+        print(f'Updated {len(td)} records in {et} seconds.')
+        print(f'Rate: {int(len(td) / et)}/s')
+
+        self.queued_files_count += len(td)
+        return td
+
     @staticmethod
     def add_for_update(select_query):
         """
@@ -84,7 +112,7 @@ class DBManagerPSQL(DBManagerPeewee):
         :param select_query: The subquery for an update query.
         :return: The select query with the added FOR UPDATE clause
         """
-        return select_query.for_update()
+        return select_query.for_update(for_update=True)
 
 
 if __name__ == '__main__':
