@@ -1,10 +1,12 @@
 import datetime
 import json
 import os
+import time
 
 import boto3
 from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, DateTimeField, IntegerField, EXCLUDED, \
     chunked
+from psycopg2 import sql
 
 from task.dbm_base import DBManagerPeewee, TABLE_NAME
 
@@ -76,6 +78,47 @@ class DBManagerPSQL(DBManagerPeewee):
         }
         return self.insert_many(conflict_handling)
 
+    def read_batch(self):
+        query_args = ['discovered', self.collection_id, f'{self.provider_full_url}%', self.batch_limit]
+        sub_query = sql.SQL(
+            'SELECT dense_rank() '
+            'OVER (ORDER BY granule.granule_id) as gid_rank, granule.name '
+            'FROM granule '
+            'WHERE status = (%s) AND collection_id = (%s) AND name LIKE (%s) '
+            'ORDER BY granule.discovered_date'
+        )
+        update_query = sql.SQL(
+            'WITH ranked_gids as ({}) '
+            'UPDATE granule '
+            'SET status = \'queued\' '
+            'FROM  ranked_gids '
+            'WHERE granule.name = ranked_gids.name AND ranked_gids.gid_rank <= (%s) '
+            'RETURNING *'
+        ).format(sub_query)
+        st = time.time()
+        with self.database.cursor() as cur:
+            cur.execute(update_query, query_args)
+            print(f'query: {cur.query}')
+            res = cur.fetchall()
+
+        self.database.commit()
+        td = []
+        column_names = [
+            'name', 'granule_id', 'collection_id', 'status', 'etag', 'last_modified', 'discovered_date', 'size'
+        ]
+        for x in res:
+            temp_dict = {}
+            for value, column_name in zip(x, column_names):
+                temp_dict.update({column_name: value})
+            td.append(temp_dict)
+
+        et = time.time() - st
+        print(f'Updated {len(td)} records in {et} seconds.')
+        print(f'Rate: {int(len(td) / et)}/s')
+
+        self.queued_files_count += len(td)
+        return td
+
     @staticmethod
     def add_for_update(select_query):
         """
@@ -84,7 +127,7 @@ class DBManagerPSQL(DBManagerPeewee):
         :param select_query: The subquery for an update query.
         :return: The select query with the added FOR UPDATE clause
         """
-        return select_query.for_update()
+        return select_query.for_update(for_update=True)
 
 
 if __name__ == '__main__':
