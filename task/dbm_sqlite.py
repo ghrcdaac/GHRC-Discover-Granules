@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from playhouse.apsw_ext import APSWDatabase, CharField, DateTimeField, IntegerField, Model, EXCLUDED, chunked
+from playhouse.apsw_ext import APSWDatabase, CharField, DateTimeField, Model, EXCLUDED, chunked, BigIntegerField
 
 from task.dbm_base import DBManagerPeewee, TABLE_NAME
 
@@ -39,7 +39,7 @@ class GranuleSQLite(Model):
     etag = CharField()
     last_modified = CharField()
     discovered_date = DateTimeField(formats='YYYY-mm-dd HH:MM:SS', default=datetime.datetime.now)
-    size = IntegerField()
+    size = BigIntegerField()
 
     class Meta:
         database = DB_SQLITE

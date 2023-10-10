@@ -4,8 +4,8 @@ import os
 import time
 
 import boto3
-from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, DateTimeField, IntegerField, EXCLUDED, \
-    chunked
+from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, DateTimeField, EXCLUDED, chunked,\
+    BigIntegerField
 from psycopg2 import sql
 
 from task.dbm_base import DBManagerPeewee, TABLE_NAME
@@ -43,7 +43,7 @@ class GranulePSQL(Model):
     etag = CharField()
     last_modified = CharField()
     discovered_date = DateTimeField(formats='YYYY-mm-dd HH:MM:SS', default=datetime.datetime.now)
-    size = IntegerField()
+    size = BigIntegerField()
 
     class Meta:
         database = DB_PSQL
