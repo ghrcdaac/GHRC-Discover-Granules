@@ -4,6 +4,7 @@ import re
 import tempfile
 
 import boto3
+import dateparser
 
 import paramiko
 
@@ -148,7 +149,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 self.dbm.add_record(
                     name=full_path, granule_id=granule_id,
                     collection_id=self.collection_id, etag='N/A',
-                    last_modified=str(file_stat.st_mtime), size=int(file_stat.st_size)
+                    last_modified=dateparser.parse(file_stat.st_mtime), size=int(file_stat.st_size)
                 )
             else:
                 # gdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '

@@ -4,6 +4,7 @@ import time
 
 import boto3
 import psycopg2
+from psycopg2 import sql
 
 from task.dbm_base import DBManagerBase
 
@@ -79,16 +80,36 @@ class DBManagerCumulus(DBManagerBase):
 
         return results
 
-    def filter_against_cumulus(self, granule_ids_tuple):
-        print(f'checking cumulus for : {len(granule_ids_tuple)} granule IDs...')
+    def filter_against_cumulus(self, granule_list_dict):
+        discovered_granule_ids = []
+        for x in granule_list_dict:
+            discovered_granule_ids.append(x.get('granule_id'))
+            discovered_granule_ids.append(x.get('last_modified'))
+
+        query_params_tuple = tuple(discovered_granule_ids)
+        print(f'checking cumulus for : {len(granule_list_dict)} granule IDs...')
         results = []
+        values_string = ','.join('(%s,%s)' for x in range(len(granule_list_dict)))
         with self.DB:
             with self.DB.cursor() as curs:
-                query_string = 'SELECT granules.granule_id FROM granules WHERE granules.granule_id IN %s;'
-                print(f'Trim query: {query_string}')
-                curs.execute(query_string, (granule_ids_tuple,))
+                query_string = sql.SQL(
+                    f'WITH discovered(granule_id, last_modified) AS (VALUES {values_string}) '
+                    'SELECT g.granule_id '
+                    'FROM granules g '
+                    'WHERE EXISTS ('
+                    'SELECT 1 FROM discovered d '
+                    'WHERE g.granule_id = d.granule_id AND g.updated_at::timestamp >= d.last_modified::timestamp'
+                    ')'
+                )
+                # print(f'Trim query: {query_string}')
+                # print(f'Trim query: {curs.mogrify(query_string, granule_ids_tuple)}')
+                curs.execute(query_string, query_params_tuple)
                 results.extend([x[0] for x in curs.fetchall()])
 
         result_set = set(results)
         print(f'granule IDs in cumulus: {len(result_set)}')
         return result_set
+
+
+if __name__ == '__main__':
+    pass
