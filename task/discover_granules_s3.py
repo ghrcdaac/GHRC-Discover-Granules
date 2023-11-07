@@ -131,7 +131,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
                 url_segment = sections[1]
-                if check_reg_ex(self.file_reg_ex, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
+                if check_reg_ex(self.granule_id_extraction, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified']
                     size = int(s3_object['Size'])

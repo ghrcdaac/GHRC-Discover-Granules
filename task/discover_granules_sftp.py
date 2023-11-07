@@ -136,7 +136,7 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
             if file_type == 'd' and check_reg_ex(self.dir_reg_ex, self.path):
                 # gdg_logger.info(f'{dir_file} was a directory')
                 directory_list.append(dir_file)
-            elif check_reg_ex(self.file_reg_ex, str(dir_file)):
+            elif check_reg_ex(self.granule_id_extraction, str(dir_file)):
                 reg_match = re.match(self.granule_id_extraction, str(dir_file))
                 if reg_match is not None:
                     granule_id = re.match(self.granule_id_extraction, str(dir_file)).group(1)
@@ -149,11 +149,11 @@ class DiscoverGranulesSFTP(DiscoverGranulesBase):
                 self.dbm.add_record(
                     name=full_path, granule_id=granule_id,
                     collection_id=self.collection_id, etag='N/A',
-                    last_modified=dateparser.parse(file_stat.st_mtime), size=int(file_stat.st_size)
+                    last_modified=dateparser.parse(str(file_stat.st_mtime)), size=int(file_stat.st_size)
                 )
             else:
                 # gdg_logger.warning(f'Notice: {dir_file} not processed as granule or directory. '
-                #                    f'The supplied regex [{self.file_reg_ex}] may not match.')
+                #                    f'The supplied regex [{self.granule_id_extraction}] may not match.')
                 pass
 
         if self.depth > 0 and len(directory_list) > 0:
