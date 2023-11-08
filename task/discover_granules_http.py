@@ -1,5 +1,6 @@
 import re
 
+import dateparser
 import requests
 import urllib3
 from bs4 import BeautifulSoup
@@ -77,7 +78,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                     self.dbm.add_record(
                         name=full_path, granule_id=granule_id.group(),
                         collection_id=self.collection_id, etag=etag,
-                        last_modified=str(last_modified), size=size
+                        last_modified=dateparser.parse(last_modified), size=size
                     )
                     granule_count += 1
 

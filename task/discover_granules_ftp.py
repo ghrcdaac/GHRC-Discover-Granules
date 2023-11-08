@@ -3,6 +3,8 @@ import re
 from contextlib import redirect_stdout
 from ftplib import FTP
 
+import dateparser
+
 from task.discover_granules_base import DiscoverGranulesBase, check_reg_ex
 from task.logger import gdg_logger
 
@@ -76,7 +78,7 @@ class DiscoverGranulesFTP(DiscoverGranulesBase):
                         full_url = f'{self.provider_url}{filename}'
                         self.dbm.add_record(
                             name=full_url, granule_id=granule_id_match.group(), collection_id=self.collection_id,
-                            etag='N/A', last_modified=last_mod, size=size
+                            etag='N/A', last_modified=dateparser.parse(last_mod), size=size
                         )
                     else:
                         raise ValueError(f'FTP row format is not the expected length: {column_list}')

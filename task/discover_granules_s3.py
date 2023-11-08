@@ -131,9 +131,9 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                 sections = str(key).rsplit('/', 1)
                 key_dir = sections[0]
                 url_segment = sections[1]
-                if check_reg_ex(self.file_reg_ex, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
+                if check_reg_ex(self.granule_id_extraction, url_segment) and check_reg_ex(self.dir_reg_ex, key_dir):
                     etag = s3_object['ETag'].strip('"')
-                    last_modified = s3_object['LastModified'].timestamp()
+                    last_modified = s3_object['LastModified']
                     size = int(s3_object['Size'])
                     # print(f'Found: {key}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
@@ -142,7 +142,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         self.dbm.add_record(
                             name=key, granule_id=granule_id,
                             collection_id=self.collection_id, etag=etag,
-                            last_modified=str(last_modified), size=size
+                            last_modified=last_modified, size=size
                         )
 
                     else:

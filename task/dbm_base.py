@@ -60,7 +60,7 @@ class DBManagerPeewee(DBManagerBase):
             'etag': etag,
             'granule_id': granule_id,
             'collection_id': collection_id,
-            'last_modified': str(last_modified),
+            'last_modified': last_modified,
             'size': size
         })
 
@@ -76,8 +76,7 @@ class DBManagerPeewee(DBManagerBase):
         records_inserted = 0
         if self.cumulus_filter and self.duplicate_handling == 'skip' and self.list_dict:
             print('Filtering discovered granules against cumulus granule IDs...')
-            discovered_granule_ids = tuple(x.get('granule_id') for x in self.list_dict)
-            cumulus_granule_id_set = self.cumulus_filter.filter_against_cumulus(discovered_granule_ids)
+            cumulus_granule_id_set = self.cumulus_filter.filter_against_cumulus(self.list_dict)
 
             index = 0
             while index < len(self.list_dict):

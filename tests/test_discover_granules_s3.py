@@ -72,7 +72,7 @@ class TestDiscoverGranules(unittest.TestCase):
         self.assertEqual(2, discover_count)
 
     def test_discover_granules_s3_file_regex(self):
-        self.dg.file_reg_ex = 'key1.txt'
+        self.dg.granule_id_extraction = '(key1.txt)'
         self.dg.dir_reg_ex = None
         test_resp_iter = [
             {
