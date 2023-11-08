@@ -32,7 +32,7 @@ class DiscoverGranulesBase(ABC):
         self.granule_id_extraction = self.discover_tf.get(
             'file_reg_ex', self.collection.get('granuleIdExtraction', None)
         )
-        gdg_logger.info(f'grnauleIdExtraction: {self.granule_id_extraction}')
+        gdg_logger.info(f'granuleIdExtraction: {self.granule_id_extraction}')
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
