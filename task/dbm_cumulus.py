@@ -98,7 +98,7 @@ class DBManagerCumulus(DBManagerBase):
                     'FROM granules g '
                     'WHERE EXISTS ('
                     'SELECT 1 FROM discovered d '
-                    'WHERE g.granule_id = d.granule_id AND g.updated_at::timestamp >= d.last_modified::timestamp'
+                    'WHERE g.granule_id = d.granule_id AND g.updated_at >= d.last_modified'
                     ')'
                 )
                 # print(f'Trim query: {query_string}')
