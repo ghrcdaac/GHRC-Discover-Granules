@@ -63,7 +63,7 @@ class DiscoverGranulesBase(ABC):
             db_file_path = f'{mkdtemp()}/{db_filename}'
         else:
             db_file_path = None
-        self.transaction_size = self.discover_tf.get('transaction_size', 100000)
+        self.transaction_size = self.discover_tf.get('transaction_size', 2000)
 
         kwargs = {
             'duplicate_handling': self.duplicates,

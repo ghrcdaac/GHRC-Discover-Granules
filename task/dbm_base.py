@@ -5,7 +5,7 @@ TABLE_NAME = 'granule'
 
 
 class DBManagerBase(ABC):
-    def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=100000, **kwargs):
+    def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=2000, **kwargs):
         self.list_dict = []
         self.discovered_files_count = 0
         self.queued_files_count = 0
