@@ -79,26 +79,36 @@ class DBManagerPSQL(DBManagerPeewee):
         return self.insert_many(conflict_handling)
 
     def read_batch(self):
-        query_args = ['discovered', self.collection_id, f'{self.provider_full_url}%', self.batch_limit]
-        sub_query = sql.SQL(
-            'SELECT dense_rank() '
-            'OVER (ORDER BY granule.granule_id) as gid_rank, granule.name '
-            'FROM granule '
-            'WHERE status = (%s) AND collection_id = (%s) AND name LIKE (%s) '
-            'ORDER BY granule.discovered_date'
+        query_args = [self.collection_id, f'{self.provider_full_url}%', self.batch_limit]
+        update_query = sql.SQL(f"""
+        WITH rows AS (
+            SELECT name, granule_id, discovered_date
+            FROM granule
+            WHERE granule.status = ('discovered') AND 
+            granule.collection_id = (%s) AND 
+            granule.name LIKE (%s)
+        ), granule_ids AS (
+          SELECT granule_id
+          FROM rows
+          GROUP BY granule_id
+          ORDER BY MIN(discovered_date)
+          LIMIT (%s)
+        ), names AS (
+          SELECT rows.name
+          FROM granule_ids, rows
+          WHERE rows.granule_id = granule_ids.granule_id
+          FOR UPDATE
         )
-        update_query = sql.SQL(
-            'WITH ranked_gids as ({}) '
-            'UPDATE granule '
-            'SET status = \'queued\' '
-            'FROM  ranked_gids '
-            'WHERE granule.name = ranked_gids.name AND ranked_gids.gid_rank <= (%s) '
-            'RETURNING *'
-        ).format(sub_query)
+        UPDATE granule
+        SET status = 'queued'
+        FROM names
+        WHERE granule.name = names.name
+        RETURNING granule.*
+        """)
         st = time.time()
         with self.database.cursor() as cur:
             cur.execute(update_query, query_args)
-            print(f'query: {cur.query}')
+            # print(cur.mogrify(update_query).decode().replace('\n', ''))
             res = cur.fetchall()
 
         self.database.commit()
