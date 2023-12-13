@@ -97,7 +97,7 @@ class DBManagerCumulus(DBManagerBase):
                     'SELECT g.granule_id '
                     'FROM granules g '
                     'WHERE EXISTS ('
-                    'SELECT 1 FROM discovered d '
+                    'SELECT granule_id FROM discovered d '
                     'WHERE g.granule_id = d.granule_id AND g.updated_at::timestamp >= d.last_modified::timestamp'
                     ')'
                 )
