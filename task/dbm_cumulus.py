@@ -93,21 +93,22 @@ class DBManagerCumulus(DBManagerBase):
         with self.DB:
             with self.DB.cursor() as curs:
                 query_string = sql.SQL(
-                    f'WITH discovered(granule_id, last_modified) AS (VALUES {values_string}) '
-                    'SELECT g.granule_id '
-                    'FROM granules g '
-                    'WHERE EXISTS ('
-                    'SELECT 1 FROM discovered d '
-                    'WHERE g.granule_id = d.granule_id AND g.updated_at::timestamp >= d.last_modified::timestamp'
-                    ')'
+                    f'WITH discovered(granule_id, last_modified) AS (VALUES {values_string}), '
+                    'extant_ids AS ('
+                    'SELECT granules.granule_id, granules.timestamp, discovered.last_modified '
+                    'FROM granules '
+                    'JOIN discovered ON granules.granule_id=discovered.granule_id'
+                    ') '
+                    'SELECT granule_id FROM extant_ids '
+                    'WHERE last_modified::timestamp < timestamp::timestamp '
                 )
                 # print(f'Trim query: {query_string}')
-                # print(f'Trim query: {curs.mogrify(query_string, granule_ids_tuple)}')
+                # print(f'Trim query: {curs.mogrify(query_string, query_params_tuple)}')
                 curs.execute(query_string, query_params_tuple)
                 results.extend([x[0] for x in curs.fetchall()])
 
         result_set = set(results)
-        print(f'granule IDs in cumulus: {len(result_set)}')
+        print(f'granule IDs extant in cumulus: {len(result_set)}')
         return result_set
 
 
