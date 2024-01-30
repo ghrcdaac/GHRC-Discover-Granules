@@ -197,7 +197,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
             'Bucket': bucket
         }
 
-        # gdg_logger.info(f'Creating multipart upload: {mp_upload_args}')
         rsp = destination_client.create_multipart_upload(**mp_upload_args)
         mp_upload_args.update({'UploadId': rsp.get('UploadId')})
 
@@ -205,12 +204,11 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         part_number = 1
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for chunk in stream_iter:
+            for chunk in stream_iter.iter_chunks(ONE_MEBIBIT * 30):
                 upload_part_args = {**mp_upload_args, **{'Body': chunk, 'PartNumber': part_number}}
                 part_dict = {
                     'PartNumber': part_number
                 }
-
                 futures.append(
                     executor.submit(destination_client.upload_part, **upload_part_args)
                 )
@@ -239,7 +237,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         #     }
         # )
         # print(cp_rsp)
-
         return rsp
 
     def move_granule_wrapper(self, granule_list_dicts):
