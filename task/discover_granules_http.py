@@ -22,6 +22,8 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         self.depth = abs(int(self.discover_tf.get('depth', 3)))
 
     def discover_granules(self):
+        gdg_logger.info(f'granule_id_extraction": {self.granule_id_extraction}')
+        gdg_logger.info(f'granule_id": {self.granule_id}')
         try:
             session = requests.Session()
             self.discover(session)
@@ -73,7 +75,9 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                 etag = headers.get('ETag', '').strip('"')
                 last_modified = headers.get('Last-Modified', '')
                 size = int(headers.get('Content-Length', 0))
+                print(f're.search {self.granule_id_extraction} vs {full_path}')
                 granule_id = re.search(self.granule_id_extraction, full_path)
+                print(granule_id)
                 if granule_id:
                     self.dbm.add_record(
                         name=full_path, granule_id=granule_id.group(),
@@ -84,7 +88,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
 
                 elif (not etag and not last_modified) and check_reg_ex(self.dir_reg_ex, full_path):
                     directory_list.append(f'{full_path}/')
-                    # gdg_logger.info(f'Directory found: {directory_list[-1]}')
+                    gdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:
                     # gdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
                     pass

@@ -25,6 +25,7 @@ def get_db_manager_psql(collection_id, provider_full_url, database, duplicate_ha
         secrets_arn = os.getenv('postgresql_secret_arn', None)
         secrets = sm.get_secret_value(SecretId=secrets_arn).get('SecretString')
         db_init_kwargs = json.loads(secrets)
+        db_init_kwargs.update({'connect_timeout ': 30})
 
     DB_PSQL.init(**db_init_kwargs)
     DB_PSQL.create_tables([GranulePSQL], safe=True)

@@ -1,3 +1,4 @@
+import json
 import os
 
 from task.discover_granules_ftp import DiscoverGranulesFTP
@@ -34,6 +35,8 @@ def main(event, context):
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
+    print('BEGIN')
+    print(f'Event: {event}')
     # gdg_logger.info(f'Event: {event}')
     protocol = event.get('config').get('provider').get("protocol").lower()
     dg_client = get_discovery_class(protocol)(event, context)
@@ -84,6 +87,11 @@ def main(event, context):
             }
         )
     # gdg_logger.info(f'returning: {res}')
+    filename = f'/tmp/output/{dg_client.collection_id}.json'
+    print(f'Writing output file: {filename}')
+    with open(filename, 'w+') as output:
+        output.write(json.dumps(res))
+
     return res
 
 

@@ -13,3 +13,10 @@ COPY task/ ./package/task
 
 WORKDIR ./package
 RUN zip -r package.zip .
+
+RUN mkdir /tmp/output
+
+ENTRYPOINT ["python", "-m", "task.lambda_function"]
+#CMD ["-m task.lambda_function ${event}"]
+#CMD ["-sh", "-c", "python -m task.lambda_function ${event}"]
+
