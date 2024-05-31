@@ -19,7 +19,7 @@ class DiscoverGranulesBase(ABC):
 
     def __init__(self, event, db_type=None, context=None):
         self.bookmark = None
-        self.lambda_context = context
+        # self.lambda_context = context
         self.input = event.get('input', {})
         self.config = event.get('config', {})
         self.provider = self.config.get('provider', {})

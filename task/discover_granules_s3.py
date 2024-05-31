@@ -153,10 +153,10 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         pass
 
                 # Check Time
-                time_remaining = self.lambda_context.get_remaining_time_in_millis()
-                if time_remaining < self.early_return_threshold:
-                    gdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
-                    return last_s3_key
+                # time_remaining = self.lambda_context.get_remaining_time_in_millis()
+                # if time_remaining < self.early_return_threshold:
+                #     gdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
+                #     return last_s3_key
 
         return None
 
