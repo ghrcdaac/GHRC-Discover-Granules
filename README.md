@@ -69,7 +69,8 @@ block:
     "dir_reg_ex": "",
     "file_reg_ex": "",
     "batch_limit": 1000,
-    "batch_delay": 0
+    "batch_delay": 0,
+    "file_count": 1
   }
 }
 ``` 
@@ -92,6 +93,7 @@ have been updated. This has no effect when using `cumulus_filter: true`
    workflow definition will need to be modified to include a choice step to ensure all the granules are discovered
    and queued.
  - `batch_delay`: If this is provided, the workflow can use a `WaitStep` and wait for the specified duration before continuing to the next workflow step.
+ - `file_count`: Used to indicate how many files are expected to be part of a discovered granule. Output will not be generated for granules with a file count that does not match this. A default value of 1 is used.
 
 In order to match against specific granules the granuleIdExtraction value must be used.  
 This is an example of a collection with the added block:

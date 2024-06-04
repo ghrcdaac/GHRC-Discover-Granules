@@ -8,14 +8,15 @@ class TestDBMPostgresql(unittest.TestCase):
     def setUp(self) -> None:
         kwargs = {
             'collection_id': 'fake_collection',
-            'provider_full_url':'protocol://fake_host/full/url',
+            'provider_full_url': 'protocol://fake_host/full/url',
             'model_class': GranulePSQL(),
             'database': MagicMock(),
             'auto_batching': True,
             'batch_limit': 100,
             'transaction_size': 100,
             'duplicate_handling': 'skip',
-            'cumulus_filter': MagicMock()
+            'cumulus_filter': MagicMock(),
+            'file_count': 1
         }
         self.dbm = DBManagerPSQL(**kwargs)
 
