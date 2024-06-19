@@ -83,7 +83,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                     granule_count += 1
 
                 elif (not etag and not last_modified) and check_reg_ex(self.dir_reg_ex, full_path):
-                    directory_list.append(f'{full_path}/')
+                    directory_list.append(f'{full_path.rstrip("/")}/')
                     # gdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:
                     # gdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')
