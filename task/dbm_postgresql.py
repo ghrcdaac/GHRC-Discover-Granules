@@ -92,7 +92,7 @@ class DBManagerPSQL(DBManagerPeewee):
                   granule.collection_id = (%s) AND
                   granule.status = 'discovered'
             GROUP BY granule_id
-            HAVING COUNT(granule_id) = (%s)
+            HAVING COUNT(granule_id) >= (%s)
             ORDER BY MIN(discovered_date)
             LIMIT (%s)
             ),
