@@ -8,7 +8,7 @@ class TestDBMPostgresql(unittest.TestCase):
     def setUp(self) -> None:
         kwargs = {
             'collection_id': 'fake_collection',
-            'provider_full_url': 'protocol://fake_host/full/url',
+            'provider_url': 'protocol://fake_host/full/url',
             'model_class': GranulePSQL(),
             'database': MagicMock(),
             'auto_batching': True,
