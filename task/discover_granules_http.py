@@ -64,7 +64,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for url in urls:
-                futures.append(executor.submit(session.head, url))
+                futures.append(executor.submit(session.head, url, allow_redirects=True))
 
             for future in concurrent.futures.as_completed(futures):
                 response = future.result()
@@ -83,7 +83,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
                     granule_count += 1
 
                 elif (not etag and not last_modified) and check_reg_ex(self.dir_reg_ex, full_path):
-                    directory_list.append(f'{full_path}/')
+                    directory_list.append(f'{full_path.rstrip("/")}/')
                     # gdg_logger.info(f'Directory found: {directory_list[-1]}')
                 else:
                     # gdg_logger.warning(f'Notice: {full_path} not processed as granule or directory.')

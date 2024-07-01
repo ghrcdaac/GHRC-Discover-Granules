@@ -11,13 +11,13 @@ from task.dbm_base import DBManagerBase
 VAR_LIMIT = 32766
 
 
-def get_db_manager_cumulus(collection_id, database, duplicate_handling, batch_limit, transaction_size):
-    return DBManagerCumulus(collection_id, database, duplicate_handling, batch_limit, transaction_size)
+def get_db_manager_cumulus(**kwargs):
+    return DBManagerCumulus(**kwargs)
 
 
 class DBManagerCumulus(DBManagerBase):
-    def __init__(self, collection_id, database, duplicate_handling, batch_limit, transaction_size):
-        super().__init__(duplicate_handling, batch_limit, transaction_size)
+    def __init__(self, collection_id, database, **kwargs):
+        super().__init__(**kwargs)
         self.collection_id = collection_id
 
         if database:

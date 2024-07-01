@@ -9,8 +9,7 @@ DB_SQLITE = APSWDatabase(None, vfs='unix-excl')
 VAR_LIMIT_SQLITE = 999
 
 
-def get_db_manager_sqlite(collection_id, provider_full_url, database, duplicate_handling, batch_limit, transaction_size,
-                          cumulus_filter=None, auto_batching=True):
+def get_db_manager_sqlite(database, **kwargs):
     global DB_SQLITE
     db_init_kwargs = {
         'database': database,
@@ -25,10 +24,7 @@ def get_db_manager_sqlite(collection_id, provider_full_url, database, duplicate_
     DB_SQLITE.init(**db_init_kwargs)
     DB_SQLITE.create_tables([GranuleSQLite], safe=True)
 
-    return DBManagerSqlite(
-        collection_id, provider_full_url, GranuleSQLite, DB_SQLITE, auto_batching, batch_limit, transaction_size,
-        duplicate_handling, cumulus_filter
-    )
+    return DBManagerSqlite(DB_SQLITE, GranuleSQLite, **kwargs)
 
 
 class GranuleSQLite(Model):
@@ -47,15 +43,9 @@ class GranuleSQLite(Model):
 
 
 class DBManagerSqlite(DBManagerPeewee):
-    def __init__(
-            self, collection_id, provider_full_url, model_class, database, auto_batching, batch_limit, transaction_size,
-            duplicate_handling, cumulus_filter
-    ):
+    def __init__(self, database, model_class, **kwargs):
         self.model_class = model_class
-        super().__init__(
-            collection_id, provider_full_url, self.model_class, database, auto_batching, batch_limit, transaction_size,
-            duplicate_handling, cumulus_filter, VAR_LIMIT_SQLITE, EXCLUDED, chunked
-        )
+        super().__init__(database, model_class, VAR_LIMIT_SQLITE, EXCLUDED, chunked, **kwargs)
 
     def db_replace(self):
         """
