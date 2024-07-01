@@ -1,4 +1,4 @@
-FROM amazon/aws-lambda-python:3.8
+FROM amazon/aws-lambda-python:3.10
 
 RUN pwd
 RUN yum -y update
