@@ -64,7 +64,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for url in urls:
-                futures.append(executor.submit(session.head, url))
+                futures.append(executor.submit(session.head, url, allow_redirects=True))
 
             for future in concurrent.futures.as_completed(futures):
                 response = future.result()
