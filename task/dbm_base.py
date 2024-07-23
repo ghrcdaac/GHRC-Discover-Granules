@@ -220,7 +220,8 @@ class DBManagerPeewee(DBManagerBase):
         db_st = time.time()
         with self.database.atomic():
             for batch in self.chunked(self.list_dict, var_limit):
-                num = self.model_class.insert_many(batch).on_conflict(**conflict_resolution).execute()
+                num = self.model_class.insert_many(batch).on_conflict(**conflict_resolution).as_rowcount().execute()
+
                 if isinstance(num, int):
                     records_inserted += num
                 else:
