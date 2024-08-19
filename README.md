@@ -95,6 +95,19 @@ have been updated. This has no effect when using `cumulus_filter: true`
  - `batch_delay`: If this is provided, the workflow can use a `WaitStep` and wait for the specified duration before continuing to the next workflow step.
  - `file_count`: Used to indicate how many files are expected to be part of a discovered granule. Output will not be generated for granules with a file count less than this. A default value of 1 is used.
 
+row | use_cumulus_filter |	duplicateHandling |	force_replace |	ingest | gdg writes
+:---: | :---: | :---: | :---: |:---: |:---: 
+1 | true | skip | true | new/updated | replace
+2 | true | skip | false | new/updated | replace
+3 | true | replace | true | all discovered | replace
+4 | true | replace | false | all discovered | replace
+5 | false | skip | true | new/updated* | skip
+6 | false | skip | false | new/updated* | skip
+7 | false | replace | true | all discovered | replace
+8 | false | replace | false | new/updated | skip
+
+*Note: Cumulus will raise an error if a granuleId is ingested that already exists in the database while using "duplicateHandling": "skip"
+
 In order to match against specific granules the granuleIdExtraction value must be used.  
 This is an example of a collection with the added block:
  ```json
