@@ -28,18 +28,12 @@ class DiscoverGranulesBase(ABC):
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-        self.granule_id = self.discover_tf.get(self.collection.get('granuleId', None))
-        file_reg_ex = self.discover_tf.get('file_reg_ex', None)
-        if file_reg_ex:
-            self.granule_id_extraction = file_reg_ex
-        else:
-            self.granule_id_extraction = self.collection.get('granuleIdExtraction', None)
-
-        gdg_logger.info(f'granuleIdExtraction: "{self.granule_id_extraction}"')
+        self.granule_id = self.discover_tf.get('granule_id', self.collection.get('granuleId', None))
+        self.granule_id_extraction = self.discover_tf.get('granule_id_extraction', self.collection.get('granuleIdExtraction', None))
+        self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
-        self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
         self.force_replace = self.discover_tf.get('force_replace', False)
         self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
