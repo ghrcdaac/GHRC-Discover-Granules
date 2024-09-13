@@ -14,8 +14,7 @@ DB_PSQL = PostgresqlExtDatabase(None)
 VAR_LIMIT_PSQL = 32766
 
 
-def get_db_manager_psql(collection_id, provider_full_url, database, duplicate_handling, batch_limit, transaction_size,
-                        cumulus_filter=None, auto_batching=True):
+def get_db_manager_psql(database, **kwargs):
     global DB_PSQL
     db_init_kwargs = {}
     if database:
@@ -30,10 +29,7 @@ def get_db_manager_psql(collection_id, provider_full_url, database, duplicate_ha
     DB_PSQL.init(**db_init_kwargs)
     DB_PSQL.create_tables([GranulePSQL], safe=True)
 
-    return DBManagerPSQL(
-        collection_id, provider_full_url, GranulePSQL, DB_PSQL, auto_batching, batch_limit, transaction_size,
-        duplicate_handling, cumulus_filter
-    )
+    return DBManagerPSQL(DB_PSQL, GranulePSQL, **kwargs)
 
 
 class GranulePSQL(Model):
@@ -52,15 +48,9 @@ class GranulePSQL(Model):
 
 
 class DBManagerPSQL(DBManagerPeewee):
-    def __init__(
-            self, collection_id, provider_full_url, model_class, database, auto_batching, batch_limit, transaction_size,
-            duplicate_handling, cumulus_filter
-    ):
+    def __init__(self, database, model_class, **kwargs):
         self.model_class = model_class
-        super().__init__(
-            collection_id, provider_full_url, self.model_class, database, auto_batching, batch_limit, transaction_size,
-            duplicate_handling, cumulus_filter, VAR_LIMIT_PSQL, EXCLUDED, chunked
-        )
+        super().__init__(database, model_class, VAR_LIMIT_PSQL, EXCLUDED, chunked, **kwargs)
 
     def db_replace(self):
         """
@@ -80,32 +70,38 @@ class DBManagerPSQL(DBManagerPeewee):
         return self.insert_many(conflict_handling)
 
     def read_batch(self):
-        query_args = [self.collection_id, f'{self.provider_full_url}%', self.batch_limit]
-        update_query = sql.SQL(f"""
-        WITH rows AS (
-            SELECT name, granule_id, discovered_date
+        repeat_args = [f'{self.provider_full_url}%', self.collection_id]
+        query_args = repeat_args + [self.file_count, self.batch_limit] + repeat_args
+        update_query = sql.SQL(
+            """
+            WITH granule_ids AS (
+            SELECT granule_id
             FROM granule
-            WHERE granule.status = ('discovered') AND 
-            granule.collection_id = (%s) AND 
-            granule.name LIKE (%s)
-        ), granule_ids AS (
-          SELECT granule_id
-          FROM rows
-          GROUP BY granule_id
-          ORDER BY MIN(discovered_date)
-          LIMIT (%s)
-        ), names AS (
-          SELECT rows.name
-          FROM granule_ids, rows
-          WHERE rows.granule_id = granule_ids.granule_id
-          FOR UPDATE
+            WHERE granule.name LIKE (%s) AND
+                  granule.collection_id = (%s) AND
+                  granule.status = 'discovered'
+            GROUP BY granule_id
+            HAVING COUNT(granule_id) >= (%s)
+            ORDER BY MIN(discovered_date)
+            LIMIT (%s)
+            ),
+            rows AS (
+            SELECT name
+            FROM granule, granule_ids
+            WHERE granule.name LIKE (%s) AND
+                  granule.collection_id = (%s) AND
+                  granule.status = 'discovered' AND
+                  granule.granule_id = granule_ids.granule_id
+            FOR UPDATE OF granule
+            )
+            UPDATE granule
+            SET status = 'queued'
+            FROM rows
+            WHERE rows.name = granule.name
+            RETURNING granule.*
+            """
         )
-        UPDATE granule
-        SET status = 'queued'
-        FROM names
-        WHERE granule.name = names.name
-        RETURNING granule.*
-        """)
+
         st = time.time()
         with self.database.cursor() as cur:
             cur.execute(update_query, query_args)

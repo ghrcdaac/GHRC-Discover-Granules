@@ -5,13 +5,14 @@ TABLE_NAME = 'granule'
 
 
 class DBManagerBase(ABC):
-    def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=100000, **kwargs):
+    def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=100000, file_count=1, **kwargs):
         self.list_dict = []
         self.discovered_files_count = 0
         self.queued_files_count = 0
         self.duplicate_handling = duplicate_handling
         self.batch_limit = batch_limit
         self.transaction_size = transaction_size
+        self.file_count = file_count
 
     @abstractmethod
     def close_db(self):
@@ -37,20 +38,21 @@ class DBManagerBase(ABC):
 
 
 class DBManagerPeewee(DBManagerBase):
-    def __init__(self, collection_id, provider_full_url, model_class, database, auto_batching, batch_limit,
-                 transaction_size, duplicate_handling, cumulus_filter, var_limit, excluded, chunked, **kwargs):
-        super().__init__(duplicate_handling, batch_limit, transaction_size, **kwargs)
+    def __init__(
+            self, database, model_class, var_limit, excluded, chunked,  collection_id,
+            provider_url, auto_batching=True, cumulus_filter_dbm=None, **kwargs
+    ):
+        super().__init__(**kwargs)
         self.model_class = model_class
         self.database = database
         self.auto_batching = auto_batching
         self.list_dict = []
-        self.cumulus_filter = cumulus_filter
+        self.cumulus_filter = cumulus_filter_dbm
         self.var_limit = var_limit
         self.discovered_files_count = 0
         self.queued_files_count = 0
         self.collection_id = collection_id
-        self.provider_full_url = provider_full_url
-
+        self.provider_full_url = provider_url
         self.excluded = excluded
         self.chunked = chunked
 
@@ -218,7 +220,8 @@ class DBManagerPeewee(DBManagerBase):
         db_st = time.time()
         with self.database.atomic():
             for batch in self.chunked(self.list_dict, var_limit):
-                num = self.model_class.insert_many(batch).on_conflict(**conflict_resolution).execute()
+                num = self.model_class.insert_many(batch).on_conflict(**conflict_resolution).as_rowcount().execute()
+
                 if isinstance(num, int):
                     records_inserted += num
                 else:
