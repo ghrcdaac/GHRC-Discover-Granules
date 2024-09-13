@@ -29,6 +29,16 @@ def get_discovery_class(protocol):
 
     return dg_class
 
+def write_results_to_local_store(local_store, collection, res):
+    print(f'is {local_store} a directory: {os.path.isdir(local_store)}')
+    c_id = f'{collection.get("name")}__{collection.get("version")}'
+    filename = f'{local_store}/{c_id}/{c_id}.json'
+    print(f'Creating file: {filename}')
+    with open(filename, 'w+') as test_file:
+        test_file.write(json.dumps(res))
+        print(f'Result written for granules: {len(res.get("granules", []))}')
+
+    pass
 
 def main(event, context):
     """
@@ -86,21 +96,11 @@ def main(event, context):
                 'queued_granules_count': 0
             }
         )
-    # gdg_logger.info(f'returning: {res}')
-    # filename = f'/tmp/output/{dg_client.collection_id}.json'
-    # print(f'Writing output file: {filename}')
-    # with open(filename, 'w+') as output:
-    #     output.write(json.dumps(res))
-    local_store = os.getenv('EBS_MNT')
-    collection_store = f'{local_store}/{dg_client}'
-    print(f'is {local_store} a directory: {os.path.isdir(local_store)}')
-    c_id = f'{dg_client.collection.get("name")}__{dg_client.collection.get("version")}'
-    filename = f'{local_store}/{c_id}/{c_id}.json'
-    print(f'Creating file: {filename}')
-    with open(filename, 'w+') as test_file:
-        test_file.write(json.dumps(res))
-    # print(f'{local_store} contents: {os.listdir(local_store)}')
-
+    
+    local_store = event.get('shared_store', os.getenv('EBS_MNT'))
+    if local_store:
+        write_results_to_local_store(local_store, dg_client.get('collection'), res)
+        
     return res
 
 
