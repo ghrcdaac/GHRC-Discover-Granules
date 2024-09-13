@@ -87,7 +87,9 @@ have been updated. This has no effect when using `cumulus_filter: true`
 
  - `dir_reg_ex`: Regular expression used to only search directories it matches
 
- - `file_reg_ex`: Regular expression used to only discover files it matches
+ - `granule_id`: Override for the cumulus granuleId to allow for dynamic pattern substitution
+
+ - `granule_id_extraction`: Override for the cumulus granuleIdExtraction to allow for dynamic pattern substitution
 
  - `batch_limit`: Used to specify the size of the batches returned from the lambda. To take advantage of this the 
    workflow definition will need to be modified to include a choice step to ensure all the granules are discovered
