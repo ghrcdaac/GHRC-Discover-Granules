@@ -27,7 +27,7 @@ if os.environ.get('CUMULUS_MESSAGE_ADAPTER_DIR'):
 #     return results
 
 def handler(event, context):
-    print(f'event: {event}')
+    print(f'GDG handler event: {event}')
     return main(event, context)
 
 
@@ -44,7 +44,7 @@ class GracefulKiller:
 
 
 if __name__ == '__main__':
-    print(f'GDG argv: {sys.argv}')
+    # print(f'GDG argv: {sys.argv}')
     if len(sys.argv) <= 1:
         killer = GracefulKiller()
         print('GDG Task is running...')
@@ -53,8 +53,8 @@ if __name__ == '__main__':
         print('GDG terminating')
     else:
         print('GDG calling function')
-        print(f'argv: {type(sys.argv[1])}')
-        print(f'argv: {sys.argv[1]}')
-        ret = handler(json.loads(sys.argv[1]), {})
+        # print(f'argv: {type(sys.argv[1])}')
+        # print(f'argv: {sys.argv[1]}')
+        handler(json.loads(sys.argv[1]), {})
 
 

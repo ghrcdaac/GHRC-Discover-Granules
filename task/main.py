@@ -99,7 +99,7 @@ def main(event, context):
     
     local_store = event.get('shared_store', os.getenv('EBS_MNT'))
     if local_store:
-        write_results_to_local_store(local_store, dg_client.get('collection'), res)
+        write_results_to_local_store(local_store, dg_client.collection, res)
         
     return res
 
