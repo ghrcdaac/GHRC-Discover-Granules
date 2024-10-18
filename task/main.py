@@ -48,7 +48,7 @@ def main(event, context):
     print('BEGIN')
     print(f'Event: {event}')
     # gdg_logger.info(f'Event: {event}')
-    protocol = event.get('config').get('provider').get("protocol").lower()
+    protocol = event['config']['provider']["protocol"].lower()
     dg_client = get_discovery_class(protocol)(event, context)
     if dg_client.discovered_files_count == 0 or dg_client.bookmark:
         res = dg_client.discover_granules()

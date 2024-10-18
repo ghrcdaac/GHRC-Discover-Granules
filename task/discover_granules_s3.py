@@ -135,7 +135,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified']
                     size = int(s3_object['Size'])
-                    # print(f'Found: {key}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     if reg_res:
                         granule_id = reg_res.group(1)
