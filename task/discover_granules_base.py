@@ -28,8 +28,12 @@ class DiscoverGranulesBase(ABC):
         self.buckets = self.config.get('buckets', {})
         self.meta = self.collection.get('meta', {})
         self.discover_tf = self.meta.get('discover_tf', {})
-        self.granule_id = self.discover_tf.get('granule_id', self.collection.get('granuleId', None))
-        self.granule_id_extraction = self.discover_tf.get('granule_id_extraction', self.collection.get('granuleIdExtraction', None))
+        self.granule_id = self.discover_tf.get('granule_id', '')
+        if not self.granule_id:
+            self.granule_id = self.collection.get('granuleId', '')
+        self.granule_id_extraction = self.discover_tf.get('granule_id_extraction', '')
+        if not self.granule_id_extraction:
+            self.granule_id_extraction = self.collection.get('granuleIdExtraction', '')
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
