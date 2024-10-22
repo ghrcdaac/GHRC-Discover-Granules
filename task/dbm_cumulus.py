@@ -27,6 +27,8 @@ class DBManagerCumulus(DBManagerBase):
             secrets_arn = os.getenv('cumulus_credentials_arn', None)
             db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
             db_init_kwargs.update({'user': db_init_kwargs.pop('username')})
+            db_init_kwargs.update({'connect_timeout ': 30})
+            db_init_kwargs.pop('rejectUnauthorized', '')
             self.DB = psycopg2.connect(**db_init_kwargs) if 'psycopg2' in globals() else None
 
     def close_db(self):
