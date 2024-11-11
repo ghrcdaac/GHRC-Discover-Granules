@@ -25,7 +25,6 @@ class DBManagerCumulus(DBManagerBase):
         else:
             sm = boto3.client('secretsmanager')
             secrets_arn = os.getenv('cumulus_credentials_arn', None)
-            print(f'arn: {secrets_arn}')
             db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
             db_init_kwargs.update({'user': db_init_kwargs.pop('username')})
             db_init_kwargs.update({'connect_timeout ': 30})

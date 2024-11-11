@@ -19,7 +19,7 @@ class DiscoverGranulesBase(ABC):
 
     def __init__(self, event, db_type=None, context=None):
         self.bookmark = None
-        # self.lambda_context = context
+        self.lambda_context = context
         self.input = event.get('input', {})
         self.config = event.get('config', {})
         self.provider = self.config.get('provider', {})
@@ -30,10 +30,10 @@ class DiscoverGranulesBase(ABC):
         self.discover_tf = self.meta.get('discover_tf', {})
         self.granule_id = self.discover_tf.get('granule_id', '')
         if not self.granule_id:
-            self.granule_id = self.collection['granuleId']
+            self.granule_id = self.collection.get('granuleId', '')
         self.granule_id_extraction = self.discover_tf.get('granule_id_extraction', '')
         if not self.granule_id_extraction:
-            self.granule_id_extraction = self.collection['granuleIdExtraction']
+            self.granule_id_extraction = self.collection.get('granuleIdExtraction', '')
         self.dir_reg_ex = self.discover_tf.get('dir_reg_ex', None)
         self.host = self.provider.get('external_host', self.provider.get('host', ''))
         self.config_stack = self.config.get('stack', {})
