@@ -1,6 +1,12 @@
+import re
+import time
 import unittest
 
+import dateparser
+
 from task.dbm_get import get_db_manager
+from task.dbm_sqlite import DB_SQLITE, GranuleSQLite
+from playhouse.shortcuts import model_to_dict
 
 
 def generate_test_dict(provider_url, collection_id, granule_count=1, file_count=1, collection_count=1, new_etag='',
@@ -157,6 +163,45 @@ class TestDGM(unittest.TestCase):
     def test_for_update(self):
         query = self.dbm.add_for_update(self.dbm.model_class.select())
         self.assertIs(str(query).find('FOR UPDATE'), -1)
+
+    def test_schema_change(self):
+        expected_pkey = ['name']
+        primary_key = DB_SQLITE.get_primary_keys('granule')
+        self.assertEqual(expected_pkey, primary_key)
+    
+    def test_check_skip_change_1(self):
+        record = {
+            'name': f'{self.provider_full_url}/name_1',
+            'granule_id': 'gid_1',
+            'collection_id': self.collection_id,
+            'etag': 'etag_1',
+            'last_modified': dateparser.parse('Tue, 04 Feb 2020 23:07:51 GMT'),
+            'size': 1234
+        }
+        self.dbm.add_record(**record)
+        self.dbm.flush_dict()
+        res = self.dbm.read_batch()[0]
+        self.assertEqual(res['last_modified'], '2020-02-04 23:07:51+00:00')
+        self.assertIsNotNone(re.search(r'\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}', res['discovered_date']))
+        self.assertEqual(res['etag'], record['etag'])
+        self.assertEqual(res['size'], record['size'])
+
+    def test_check_skip_change_2(self):
+        record = {
+            'name': f'{self.provider_full_url}/name_1',
+            'granule_id': 'gid_1',
+            'collection_id': self.collection_id,
+            'etag': 'etag_1',
+            'last_modified': dateparser.parse('2024-07-01 13:20:15.411938597 -0500'),
+            'size': 1234
+        }
+        self.dbm.add_record(**record)
+        self.dbm.flush_dict()
+        res = self.dbm.read_batch()[0]
+        self.assertEqual(res['last_modified'], '2024-07-01 13:20:15.411938-05:00')
+        self.assertIsNotNone(re.search(r'\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}', res['discovered_date']))
+        self.assertEqual(res['etag'], record['etag'])
+        self.assertEqual(res['size'], record['size'])
 
 
 if __name__ == "__main__":
