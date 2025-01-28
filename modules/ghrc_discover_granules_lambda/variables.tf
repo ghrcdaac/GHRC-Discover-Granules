@@ -86,6 +86,11 @@ variable "sqlite_cache_size" {
 }
 
 # RDS Configuration
+variable "perform_switchover" {
+  type = bool
+  default = false
+}
+
 variable "db_identifier" {
   type = string
 }
@@ -110,4 +115,16 @@ variable "db_type" {
 
 variable "cumulus_user_credentials_secret_arn" {
   type = string
+}
+
+variable "minimum_acu" {
+  default = 2
+}
+
+variable "maximum_acu" {
+  default = 16
+}
+
+variable "seconds_until_auto_pause" {
+  default = 300
 }
