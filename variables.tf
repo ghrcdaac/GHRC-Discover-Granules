@@ -16,6 +16,14 @@ variable "env_variables" {
   default = {}
 }
 
+variable "minimum_acu" {
+  default = 2
+}
+
+variable "maximum_acu" {
+  default = 16
+}
+
 variable "security_group_ids" {
   type    = list(string)
   default = null
@@ -76,6 +84,16 @@ variable "sqlite_cache_size" {
 }
 
 # RDS Configuration
+variable "deprovision_v1" {
+  type = bool
+  default = false
+}
+
+variable "perform_switchover" {
+  type = bool
+  default = false
+}
+
 variable "db_identifier" {
   type = string
   default = "gdgdb"
