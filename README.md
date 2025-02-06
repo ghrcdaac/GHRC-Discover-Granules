@@ -70,7 +70,8 @@ block:
     "file_reg_ex": "",
     "batch_limit": 1000,
     "batch_delay": 0,
-    "file_count": 1
+    "file_count": 1,
+    "ignore_discovered": false
   }
 }
 ``` 
@@ -96,6 +97,7 @@ have been updated. This has no effect when using `cumulus_filter: true`
    and queued.
  - `batch_delay`: If this is provided, the workflow can use a `WaitStep` and wait for the specified duration before continuing to the next workflow step.
  - `file_count`: Used to indicate how many files are expected to be part of a discovered granule. Output will not be generated for granules with a file count less than this. A default value of 1 is used.
+ - `ignore_discovered`: This will cause any record with a status of `discovered` that matches the provder path and collection ID to be set to `ignored`. This will allow for a rediscovery of all records but also handle instances where files are in a `discovered` state but have been moved. This will only occur on the initial run in an execution.
 
 row | use_cumulus_filter |	duplicateHandling |	force_replace |	ingest | gdg writes
 :---: | :---: | :---: | :---: |:---: |:---: 
