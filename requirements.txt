@@ -51,3 +51,4 @@ tzlocal
 urllib3
 userpath
 websocket-client
+setuptools>=70.0.0 # not directly required, pinned by Snyk to avoid a vulnerability
