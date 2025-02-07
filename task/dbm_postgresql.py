@@ -76,10 +76,10 @@ class DBManagerPSQL(DBManagerPeewee):
         ignore_query = sql.SQL(
             """
             WITH update_rows AS (
-            SELECT *
+            SELECT name
             FROM granule
-            WHERE granule.collection_id = (%s) AND
-                  granule.name LIKE (%s) AND
+            WHERE granule.name LIKE (%s) AND
+                  granule.collection_id = (%s) AND
                   granule.status = 'discovered'
             FOR UPDATE OF granule
             )
@@ -90,7 +90,7 @@ class DBManagerPSQL(DBManagerPeewee):
             """
         )
         with self.database.cursor() as cur:
-            cur.execute(ignore_query, [self.collection_id, f'{self.provider_full_url}%'])
+            cur.execute(ignore_query, [f'{self.provider_full_url}%', self.collection_id])
             ignore_count = cur.rowcount
         print(f'Set status for {ignore_count} records to "ignored"')
 
