@@ -119,32 +119,6 @@ resource "aws_db_subnet_group" "gdg-db-subnet-group" {
   }
 }
 
-resource "aws_rds_cluster" "gdg_db_cluster" {
-  count = (var.db_type == "postgresql"&& !var.deprovision_v1) ? 1 : 0
-  cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster"
-  engine = "aurora-postgresql"
-  engine_mode = "serverless"
-  enable_http_endpoint = true
-  scaling_configuration {
-    min_capacity = 2
-  }
-
-  database_name = var.db_identifier
-  master_username = var.db_username
-  master_password = random_password.master_password[0].result
-  backup_retention_period = 1
-  db_subnet_group_name = aws_db_subnet_group.gdg-db-subnet-group[0].name
-  skip_final_snapshot = true
-  apply_immediately = true
-  vpc_security_group_ids = var.security_group_ids
-}
-
-resource "aws_db_cluster_snapshot" "gdg_db_cluster_snapshot" {
-  count = (var.db_type == "postgresql" && !var.deprovision_v1) ? 1 : 0
-  db_cluster_identifier          = aws_rds_cluster.gdg_db_cluster[0].id
-  db_cluster_snapshot_identifier = "${var.prefix}-${var.db_identifier}-v1-snapshot"
-}
-
 resource "aws_rds_cluster" "gdg_db_cluster_v2" {
   count = (var.db_type == "postgresql") ? 1 : 0
   cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster-v2"
@@ -159,7 +133,6 @@ resource "aws_rds_cluster" "gdg_db_cluster_v2" {
     }
 
   database_name = var.db_identifier
-  snapshot_identifier = (!var.deprovision_v1) ? aws_db_cluster_snapshot.gdg_db_cluster_snapshot[0].id : ""
   master_username = var.db_username
   master_password = random_password.master_password[0].result
   backup_retention_period = 1
@@ -191,16 +164,11 @@ resource "aws_secretsmanager_secret" "gdg_db_credentials" {
   name = "${var.prefix}-${var.db_identifier}-credentials"
 }
 
-locals {
-  host = (var.perform_switchover) ? aws_rds_cluster.gdg_db_cluster_v2[0].endpoint : aws_rds_cluster.gdg_db_cluster[0].endpoint
-  port = (var.perform_switchover) ? aws_rds_cluster.gdg_db_cluster_v2[0].port : aws_rds_cluster.gdg_db_cluster[0].port
-}
-
 resource "aws_secretsmanager_secret_version" "gdg_db_credentials" {
   count = (var.db_type == "postgresql") ? 1 : 0
   depends_on = [
     aws_secretsmanager_secret.gdg_db_credentials,
-    aws_rds_cluster.gdg_db_cluster,
+    aws_rds_cluster.gdg_db_cluster_v2,
     random_password.master_password
   ]
   secret_id = aws_secretsmanager_secret.gdg_db_credentials[0].id
@@ -208,8 +176,8 @@ resource "aws_secretsmanager_secret_version" "gdg_db_credentials" {
   secret_string = jsonencode({
     "user": var.db_username,
     "password": random_password.master_password[0].result,
-    "host": local.host,
-    "port": local.port,
+    "host": aws_rds_cluster.gdg_db_cluster_v2[0].endpoint,
+    "port": aws_rds_cluster.gdg_db_cluster_v2[0].port,
     "database": var.db_identifier
   })
 }
