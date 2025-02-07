@@ -416,7 +416,7 @@ create a zip and then the dev stack repo can be pointed to this zip file. Change
 Alternatively, you can just directly deploy the updated lambda via the following AWS CLI command:
 ```
 python createPackage.py && aws lambda update-function-code --function-name 
-arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-ghrc-discover-granules-module --zip-file fileb://package.zip 
+arn:aws:lambda:<region>:<account_number>:function:ghrcsbxw-ghrc-discover-granules-module --zip-file fileb://ghrc_discover_granules_lambda.zip
 --publish
 ```
 Notes:

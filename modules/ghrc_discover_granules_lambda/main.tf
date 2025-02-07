@@ -2,14 +2,15 @@ locals {
   default_tags = {
     Deployment = var.prefix
   }
+  package_name = "ghrc_discover_granules_lambda.zip"
 }
 
 resource "aws_lambda_function" "ghrc_discover_granules" {
   function_name = "${var.prefix}-ghrc-discover-granules"
-  source_code_hash = filebase64sha256("${path.module}/../../package.zip")
+  source_code_hash = filebase64sha256("${path.module}/../../${local.package_name}")
   handler = "task.lambda_function.handler"
   runtime = "python3.10"
-  filename = "${path.module}/../../package.zip"
+  filename = "${path.module}/../../${local.package_name}"
   role = var.cumulus_lambda_role_arn
   timeout = var.timeout
   memory_size = var.memory_size
@@ -17,6 +18,7 @@ resource "aws_lambda_function" "ghrc_discover_granules" {
 
   environment {
     variables = merge({
+      ignore_discovered = var.ignore_discovered
       bucket_name = var.s3_bucket_name
       s3_key_prefix = var.s3_key_prefix
       db_type = var.db_type
