@@ -130,7 +130,8 @@ class DBManagerPeewee(DBManagerBase):
             'where': (
                     (self.model_class.etag != self.excluded.etag) |
                     (self.model_class.last_modified != self.excluded.last_modified) |
-                    (self.model_class.size != self.excluded.size)
+                    (self.model_class.size != self.excluded.size) |
+                    (self.model_class.status != 'queued')
             )
         }
         return self.insert_many(conflict_resolution)

@@ -68,42 +68,55 @@ class DBManagerPSQL(DBManagerPeewee):
         }
         return self.insert_many(conflict_handling)
 
-    def read_batch(self):
-        repeat_args = [f'{self.provider_full_url}%', self.collection_id]
-        query_args = repeat_args + [self.file_count, self.batch_limit] + repeat_args
-        update_query = sql.SQL(
+    def ignore_discovered(self):
+        """
+        Will change the status to ignored for a given collection_id and provider prefix: protocol://host/path/to/granules/
+        """
+        ignore_query = sql.SQL(
             """
-            WITH granule_ids AS (
-            SELECT granule_id
+            WITH update_rows AS (
+            SELECT name
             FROM granule
             WHERE granule.name LIKE (%s) AND
                   granule.collection_id = (%s) AND
                   granule.status = 'discovered'
-            GROUP BY granule_id
-            HAVING COUNT(granule_id) >= (%s)
-            ORDER BY MIN(discovered_date)
-            LIMIT (%s)
-            ),
-            rows AS (
+            FOR UPDATE OF granule
+            )
+            UPDATE granule
+            SET status = 'ignored'
+            FROM update_rows
+            WHERE update_rows.name = granule.name
+            """
+        )
+        with self.database.cursor() as cur:
+            cur.execute(ignore_query, [f'{self.provider_full_url}%', self.collection_id])
+            ignore_count = cur.rowcount
+        print(f'Set status for {ignore_count} records to "ignored"')
+
+    def read_batch(self):
+        update_query = sql.SQL(
+            """
+            WITH update_rows AS (
             SELECT name
-            FROM granule, granule_ids
+            FROM granule
             WHERE granule.name LIKE (%s) AND
                   granule.collection_id = (%s) AND
-                  granule.status = 'discovered' AND
-                  granule.granule_id = granule_ids.granule_id
+                  granule.status = 'discovered'
+            ORDER BY granule.discovered_date
+            LIMIT (%s)
             FOR UPDATE OF granule
             )
             UPDATE granule
             SET status = 'queued'
-            FROM rows
-            WHERE rows.name = granule.name
+            FROM update_rows
+            WHERE update_rows.name = granule.name
             RETURNING granule.*
             """
         )
 
         st = time.time()
         with self.database.cursor() as cur:
-            cur.execute(update_query, query_args)
+            cur.execute(update_query, [f'{self.provider_full_url}%', self.collection_id, self.batch_limit])
             # print(cur.mogrify(update_query).decode().replace('\n', ''))
             res = cur.fetchall()
 

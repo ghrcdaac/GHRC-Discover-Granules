@@ -44,6 +44,11 @@ variable "memory_size" {
   default     = 2048
 }
 
+variable "ignore_discovered" {
+  description = "On the initial run in a workflow any record that matches the provider path prefix and the collection ID and a status of \"discovered\" will be updated to \"ignored\""
+  default = false
+}
+
 variable "prefix" {
   type = string
 }
