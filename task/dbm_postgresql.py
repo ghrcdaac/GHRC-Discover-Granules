@@ -5,7 +5,7 @@ import time
 
 import boto3
 from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, DateTimeField, EXCLUDED, chunked,\
-    BigIntegerField, CompositeKey
+    BigIntegerField
 from psycopg2 import sql
 
 from task.dbm_base import DBManagerPeewee, TABLE_NAME
@@ -32,7 +32,7 @@ def get_db_manager_psql(database, **kwargs):
 
 
 class GranulePSQL(Model):
-    name = CharField()
+    name = CharField(primary_key=True)
     granule_id = CharField()
     collection_id = CharField()
     status = CharField(default='discovered')
@@ -44,7 +44,6 @@ class GranulePSQL(Model):
     class Meta:
         database = DB_PSQL
         table_name = TABLE_NAME
-        primary_key = CompositeKey('name', 'granule_id', 'collection_id')
 
 
 class DBManagerPSQL(DBManagerPeewee):
