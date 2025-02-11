@@ -6,11 +6,11 @@ beautifulsoup4
 boto3
 botocore
 bs4
-certifi
+certifi==2024.7.4
 cffi
 charset-normalizer
 click
-cryptography
+cryptography==43.0.1
 cumulus-message-adapter
 cumulus-message-adapter-python==v2.3.0
 dateparser

@@ -11,6 +11,23 @@ from task.logger import gdg_logger
 def check_reg_ex(regex, target):
     return regex is None or re.search(regex, target) is not None
 
+def string_to_bool(key, value):
+    ret = False
+    if isinstance(value, bool):
+        ret = value
+    elif isinstance(value, str):
+        gdg_logger.warning(
+            f'The value for "{key}" should be a JSON boolean (true,false) but the string "{value}" was used. '
+            'An automatic converstion will be attempted.'
+        )
+        if value in ('True', 'true'):
+            ret = True
+        elif value in ('False', 'false'):
+            pass # False is the default
+        else:
+            raise ValueError(f'The value for {key} was not a valid boolean or convertable string value. Use true or false.')
+
+    return ret
 
 class DiscoverGranulesBase(ABC):
     """
@@ -39,8 +56,8 @@ class DiscoverGranulesBase(ABC):
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
         self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
-        self.force_replace = self.discover_tf.get('force_replace', False)
-        self.use_cumulus_filter = self.discover_tf.get('cumulus_filter', False)
+        self.force_replace = string_to_bool('force_replace', self.discover_tf.get('force_replace', False))
+        self.use_cumulus_filter = string_to_bool('cumulus_filter', self.discover_tf.get('cumulus_filter', False))
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
         if self.duplicates == 'replace' and self.force_replace is False and not self.use_cumulus_filter:
             self.duplicates = 'skip'
@@ -76,7 +93,6 @@ class DiscoverGranulesBase(ABC):
             'collection_id': self.collection_id,
             'provider_url': self.provider_url,
             'file_count': self.discover_tf.get('file_count', 1)
-
         }
 
         if self.use_cumulus_filter:
@@ -88,6 +104,12 @@ class DiscoverGranulesBase(ABC):
             })
 
         self.dbm = get_db_manager(**kwargs)
+
+        ignore_discovered = string_to_bool(
+            'ignore_discovered', self.discover_tf.get('ignore_discovered', os.getenv('ignore_discovered', False))
+        )
+        if self.discovered_files_count == 0 and ignore_discovered:
+            self.dbm.ignore_discovered()
 
         super().__init__()
 
