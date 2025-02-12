@@ -22,6 +22,7 @@ function stop_ecs_task() {
   done
 }
 
+# [customRevision] value: [v5.0.3] type: CUSTOM
 
 function push_to_ecr() {
   # $ACCOUNT_NUMBER = $1
