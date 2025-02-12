@@ -1,3 +1,4 @@
+import json
 import os
 
 from task.discover_granules_ftp import DiscoverGranulesFTP
@@ -28,14 +29,26 @@ def get_discovery_class(protocol):
 
     return dg_class
 
+def write_results_to_local_store(local_store, collection, res):
+    print(f'is {local_store} a directory: {os.path.isdir(local_store)}')
+    c_id = f'{collection.get("name")}__{collection.get("version")}'
+    filename = f'{local_store}/{c_id}/{c_id}.json'
+    print(f'Creating file: {filename}')
+    with open(filename, 'w+') as test_file:
+        test_file.write(json.dumps(res))
+        print(f'Result written for granules: {len(res.get("granules", []))}')
+
+    pass
 
 def main(event, context):
     """
     Function to be called to trigger the granule discover process once the class has been initialized with the
     correct cumulus event
     """
+    # print('BEGIN')
+    # print(f'Event: {event}')
     # gdg_logger.info(f'Event: {event}')
-    protocol = event.get('config').get('provider').get("protocol").lower()
+    protocol = event['config']['provider']["protocol"].lower()
     dg_client = get_discovery_class(protocol)(event, context)
     if dg_client.discovered_files_count == 0 or dg_client.bookmark:
         res = dg_client.discover_granules()
@@ -83,7 +96,11 @@ def main(event, context):
                 'queued_granules_count': 0
             }
         )
-    # gdg_logger.info(f'returning: {res}')
+    
+    local_store = event.get('shared_store', os.getenv('EBS_MNT'))
+    if local_store:
+        write_results_to_local_store(local_store, dg_client.collection, res)
+        
     return res
 
 

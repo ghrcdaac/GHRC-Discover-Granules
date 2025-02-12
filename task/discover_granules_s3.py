@@ -135,7 +135,6 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                     etag = s3_object['ETag'].strip('"')
                     last_modified = s3_object['LastModified']
                     size = int(s3_object['Size'])
-                    # print(f'Found: {key}')
                     reg_res = re.search(self.granule_id_extraction, url_segment)
                     if reg_res:
                         granule_id = reg_res.group(1)
@@ -153,8 +152,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
                         pass
 
                 # Check Time
-                time_remaining = self.lambda_context.get_remaining_time_in_millis()
-                if time_remaining < self.early_return_threshold:
+                if self.lambda_context and self.lambda_context.get_remaining_time_in_millis() < self.early_return_threshold:
                     gdg_logger.info(f'Doing early return. Last key: {last_s3_key}')
                     return last_s3_key
 

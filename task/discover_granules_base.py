@@ -67,7 +67,7 @@ class DiscoverGranulesBase(ABC):
 
         protocol = self.provider.get('protocol', '')
         host = self.host.strip('/')
-        provider_path = str(self.config.get('provider_path', '')).lstrip('/')
+        provider_path = str(self.meta.get('provider_path', '')).lstrip('/')
         if str(protocol).lower() != 's3' and not str(provider_path).endswith('/'):
             provider_path = f'{provider_path}/'
 
@@ -149,7 +149,7 @@ class DiscoverGranulesBase(ABC):
         temp_dict = {}
         for granule in granule_dict_list:
             granule_name = granule.get('name')
-            res = granule_name.find(self.config.get('provider_path'))
+            res = granule_name.find(self.meta.get('provider_path'))
             absolute_path = granule_name[res:]
             path_and_name = absolute_path.rsplit('/', maxsplit=1)
             path = path_and_name[0]

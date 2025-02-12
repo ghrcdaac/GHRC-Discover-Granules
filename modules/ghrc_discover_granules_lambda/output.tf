@@ -3,5 +3,5 @@ output "arn" {
 }
 
 output "gdg_db_credentials_arn" {
-  value = aws_secretsmanager_secret.gdg_db_credentials[0].arn
+  value = one(aws_secretsmanager_secret.gdg_db_credentials[*].id)
 }
