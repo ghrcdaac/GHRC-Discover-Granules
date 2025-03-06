@@ -6,7 +6,7 @@ import boto3
 import psycopg2
 from psycopg2 import sql
 
-from task.dbm_base import DBManagerBase
+from task.dbm_base import DBManagerBase, get_db_params
 
 VAR_LIMIT = 32766
 
@@ -23,12 +23,10 @@ class DBManagerCumulus(DBManagerBase):
         if database:
             self.DB = database
         else:
-            sm = boto3.client('secretsmanager')
             secrets_arn = os.getenv('cumulus_credentials_arn', None)
-            db_init_kwargs = json.loads(sm.get_secret_value(SecretId=secrets_arn).get('SecretString'))
-            db_init_kwargs.update({'user': db_init_kwargs.pop('username')})
-            db_init_kwargs.update({'connect_timeout ': 30})
-            db_init_kwargs.pop('rejectUnauthorized', '')
+            sm_client = boto3.client('secretsmanager')
+            secrets = json.loads(sm_client.get_secret_value(SecretId=secrets_arn).get('SecretString'))
+            db_init_kwargs = get_db_params(secrets)
             self.DB = psycopg2.connect(**db_init_kwargs) if 'psycopg2' in globals() else None
 
     def close_db(self):
