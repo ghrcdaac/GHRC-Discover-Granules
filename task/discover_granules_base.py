@@ -56,6 +56,7 @@ class DiscoverGranulesBase(ABC):
         self.config_stack = self.config.get('stack', {})
         self.files_list = self.config.get('collection', {}).get('files', {})
         self.duplicates = str(self.collection.get('duplicateHandling', 'skip')).lower()
+        self.file_count = self.discover_tf.get('file_count', 1)
         self.force_replace = string_to_bool('force_replace', self.discover_tf.get('force_replace', False))
         self.use_cumulus_filter = string_to_bool('cumulus_filter', self.discover_tf.get('cumulus_filter', False))
         # TODO: This is a temporary work around to resolve the issue with updated RSS granules not being re-ingested.
@@ -92,7 +93,7 @@ class DiscoverGranulesBase(ABC):
             'batch_limit': self.discover_tf.get('batch_limit'),
             'collection_id': self.collection_id,
             'provider_url': self.provider_url,
-            'file_count': self.discover_tf.get('file_count', 1)
+            'file_count': self.file_count
         }
 
         if self.use_cumulus_filter:
@@ -162,18 +163,23 @@ class DiscoverGranulesBase(ABC):
             # TODO: This can be simplified to just use the granuleIdExtraction once collections use a corrected one
             gid_match = re.search(self.granule_id_extraction, filename)
             if gid_match:
-                granule_id = gid_match.group()
+                granule_id = gid_match.group(1)
             else:
-                granule_id = re.search(self.granule_id, filename).group()
+                granule_id = re.search(self.granule_id, filename).group(0)
 
             if granule_id not in temp_dict:
                 temp_dict[granule_id] = self.generate_cumulus_granule(granule_id)
-            temp_dict[granule_id].get('files').append(
+
+            file_list = temp_dict[granule_id].get('files')
+            file_list.append(
                 self.generate_cumulus_file(
                     filename, path, granule.get('size'),
                     self.get_bucket_name(bucket_type), file_type
                 )
             )
+
+            if len(file_list) > self.file_count:
+                raise ValueError(f'The file_count ({self.file_count}) has been exceeded during output generation for the granule {granule_id}. This could be caused by a granuleIdExtraction or granuleId regex not being well defined or file_count being set too low.')
 
         return list(temp_dict.values())
 

@@ -133,9 +133,9 @@ class DBManagerPSQL(DBManagerPeewee):
         column_names = [
             'name', 'granule_id', 'collection_id', 'status', 'etag', 'last_modified', 'discovered_date', 'size'
         ]
-        for x in res:
+        for row in res:
             temp_dict = {}
-            for value, column_name in zip(x, column_names):
+            for column_name, value  in zip(column_names, row):
                 temp_dict.update({column_name: value})
             td.append(temp_dict)
 
