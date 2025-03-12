@@ -8,7 +8,7 @@ from playhouse.postgres_ext import PostgresqlExtDatabase, Model, CharField, Date
     BigIntegerField
 from psycopg2 import sql
 
-from task.dbm_base import DBManagerPeewee, TABLE_NAME
+from task.dbm_base import DBManagerPeewee, TABLE_NAME, get_db_params
 
 DB_PSQL = PostgresqlExtDatabase(None)
 VAR_LIMIT_PSQL = 32766
@@ -20,11 +20,10 @@ def get_db_manager_psql(database, **kwargs):
     if database:
         DB_PSQL = database
     else:
-        sm = boto3.client('secretsmanager')
         secrets_arn = os.getenv('postgresql_secret_arn', None)
-        secrets = sm.get_secret_value(SecretId=secrets_arn).get('SecretString')
-        db_init_kwargs = json.loads(secrets)
-        db_init_kwargs.update({'connect_timeout ': 30})
+        sm_client = boto3.client('secretsmanager')
+        secrets = json.loads(sm_client.get_secret_value(SecretId=secrets_arn).get('SecretString'))
+        db_init_kwargs = get_db_params(secrets)
 
     DB_PSQL.init(**db_init_kwargs)
     DB_PSQL.create_tables([GranulePSQL], safe=True)
@@ -95,17 +94,25 @@ class DBManagerPSQL(DBManagerPeewee):
         print(f'Set status for {ignore_count} records to "ignored"')
 
     def read_batch(self):
+
         update_query = sql.SQL(
             """
             WITH update_rows AS (
-            SELECT name
-            FROM granule
-            WHERE granule.name LIKE (%s) AND
-                  granule.collection_id = (%s) AND
-                  granule.status = 'discovered'
-            ORDER BY granule.discovered_date
-            LIMIT (%s)
-            FOR UPDATE OF granule
+                SELECT name
+                FROM granule
+                JOIN (
+                    SELECT granule_id, MAX(discovered_date) AS latest_discovered
+                    FROM granule
+                    WHERE name LIKE (%s) AND
+                    collection_id = (%s) AND
+                    status = 'discovered'
+                    GROUP BY granule_id
+                    HAVING COUNT(granule_id) >= (%s)
+                    ORDER BY MAX(discovered_date)
+                    LIMIT (%s)
+                ) as latest ON latest.granule_id=granule.granule_id
+                WHERE granule.discovered_date=latest.latest_discovered
+                FOR UPDATE OF granule
             )
             UPDATE granule
             SET status = 'queued'
@@ -117,7 +124,7 @@ class DBManagerPSQL(DBManagerPeewee):
 
         st = time.time()
         with self.database.cursor() as cur:
-            cur.execute(update_query, [f'{self.provider_full_url}%', self.collection_id, self.batch_limit])
+            cur.execute(update_query, [f'{self.provider_full_url}%', self.collection_id, self.file_count, self.batch_limit])
             # print(cur.mogrify(update_query).decode().replace('\n', ''))
             res = cur.fetchall()
 
