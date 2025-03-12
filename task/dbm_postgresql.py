@@ -111,7 +111,6 @@ class DBManagerPSQL(DBManagerPeewee):
                     ORDER BY MAX(discovered_date)
                     LIMIT (%s)
                 ) as latest ON latest.granule_id=granule.granule_id
-                WHERE granule.discovered_date=latest.latest_discovered
                 FOR UPDATE OF granule
             )
             UPDATE granule

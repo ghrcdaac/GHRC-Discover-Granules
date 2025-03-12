@@ -178,9 +178,6 @@ class DiscoverGranulesBase(ABC):
                 )
             )
 
-            if len(file_list) > self.file_count:
-                raise ValueError(f'The file_count ({self.file_count}) has been exceeded during output generation for the granule {granule_id}. This could be caused by a granuleIdExtraction or granuleId regex not being well defined or file_count being set too low.')
-
         return list(temp_dict.values())
 
     def generate_cumulus_granule(self, granule_id):
