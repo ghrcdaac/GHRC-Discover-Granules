@@ -17,7 +17,8 @@
         "discover_tf": {
           "force_replace": true,
           "depth": 0,
-          "dir_reg_ex": ".*"
+          "dir_reg_ex": ".*",
+          "file_count": 2
         },
         "hyrax_processing": "false",
         "granuleRecoveryWorkflow": "OrcaRecoveryWorkflow",
