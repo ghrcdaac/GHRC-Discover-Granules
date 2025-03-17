@@ -94,38 +94,43 @@ class DBManagerPSQL(DBManagerPeewee):
         print(f'Set status for {ignore_count} records to "ignored"')
 
     def read_batch(self):
+        repeat_args = [f'{self.provider_full_url}%', self.collection_id]
+        query_args = repeat_args + [self.file_count, self.batch_limit] + repeat_args
 
         update_query = sql.SQL(
             """
-            WITH update_rows AS (
-                SELECT name
-                FROM granule
-                JOIN (
-                    SELECT granule_id, MAX(discovered_date) AS latest_discovered
-                    FROM granule
-                    WHERE name LIKE (%s) AND
-                    collection_id = (%s) AND
-                    status = 'discovered'
-                    GROUP BY granule_id
-                    HAVING COUNT(granule_id) >= (%s)
-                    ORDER BY MAX(discovered_date)
-                    LIMIT (%s)
-                ) as latest ON latest.granule_id=granule.granule_id
-                WHERE granule.discovered_date=latest.latest_discovered
-                FOR UPDATE OF granule
+            WITH granule_ids AS (
+            SELECT granule_id
+            FROM granule
+            WHERE granule.name LIKE (%s) AND
+                granule.collection_id = (%s) AND
+                granule.status = 'discovered'
+            GROUP BY granule_id
+            HAVING COUNT(granule_id) >= (%s)
+            ORDER BY MIN(discovered_date)
+            LIMIT (%s)
+            ),
+            rows AS (
+            SELECT name
+            FROM granule, granule_ids
+            WHERE granule.name LIKE (%s) AND
+                granule.collection_id = (%s) AND
+                granule.status = 'discovered' AND
+                granule.granule_id = granule_ids.granule_id
+            FOR UPDATE OF granule
             )
             UPDATE granule
             SET status = 'queued'
-            FROM update_rows
-            WHERE update_rows.name = granule.name
+            FROM rows
+            WHERE rows.name = granule.name
             RETURNING granule.*
             """
         )
 
         st = time.time()
         with self.database.cursor() as cur:
-            cur.execute(update_query, [f'{self.provider_full_url}%', self.collection_id, self.file_count, self.batch_limit])
-            # print(cur.mogrify(update_query).decode().replace('\n', ''))
+            cur.execute(update_query, query_args)
+            # print(cur.mogrify(update_query, query_args).decode().replace('\n', '\r').strip()) # Uncomment when troubleshooting queries
             res = cur.fetchall()
 
         self.database.commit()
@@ -133,9 +138,9 @@ class DBManagerPSQL(DBManagerPeewee):
         column_names = [
             'name', 'granule_id', 'collection_id', 'status', 'etag', 'last_modified', 'discovered_date', 'size'
         ]
-        for x in res:
+        for row in res:
             temp_dict = {}
-            for value, column_name in zip(x, column_names):
+            for column_name, value  in zip(column_names, row):
                 temp_dict.update({column_name: value})
             td.append(temp_dict)
 
