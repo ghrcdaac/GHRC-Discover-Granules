@@ -3,6 +3,17 @@ from abc import ABC, abstractmethod
 
 TABLE_NAME = 'granule'
 
+def get_db_params(secrets):
+    db_params = {'sslmode': 'disable'} # Will revisit when/if SSL becomes required
+    for key in secrets.keys():
+        if key in ('username', 'user', 'password', 'database', 'host', 'port'):
+            new_key = key
+            if key == 'username':
+                new_key = 'user'
+            db_params.update({new_key: secrets.get(key)})
+
+    return db_params
+
 
 class DBManagerBase(ABC):
     def __init__(self, duplicate_handling='skip', batch_limit=1000, transaction_size=100000, file_count=1, **kwargs):
