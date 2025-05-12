@@ -12,7 +12,7 @@ charset-normalizer
 click
 cryptography==44.0.1
 cumulus-message-adapter
-cumulus-message-adapter-python==v2.3.0
+cumulus-message-adapter-python
 dateparser
 decorator
 docker

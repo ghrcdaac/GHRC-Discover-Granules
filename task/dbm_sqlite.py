@@ -10,7 +10,6 @@ VAR_LIMIT_SQLITE = 999
 
 
 def get_db_manager_sqlite(database, **kwargs):
-    global DB_SQLITE
     db_init_kwargs = {
         'database': database,
         'timeout': 900,
