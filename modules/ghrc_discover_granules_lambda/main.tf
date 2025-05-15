@@ -124,7 +124,7 @@ resource "aws_rds_cluster" "gdg_db_cluster_v2" {
   cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster-v2"
   engine = "aurora-postgresql"
   engine_mode = "provisioned"
-  engine_version = "13.12"
+  engine_version = "13"
   enable_http_endpoint = true
 
   serverlessv2_scaling_configuration {
