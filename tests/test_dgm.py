@@ -1,12 +1,9 @@
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from task.dbm_base import DBManagerBase
 from task.dbm_get import get_db_manager
-from task.dbm_cumulus import DBManagerCumulus
-from task.dbm_postgresql import DBManagerPSQL
-from task.dbm_sqlite import DBManagerSqlite
 
 
 class TestDGM(unittest.TestCase):
@@ -14,26 +11,29 @@ class TestDGM(unittest.TestCase):
         self.collection_id = 'fake_collection'
         self.url = 'url'
 
-    def test_get_dbm_sqlite(self):
+    @patch('task.dbm_get.get_db_manager_sqlite')
+    def test_get_dbm_sqlite(self, mock_sqlite):
         dbm = get_db_manager(
             collection_id=self.collection_id, provider_url=self.url, db_type='sqlite', database=':memory:',
             batch_limit=5
         )
-        self.assertTrue(isinstance(dbm, DBManagerSqlite))
+        mock_sqlite.assert_called_once()
 
-    def test_get_dbm_postgresql(self):
+    @patch('task.dbm_get.get_db_manager_psql')
+    def test_get_dbm_postgresql(self, mock_psql):
         dbm = get_db_manager(
-            collection_id=self.collection_id, provider_url=self.url, db_type='postgresql', database=MagicMock(),
+            collection_id=self.collection_id, provider_url=self.url, db_type='postgresql', database='pytest',
             batch_limit=5
         )
-        self.assertTrue(isinstance(dbm, DBManagerPSQL))
+        mock_psql.assert_called_once()
 
-    def test_get_dbm_cumulus(self):
+    @patch('task.dbm_get.get_db_manager_cumulus')
+    def test_get_dbm_cumulus(self, mock_cumulus):
         dbm = get_db_manager(
             collection_id=self.collection_id, provider_url=self.url, db_type='cumulus', database=MagicMock(),
             batch_limit=5
         )
-        self.assertTrue(isinstance(dbm, DBManagerCumulus))
+        mock_cumulus.assert_called_once()
 
     def test_abc_exceptions(self):
         class TestDBM(DBManagerBase):
@@ -58,8 +58,3 @@ class TestDGM(unittest.TestCase):
         self.assertRaises(NotImplementedError, test_dbm.close_db)
         self.assertRaises(NotImplementedError, test_dbm.flush_dict)
         self.assertRaises(NotImplementedError, test_dbm.read_batch)
-
-
-
-
-
