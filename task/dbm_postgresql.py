@@ -15,7 +15,7 @@ VAR_LIMIT_PSQL = 32766
 
 
 def get_db_manager_psql(database, **kwargs):
-    global DB_PSQL
+    global DB_PSQL # noqa: F824
     db_init_kwargs = {}
     if database:
         db_init_kwargs = get_db_params(kwargs)
