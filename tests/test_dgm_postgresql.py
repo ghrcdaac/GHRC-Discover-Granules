@@ -63,7 +63,8 @@ def postgresql_service(docker_ip, docker_services):
         'host': docker_ip,
         'port': port,
         'collection_id': 'test_id___1',
-        'provider_url': 'protocol://host/path/'
+        'provider_url': 'protocol://host/path/',
+        'batch_limit': 100
     }
     db = get_db_manager_psql(**db_args)
     return db
@@ -84,6 +85,7 @@ def test_psql_skip_no_update(postgresql_service, test_dict_factory):
     test_dict = test_dict_factory(
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id
     )
+    postgresql_service.file_count = 1
 
     for i in range(2):
         for record in test_dict.get('granule_list_dict'):
@@ -100,6 +102,7 @@ def test_psql_skip_update_etag(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         etag='test_etag'
     )
+    postgresql_service.file_count = 1
 
     for i in range(2):
         for record in test_dict.get('granule_list_dict'):
@@ -116,6 +119,7 @@ def test_psql_skip_update_modified(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         last_mod='test_mod'
     )
+    postgresql_service.file_count = 1
 
     for i in range(2):
         for record in test_dict.get('granule_list_dict'):
@@ -132,6 +136,7 @@ def test_psql_skip_update_size(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         size=8
     )
+    postgresql_service.file_count = 1
 
     for i in range(2):
         for record in test_dict.get('granule_list_dict'):
@@ -147,6 +152,8 @@ def test_psql_skip_update_check_value(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         etag='test_etag__00', last_mod='2022-02-22 22:22:22+00:00', size=8
     )
+    postgresql_service.file_count = 1
+
     orig_record = test_dict['granule_list_dict'][0]
     postgresql_service.add_record(**orig_record)
     postgresql_service.write_batch()
@@ -176,6 +183,7 @@ def test_psql_skip_new_granule(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         granule_count=2
     )
+    postgresql_service.file_count = 1
 
     for record in test_dict.get('granule_list_dict'):
         postgresql_service.add_record(**record)
@@ -192,6 +200,7 @@ def test_db_replace(postgresql_service, test_dict_factory):
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
         etag='a', last_mod=str(0)
     )
+    postgresql_service.file_count = 1
 
     for i in range(2):
         for record in test_dict.get('granule_list_dict'):
@@ -205,8 +214,9 @@ def test_db_replace(postgresql_service, test_dict_factory):
 def test_ignore_discovered(postgresql_service, test_dict_factory):
     test_dict = test_dict_factory(
         provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
-        granule_count=2, file_count=2
+        granule_count=4
     )
+    postgresql_service.file_count = 1
 
     for record in test_dict.get('granule_list_dict'):
         postgresql_service.add_record(**record)
@@ -223,3 +233,52 @@ def test_add_for_update(postgresql_service):
     for_update_query = postgresql_service.add_for_update(base_query)
     print(for_update_query)
     assert 'FOR UPDATE' in str(for_update_query)
+
+
+def test_psql_too_many_files(postgresql_service, test_dict_factory):
+    test_dict = test_dict_factory(
+        provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
+        granule_count=postgresql_service.batch_limit + 10
+    )
+    postgresql_service.file_count = 1
+
+    for record in test_dict.get('granule_list_dict'):
+        postgresql_service.add_record(**record)
+
+    postgresql_service.write_batch()
+    full_batch = postgresql_service.read_batch()
+    assert len(full_batch) == postgresql_service.batch_limit
+    rem_batch = postgresql_service.read_batch()
+    assert len(rem_batch) == 10
+
+
+def test_psql_skip_complete_multifile_granule(postgresql_service, test_dict_factory):
+    test_dict = test_dict_factory(
+        provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
+        file_count=3
+    )
+    postgresql_service.file_count = 3
+
+    for record in test_dict.get('granule_list_dict'):
+        postgresql_service.add_record(**record)
+
+    postgresql_service.write_batch()
+    batch = postgresql_service.read_batch()
+    assert len(batch) == 3
+
+
+def test_psql_skip_incomplete_multifile_granule(postgresql_service, test_dict_factory):
+    postgresql_service.file_count = 3
+    test_dict = test_dict_factory(
+        provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id,
+        file_count=3
+    )
+    test_dict.get('granule_list_dict').pop(-1)
+    postgresql_service.file_count = 3
+
+    for record in test_dict.get('granule_list_dict'):
+        postgresql_service.add_record(**record)
+
+    postgresql_service.write_batch()
+    batch = postgresql_service.read_batch()
+    assert len(batch) == 0
