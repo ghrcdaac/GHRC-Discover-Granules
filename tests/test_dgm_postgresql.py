@@ -71,7 +71,11 @@ def postgresql_service(docker_ip, docker_services):
 
 
 def test_discover_and_read_batch(postgresql_service, test_dict_factory):
-    postgresql_service.add_record(f'protocol://host/path/gid_1', 'gid_1', 'test_id___1', 'fake_etag', 'fake_last_mod', 100)
+    test_dict = test_dict_factory(
+        provider_url=postgresql_service.provider_full_url, collection_id=postgresql_service.collection_id
+    )
+    record = test_dict.get('granule_list_dict')[0]
+    postgresql_service.add_record(**record)
     postgresql_service.flush_dict()
     assert postgresql_service.discovered_files_count == 1
 
