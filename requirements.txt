@@ -37,6 +37,7 @@ PyNaCl
 pyparsing
 pyrsistent
 pytest
+pytest-docker
 python-dateutil
 pytz
 regex
