@@ -15,10 +15,11 @@ VAR_LIMIT_PSQL = 32766
 
 
 def get_db_manager_psql(database, **kwargs):
-    global DB_PSQL
+    global DB_PSQL # noqa: F824
     db_init_kwargs = {}
     if database:
-        DB_PSQL = database
+        db_init_kwargs = get_db_params(kwargs)
+        db_init_kwargs.update({'database': database})
     else:
         secrets_arn = os.getenv('postgresql_secret_arn', None)
         sm_client = boto3.client('secretsmanager')

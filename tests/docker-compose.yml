@@ -1,0 +1,13 @@
+services:
+
+  psql_db:
+    image: postgres
+    restart: always
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: pytest
+      POSTGRES_PASSWORD: pytest
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+     - "5431:5432"
