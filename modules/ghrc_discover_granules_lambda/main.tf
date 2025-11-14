@@ -119,12 +119,23 @@ resource "aws_db_subnet_group" "gdg-db-subnet-group" {
   }
 }
 
+resource "aws_rds_cluster_parameter_group" "gdg_db_cluster_parameter_group" {
+  name        = "${var.prefix}-${var.db_identifier}-cluster-parameter-group"
+  family      = "aurora-postgresql17"
+  description = "Parameter group for GDG RDS Cluster"
+
+  parameter {
+    name  = "rds.force_ssl"
+    value = 0
+  }
+}
+
 resource "aws_rds_cluster" "gdg_db_cluster_v2" {
   count = (var.db_type == "postgresql") ? 1 : 0
   cluster_identifier = "${var.prefix}-${var.db_identifier}-cluster-v2"
   engine = "aurora-postgresql"
   engine_mode = "provisioned"
-  engine_version = "13"
+  engine_version = "17"
   enable_http_endpoint = true
 
   serverlessv2_scaling_configuration {
@@ -140,6 +151,7 @@ resource "aws_rds_cluster" "gdg_db_cluster_v2" {
   skip_final_snapshot = true
   apply_immediately = true
   vpc_security_group_ids = var.security_group_ids
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.gdg_db_cluster_parameter_group.name
 
 }
 
