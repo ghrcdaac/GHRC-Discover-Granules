@@ -1,4 +1,4 @@
-apsw
+apsw==3.50.1.0
 argcomplete
 attrs
 bcrypt
