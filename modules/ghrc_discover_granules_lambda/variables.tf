@@ -134,3 +134,7 @@ variable "minimum_acu" {
 variable "maximum_acu" {
   default = 16
 }
+
+variable "allow_major_version_upgrade" {
+  default = false
+}

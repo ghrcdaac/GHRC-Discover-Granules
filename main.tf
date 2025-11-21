@@ -33,12 +33,13 @@ module "aws_lambda_function" {
   sqlite_cache_size = var.sqlite_cache_size
 
   # RDS Config
-  perform_switchover        = var.perform_switchover
-  deprovision_v1            = var.deprovision_v1
-  db_identifier             = var.db_identifier
-  db_instance_class         = var.db_instance_class
-  db_allocated_storage      = var.db_allocated_storage
-  db_username               = var.db_username
-  maximum_acu               = var.maximum_acu
-  minimum_acu               = var.minimum_acu
+  perform_switchover          = var.perform_switchover
+  deprovision_v1              = var.deprovision_v1
+  db_identifier               = var.db_identifier
+  db_instance_class           = var.db_instance_class
+  db_allocated_storage        = var.db_allocated_storage
+  db_username                 = var.db_username
+  maximum_acu                 = var.maximum_acu
+  minimum_acu                 = var.minimum_acu
+  allow_major_version_upgrade = var.allow_major_version_upgrade
 }
