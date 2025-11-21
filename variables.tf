@@ -132,3 +132,7 @@ variable "cumulus_user_credentials_secret_arn" {
   type = string
   default = null
 }
+
+variable "allow_major_version_upgrade" {
+  type = bool
+}
