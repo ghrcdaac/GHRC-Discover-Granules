@@ -120,6 +120,7 @@ resource "aws_db_subnet_group" "gdg-db-subnet-group" {
 }
 
 resource "aws_rds_cluster_parameter_group" "gdg_db_cluster_parameter_group" {
+  count = (var.db_type == "postgresql") ? 1 : 0
   name        = "${var.prefix}-${var.db_identifier}-cluster-parameter-group"
   family      = "aurora-postgresql17"
   description = "Parameter group for GDG RDS Cluster"
@@ -157,6 +158,7 @@ resource "aws_rds_cluster" "gdg_db_cluster_v2" {
 }
 
 resource "aws_rds_cluster_instance" "gdg_db_cluster_instance" {
+  count = (var.db_type == "postgresql") ? 1 : 0
   identifier = "${var.prefix}-${var.db_identifier}-instance-1"
   cluster_identifier = aws_rds_cluster.gdg_db_cluster_v2[0].id
   instance_class     = "db.serverless"
