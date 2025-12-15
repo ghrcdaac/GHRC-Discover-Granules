@@ -153,7 +153,7 @@ resource "aws_rds_cluster" "gdg_db_cluster_v2" {
   skip_final_snapshot = true
   apply_immediately = true
   vpc_security_group_ids = var.security_group_ids
-  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.gdg_db_cluster_parameter_group.name
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.gdg_db_cluster_parameter_group[0].name
 
 }
 
