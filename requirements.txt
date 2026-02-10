@@ -6,5 +6,4 @@ dateparser
 paramiko
 peewee
 psycopg2-binary
-pytest-docker
 requests
