@@ -1,7 +1,7 @@
-FROM amazon/aws-lambda-python:3.10
+FROM amazon/aws-lambda-python:3.12
 
-RUN yum -y update
-RUN yum -y install zip
+RUN dnf -y update
+RUN dnf -y install zip gcc
 
 ENV package_dir=/package
 RUN mkdir ${package_dir}
