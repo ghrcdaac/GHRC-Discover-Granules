@@ -9,7 +9,7 @@ resource "aws_lambda_function" "ghrc_discover_granules" {
   function_name = "${var.prefix}-ghrc-discover-granules"
   source_code_hash = filebase64sha256("${path.module}/../../${local.package_name}")
   handler = "task.lambda.handler"
-  runtime = "python3.10"
+  runtime = "python3.12"
   filename = "${path.module}/../../${local.package_name}"
   role = var.cumulus_lambda_role_arn
   timeout = var.timeout
