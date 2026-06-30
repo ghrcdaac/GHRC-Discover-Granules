@@ -93,7 +93,8 @@ class DiscoverGranulesBase(ABC):
             'batch_limit': self.discover_tf.get('batch_limit'),
             'collection_id': self.collection_id,
             'provider_url': self.provider_url,
-            'file_count': self.file_count
+            'file_count': self.file_count,
+            'cumulus_filter': self.use_cumulus_filter
         }
 
         if self.use_cumulus_filter:

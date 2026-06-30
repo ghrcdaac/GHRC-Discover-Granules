@@ -1,4 +1,3 @@
-import time
 import psycopg2
 import pytest
 
@@ -50,12 +49,13 @@ def is_db_ready(docker_ip, port):
 
 
 @pytest.fixture(scope="session")
-def postgresql_service(docker_ip, docker_services):
+def postgresql_service(docker_ip, docker_services, mock_cumulus_dbm):
     # `port_for` takes a container port and returns the corresponding host port
     port = docker_services.port_for("psql_db", 5432)
     docker_services.wait_until_responsive(
         timeout=60.0, pause=0.1, check=lambda: is_db_ready(docker_ip, port)
     )
+
     db_args = {
         'database': 'pytest',
         'user': 'pytest',
@@ -64,7 +64,8 @@ def postgresql_service(docker_ip, docker_services):
         'port': port,
         'collection_id': 'test_id___1',
         'provider_url': 'protocol://host/path/',
-        'batch_limit': 100
+        'batch_limit': 100,
+        'cumulus_dbm': mock_cumulus_dbm,
     }
     db = get_db_manager_psql(**db_args)
     return db
@@ -150,6 +151,7 @@ def test_psql_skip_update_size(postgresql_service, test_dict_factory):
 
     batch = postgresql_service.read_batch()
     assert len(batch) == 1
+
 
 def test_psql_skip_update_check_value(postgresql_service, test_dict_factory):
     test_dict = test_dict_factory(

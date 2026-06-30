@@ -67,7 +67,6 @@ block:
     "depth": 0,
     "force_replace": false,
     "dir_reg_ex": "",
-    "file_reg_ex": "",
     "batch_limit": 1000,
     "batch_delay": 0,
     "file_count": 1,

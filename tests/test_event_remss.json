@@ -1,0 +1,118 @@
+{
+    "input": {},
+    "config": {
+        "provider": {
+            "id": "rss_provider",
+            "protocol": "https",
+            "host": "data.remss.com",
+            "globalConnectionLimit": 900
+        },
+        "provider_path": "/ssmi/f16/bmaps_v07/y2020/m04/",
+        "collection": {
+            "name": "rssmif16d",
+            "version": "7",
+            "process": "rss",
+            "url_path": "rss/rssmif16d__7",
+            "duplicateHandling": "skip",
+            "granuleId": "^(f16_\\d{8}v7).*$",
+            "granuleIdExtraction": "(f16_\\d{8}v7.gz)",
+            "reportToEms": true,
+            "sampleFileName": "f16_20190301v7.gz",
+            "files": [
+                {
+                    "regex": "^(f16_.*)\\dv7.gz$",
+                    "bucket": "internal",
+                    "reportToEms": false,
+                    "sampleFileName": "f16_20190301v7.gz"
+                },
+                {
+                    "regex": "^(f16_.*)\\.(dmrpp|nc)$",
+                    "bucket": "protected",
+                    "reportToEms": true,
+                    "sampleFileName": "f16_ssmis_20190316v7.nc"
+                },
+                {
+                    "regex": "^(f16_.*).nc\\.cmr\\.(xml|json)$",
+                    "bucket": "public",
+                    "reportToEms": true,
+                    "sampleFileName": "f16_ssmis_20190316v7.nc.cmr.xml"
+                }
+            ],
+            "updatedAt": 1725993886763,
+            "meta": {
+                "orca": {
+                    "granuleRecoveryWorkflow": "OrcaRecoveryWorkflow",
+                    "defaultStorageClassOverride": "DEEP_ARCHIVE"
+                },
+                "discover_tf": {
+                    "depth": 0,
+                    "dir_reg_ex": ".*",
+                    "batch_delay": 60,
+                    "batch_limit": 500,
+                    "force_replace": false,
+                    "cumulus_filter": true,
+                    "granule_id_extraction": "(f16_\\d{8}v7.gz)$"
+                },
+                "provider_path": "/ssmi/f16/bmaps_v07/y2020/m04/",
+                "collectionName": "rssmif16d",
+                "collection_type": "ongoing",
+                "hyrax_processing": "true",
+                "collectionVersion": "7",
+                "metadata_extractor": [
+                    {
+                        "regex": "^(f16_.*).nc$",
+                        "module": "netcdf",
+                        "time_units": "units",
+                        "lat_var_key": "latitude",
+                        "lon_var_key": "longitude",
+                        "time_var_key": "time"
+                    }
+                ],
+                "dynamic_change_config": {
+                    "days": -1,
+                    "hours": 0,
+                    "years": 0,
+                    "months": 0,
+                    "minutes": 0,
+                    "seconds": 0
+                }
+            }
+        },
+        "buckets": {
+            "dashboard": {
+                "name": "sharedsbx-dashboard",
+                "type": "public"
+            },
+            "internal": {
+                "name": "sharedsbx-internal",
+                "type": "internal"
+            },
+            "orca_default": {
+                "name": "",
+                "type": "orca"
+            },
+            "private": {
+                "name": "sharedsbx-private",
+                "type": "private"
+            },
+            "protected": {
+                "name": "sharedsbx-protected",
+                "type": "protected"
+            },
+            "public": {
+                "name": "sharedsbx-public",
+                "type": "public"
+            },
+            "sharedprivate": {
+                "name": "ghrcw-private",
+                "type": "sharedprivate"
+            }
+        },
+        "stack": "sharedsbx",
+        "duplicateGranuleHandling": "replace"
+    },
+    "cumulus_config": {
+        "state_machine": "arn:aws:states:us-west-2:<ACCOUNT_NUMBER>:stateMachine:sharedsbx-DiscoverGranules",
+        "execution_name": "rssmif17d-df72958a-6577-4b01-8f4b-66c8b4b6e797"
+    }
+}

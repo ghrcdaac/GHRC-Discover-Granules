@@ -1,109 +1,76 @@
 import json
 import os
-from unittest.mock import MagicMock, patch
-import unittest
+import pytest
+import requests
+import responses
+from bs4 import BeautifulSoup
 
 from task.discover_granules_http import DiscoverGranulesHTTP
-from .helpers import configure_event
+
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class FakeResponse:
-    def __init__(self, text):
-        self.text = text
+@pytest.fixture(scope="function")
+def discover_granules_http():
+    def gen_dg_http(collection):
+        with open(os.path.join(THIS_DIR, f'test_event_{collection}.json'), 'r', encoding='UTF-8') as test_event_file:
+            ev = json.load(test_event_file)
+        return DiscoverGranulesHTTP(ev, None)
+    return gen_dg_http
 
 
-class FakeHeadResponse:
-    def __init__(self, headers):
-        self.headers = headers
-        self.url = 'url'
+def response_kwargs(provider, url):
+    with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r', encoding='UTF-8') as html_file:
+        html_str = html_file.read()
+    with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r', encoding='UTF-8') as header_file:
+        header_json = json.load(header_file)['head_responses']
+
+    response_list = []
+    response_list.append({
+        'method': responses.GET,
+        'url': url,
+        'body': html_str,
+        'status': 200,
+        'headers': header_json[0]
+    })
+
+    header_idx = 1
+    html_content = BeautifulSoup(html_str, features='html.parser')
+    for a_tag in html_content.find_all('a', href=True)[1:]:
+        href = a_tag.get('href')
+        if href not in url:
+            subdir = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]
+            child_url = f'{url.rstrip("/")}/{subdir}'
+            response_list.append({
+                'method': responses.HEAD,
+                'url': child_url,
+                'status': 200,
+                'headers': header_json[header_idx]
+            })
+            header_idx += 1
+    
+    return response_list
 
 
-class TestDiscoverGranules(unittest.TestCase):
-    """
-    Tests discover Granules
-    """
+def test_discover_granules(mocker, discover_granules_http):
+    dg = discover_granules_http('remss')
+    mock_discover = mocker.patch.object(dg, 'discover')
+    mock_session = mocker.patch('requests.Session')
+    dg.discover_granules()
 
-    def setUp(self, temp=None) -> None:
-        provider = {
-            "host": "data.remss.com",
-            "protocol": "https"
-        }
-
-        granule_id_extraction = "^(f16_\\d{8}v7.gz)$"
-        provider_path = "/ssmi/f16/bmaps_v07/y2021/"
-        discover_tf = {
-            "depth": 0,
-            "dir_reg_ex": ".*"
-        }
-        event = configure_event(provider, granule_id_extraction, provider_path, discover_tf)
-        self.dg = DiscoverGranulesHTTP(event, None)
-
-    def configure_mock_session(self, mock_session, provider):
-        mock_session.get.return_value = FakeResponse(self.get_html(provider))
-        fhrs = []
-        for x in self.get_header_responses(provider):
-            fhrs.append(FakeHeadResponse(x))
-        mock_session.head.side_effect = fhrs
-
-    @staticmethod
-    def get_html(provider):
-        with open(os.path.join(THIS_DIR, f'test_page_{provider}.html'), 'r', encoding='UTF-8') as test_html_file:
-            return test_html_file.read()
-
-    @staticmethod
-    def get_header_responses(provider):
-        with open(os.path.join(THIS_DIR, f'head_responses_{provider}.json'), 'r', encoding='UTF-8') as test_file:
-            return json.load(test_file)['head_responses']
-
-    @staticmethod
-    def get_sample_event(event_type='skip'):
-        with open(os.path.join(THIS_DIR, f'input_event_{event_type}.json'), 'r', encoding='UTF-8') as test_event_file:
-            return json.load(test_event_file)
-
-    @patch('requests.Session')
-    def test_discover_granules(self, mock_session):
-        self.dg.discover = MagicMock()
-        self.dg.discover_granules()
-        self.assertTrue(mock_session.called)
-        self.assertTrue(self.dg.discover.called)
-
-    # TODO: Fix unit tests for directory and file regexes
-    # @patch('requests.Session')
-    # def test_get_file_link_remss_without_regex(self, mock_session):
-    #     self.configure_mock_session(mock_session, 'remss')
-    #     self.dg.file_reg_ex = ''
-    #     self.dg.discover(mock_session)
-    #     discover_count = len(self.dg.dbm.list_dict)
-    #     self.assertEqual(3, discover_count)
-    #
-    # @patch('requests.Session')
-    # def test_get_file_link_remss_with_regex(self, mock_session):
-    #     self.configure_mock_session(mock_session, 'remss')
-    #     self.dg.file_reg_ex = "f16_20200402v7.gz"
-    #     self.dg.discover(mock_session)
-    #     discover_count = len(self.dg.dbm.list_dict)
-    #     self.assertEqual(discover_count, 1)
-    #
-    # @patch('requests.Session')
-    # def test_get_file_link_amsu_without_regex(self, mock_session):
-    #     self.configure_mock_session(mock_session, 'msut')
-    #     self.dg.granule_id_extraction = '((tlt|uah).*_6\\.0(\\.nc)?)'
-    #     self.dg.file_reg_ex = '((tlt|uah).*_6\\.0(\\.nc)?)'
-    #     self.dg.discover(mock_session)
-    #     discover_count = len(self.dg.dbm.list_dict)
-    #     self.assertEqual(discover_count, 4)
-    #
-    # @patch('requests.Session')
-    # def test_get_file_link_amsu_with_regex(self, mock_session):
-    #     self.configure_mock_session(mock_session, 'msut')
-    #     self.dg.granule_id_extraction = '((tlt|uah).*_6\\.0(\\.nc)?)'
-    #     self.dg.file_reg_ex = 'tltglhmam_6\\.0$'
-    #     self.dg.discover(mock_session)
-    #     discover_count = len(self.dg.dbm.list_dict)
-    #     self.assertEqual(discover_count, 1)
+    mock_session.assert_called()
+    mock_discover.assert_called()
 
 
-if __name__ == "__main__":
-    unittest.main()
+@responses.activate
+def test_get_file_link_remss(discover_granules_http):
+    dg = discover_granules_http('remss')
+    response_list = response_kwargs('remss', dg.provider_url)
+    for rsp in response_list:
+        responses.add(**rsp)
+    session = requests.Session()
+    dg.discover(session)
+    discover_count = len(dg.dbm.list_dict)
+    
+    assert discover_count == 3
