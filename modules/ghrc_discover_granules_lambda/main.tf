@@ -23,9 +23,6 @@ resource "aws_lambda_function" "ghrc_discover_granules" {
       s3_key_prefix = var.s3_key_prefix
       db_type = var.db_type
       early_return_threshold = var.early_return_threshold
-      sqlite_transaction_size = var.sqlite_transaction_size
-      sqlite_temp_store = var.sqlite_temp_store
-      sqlite_cache_size = var.sqlite_cache_size
       postgresql_secret_arn = length(aws_secretsmanager_secret.gdg_db_credentials) > 0 ? aws_secretsmanager_secret.gdg_db_credentials[0].arn : ""
       cumulus_credentials_arn = var.cumulus_user_credentials_secret_arn
     }, var.env_variables)

@@ -4,7 +4,7 @@ from task.dbm_base import DBManagerBase
 from task.dbm_get import get_db_manager
 
 
-class TestDBM(DBManagerBase):
+class FakeDBM(DBManagerBase):
     def __init__(self):
         super().__init__()
 
@@ -42,7 +42,7 @@ def test_get_dbm_cumulus(mocker, mock_cumulus_dbm):
 
 
 def test_abc_exceptions():
-    test_dbm = TestDBM()
+    test_dbm = FakeDBM()
     with pytest.raises(NotImplementedError):
         test_dbm.close_db()
     with pytest.raises(NotImplementedError):
