@@ -76,24 +76,19 @@ class DiscoverGranulesBase(ABC):
         gdg_logger.info(f'init discovered_files_count: {self.discovered_files_count}')
         gdg_logger.info(f'init queued_files_count: {self.queued_files_count}')
 
-        db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'sqlite'))
-        if db_type == 'sqlite':
-            db_suffix = self.meta.get('collection_type', 'static')
-            db_filename = f'ghrc_discover_granules_{db_suffix}.db'
-            db_file_path = f'{mkdtemp()}/{db_filename}'
-        else:
-            db_file_path = None
+        db_type = db_type if db_type else self.discover_tf.get('db_type', os.getenv('db_type', 'postgresql'))
         self.transaction_size = self.discover_tf.get('transaction_size', 100000)
 
         kwargs = {
             'duplicate_handling': self.duplicates,
             'transaction_size': self.transaction_size,
-            'database': db_file_path,
+            'database': None,
             'db_type': db_type,
             'batch_limit': self.discover_tf.get('batch_limit'),
             'collection_id': self.collection_id,
             'provider_url': self.provider_url,
-            'file_count': self.file_count
+            'file_count': self.file_count,
+            'cumulus_filter': self.use_cumulus_filter
         }
 
         if self.use_cumulus_filter:

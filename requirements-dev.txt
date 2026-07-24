@@ -1,4 +1,6 @@
 coverage
 flake8
 pytest
+pytest-mock
 pytest-docker
+responses

@@ -52,7 +52,7 @@ class DiscoverGranulesHTTP(DiscoverGranulesBase):
         html = BeautifulSoup(response.text, features='html.parser')
         urls = []
         granule_count = 0
-        for a_tag in html.findAll('a', href=True):
+        for a_tag in html.find_all('a', href=True):
             href = a_tag.get('href')
             if href not in self.provider_url:
                 url_segment = a_tag.get('href').rstrip('/').rsplit('/', 1)[-1]

@@ -51,14 +51,15 @@ class DBManagerBase(ABC):
 class DBManagerPeewee(DBManagerBase):
     def __init__(
             self, database, model_class, var_limit, excluded, chunked,  collection_id,
-            provider_url, auto_batching=True, cumulus_filter_dbm=None, **kwargs
+            provider_url, auto_batching=True, cumulus_filter=False, cumulus_dbm=None, **kwargs
     ):
         super().__init__(**kwargs)
         self.model_class = model_class
         self.database = database
         self.auto_batching = auto_batching
         self.list_dict = []
-        self.cumulus_filter = cumulus_filter_dbm
+        self.cumulus_filter = cumulus_filter
+        self.cumulus_dbm = cumulus_dbm
         self.var_limit = var_limit
         self.discovered_files_count = 0
         self.queued_files_count = 0

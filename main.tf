@@ -26,12 +26,7 @@ module "aws_lambda_function" {
 
   # Cumulus
   cumulus_user_credentials_secret_arn = var.cumulus_user_credentials_secret_arn
-
-  # Sqlite
-  sqlite_transaction_size = var.sqlite_transaction_size
-  sqlite_temp_store = var.sqlite_temp_store
-  sqlite_cache_size = var.sqlite_cache_size
-
+  
   # RDS Config
   perform_switchover          = var.perform_switchover
   deprovision_v1              = var.deprovision_v1

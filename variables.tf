@@ -72,22 +72,6 @@ variable "early_return_threshold" {
   default = 30
 }
 
-# Sqlite Configuration
-variable "sqlite_transaction_size" {
-  type = number
-  default = 100000
-}
-
-variable "sqlite_temp_store" {
-  type = number
-  default = 0
-}
-
-variable "sqlite_cache_size" {
-  type = number
-  default = (-1 * 64000)
-}
-
 # RDS Configuration
 variable "deprovision_v1" {
   type = bool
@@ -123,8 +107,8 @@ variable "db_type" {
   type = string
 
   validation {
-    condition = contains(["postgresql", "sqlite", "cumulus"], var.db_type)
-    error_message = "The variable db_type must be one of: postgresql, sqlite, or cumulus."
+    condition = contains(["postgresql", "cumulus"], var.db_type)
+    error_message = "The variable db_type must be one of: postgresqlor cumulus."
   }
 }
 
