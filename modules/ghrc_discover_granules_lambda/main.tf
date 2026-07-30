@@ -37,24 +37,26 @@ resource "aws_lambda_function" "ghrc_discover_granules" {
     aws_secretsmanager_secret.gdg_db_credentials]
 }
 
-resource "aws_iam_policy" "ssm_policy" {
+resource "aws_iam_policy" "secrets_policy" {
   policy = jsonencode(
   {
     Version = "2012-10-17"
     "Statement" = [
       {
-        Effect = "Allow",
-        Action = "ssm:GetParameter",
+        Effect   = "Allow"
+        Action   = [
+          "secretsmanager:GetSecretValue"
+        ]
         Resource = [
-          "arn:aws:ssm:*"
+          "arn:aws:secretsmanager:*"
         ]
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "glm_ssm_policy_attach" {
-  policy_arn = aws_iam_policy.ssm_policy.arn
+resource "aws_iam_role_policy_attachment" "glm_secrets_policy_attach" {
+  policy_arn = aws_iam_policy.secrets_policy.arn
   role = var.cumulus_lambda_role_name
 }
 

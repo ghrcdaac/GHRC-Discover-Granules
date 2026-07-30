@@ -62,7 +62,7 @@ def main(event, context):
         # If keys were provided then we need to relocate the granules to the GHRC private bucket so the sync granules
         # step will be able to copy them. As of 06-17-2022 Cumulus sync granules does not support access keys.
         # Additionally the provider needs to be updated to use the new location.
-        if dg_client.meta.get('aws_key_id_name', None) and dg_client.meta.get('aws_secret_key_name', None):
+        if dg_client.meta.get('aws_secret_name', None):
             gdg_logger.info('Granules are in an external provider. Updating output to internal bucket.')
             dg_client.move_granule_wrapper(granule_list_dicts)
             external_host = dg_client.provider.get('external_host', None)

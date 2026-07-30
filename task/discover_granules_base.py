@@ -96,7 +96,7 @@ class DiscoverGranulesBase(ABC):
             cumulus_kwargs.update({'db_type': 'cumulus', 'database': None})
             cumulus_dbm = get_db_manager(**cumulus_kwargs)
             kwargs.update({
-                'cumulus_filter_dbm': cumulus_dbm
+                'cumulus_dbm': cumulus_dbm
             })
 
         self.dbm = get_db_manager(**kwargs)
