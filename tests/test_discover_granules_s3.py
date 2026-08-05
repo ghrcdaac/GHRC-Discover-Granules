@@ -2,9 +2,10 @@ import datetime
 import os
 import time
 import pytest
+import json
 from dateutil.tz import tzutc
 
-from task.discover_granules_s3 import DiscoverGranulesS3, get_ssm_value, get_s3_client, get_s3_client_with_keys, \
+from task.discover_granules_s3 import DiscoverGranulesS3, get_secret_value, get_s3_client, get_s3_client_from_secret, \
     ONE_MEBIBIT
 
 
@@ -23,12 +24,22 @@ def discover_granules_s3(get_event):
     return gen_dg_s3
 
 
-def test_get_ssm(mocker):
-    mock_ssm = mocker.patch('boto3.client')
-    mock_ssm.get_parameter.return_value = {'Parameter': {'Value': 'test_value'}}
-    ret = get_ssm_value('test_name', mock_ssm)
-    
-    assert ret == 'test_value'
+def test_get_secret_value(mocker):
+    mock_secrets = mocker.patch('boto3.client')
+    mock_secrets.get_secret_value.return_value = {
+        'SecretString': '{\"aws_access_key_id\": \"aws_access_key_id\", \"aws_secret_access_key\": \"aws_secret_access_key\"}'
+    }
+    ret = get_secret_value('fake_secret_manager', mock_secrets)
+    assert 'aws_access_key_id' in ret and 'aws_secret_access_key' in ret
+
+
+def test_get_secret_value_failure(mocker):
+    mock_secrets = mocker.patch('boto3.client')
+    mock_secrets.get_secret_value.return_value = {
+        'SecretString': 'unexpected secret string'
+    }
+    with pytest.raises((json.JSONDecodeError, TypeError)):
+        ret = get_secret_value('fake_secret_manager', mock_secrets)
 
 
 def test_get_s3_client(mocker):
@@ -36,13 +47,18 @@ def test_get_s3_client(mocker):
     assert test_client is not None
 
 
-def test_get_s3_client_with_keys(mocker):
-    mock_ssm = mocker.patch('boto3.client')
-    test_client = get_s3_client_with_keys('test_key_id', 'test_secret_key')
+def test_get_s3_client_from_secret(mocker):
+    mock_client = mocker.patch('boto3.client')
+    mock_get_secrets = mocker.patch('task.discover_granules_s3.get_secret_value')
+    mock_get_secrets.return_value = {
+        "aws_access_key_id": "aws_access_key_id",
+        "aws_secret_access_key": "aws_secret_access_key"
+    }
+    test_client = get_s3_client_from_secret('fake_secret_manager')
     assert test_client is not None
 
 
-def test__discover_granules_s3(discover_granules_s3):
+def test_discover_granules_s3(discover_granules_s3):
     dg = discover_granules_s3('skip_s3')
     test_resp_iter = [
         {
@@ -154,6 +170,11 @@ def test_move_granule_multipart(mocker, discover_granules_s3):
 
 def test_move_granule_wrapper(mocker, discover_granules_s3):
     mock_client = mocker.patch('boto3.client')
+    mock_get_secrets = mocker.patch('task.discover_granules_s3.get_secret_value')
+    mock_get_secrets.return_value = {
+        "aws_access_key_id": "aws_access_key_id",
+        "aws_secret_access_key": "aws_secret_access_key"
+    }
     dg = discover_granules_s3('skip_s3')
     mocker.patch.object(dg, 'move_granule')
     test_list_dict = [

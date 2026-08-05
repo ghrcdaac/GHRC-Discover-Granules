@@ -121,7 +121,7 @@ class DBManagerPeewee(DBManagerBase):
     def close_db(self):
         self.database.close()
         if self.cumulus_filter:
-            self.cumulus_filter.close_db()
+            self.cumulus_dbm.close_db()
 
     def db_replace(self):
         raise NotImplementedError

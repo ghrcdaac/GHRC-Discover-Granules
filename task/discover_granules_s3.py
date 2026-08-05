@@ -1,6 +1,7 @@
 import concurrent.futures
 import os
 import re
+import json
 
 import boto3
 
@@ -10,14 +11,22 @@ from task.logger import gdg_logger
 ONE_MEBIBIT = 1048576
 
 
-def get_ssm_value(id_name, ssm_client):
+def get_secret_value(secret_name, secrets_client):
     """
-    Retrieves and decrypts ssm value from aws
-    :param id_name: The identifier of the managed secret
-    :param ssm_client:Initialized boto3 ssm client
-    :return: Decrypted ssm value
+    Retrieves and parses a JSON secret from AWS Secrets Manager
+    :param secret_name: Name or ARN of the secrets manager
+    :param secrets_client: Initialized boto3 secretsmanager client
+    :return: Dict containing access keys
     """
-    return ssm_client.get_parameter(Name=id_name, WithDecryption=True).get('Parameter').get('Value')
+    response = secrets_client.get_secret_value(SecretId=secret_name)
+    secret_string = response.get('SecretString')
+    
+    try:
+        return json.loads(secret_string)
+    except (json.JSONDecodeError, TypeError) as e:
+        gdg_logger.error(f'Failed to parse secret string: {secret_string}. '\
+                         'Expected a JSON string with keys "aws_access_key_id" and "aws_secret_access_key".')
+        raise e
 
 
 def get_s3_client(aws_key_id=None, aws_secret_key=None):
@@ -34,15 +43,18 @@ def get_s3_client(aws_key_id=None, aws_secret_key=None):
     )
 
 
-def get_s3_client_with_keys(key_id_name, secret_key_name):
+def get_s3_client_from_secret(secret_name):
     """
-    Gets a boto3 s3 client using an aws key id and secret key if provided
-    :param key_id_name: ID of the aws key
-    :param secret_key_name: Name of the aws key
+    Gets an S3 client using keys stored in a Secrets Manager
+    :param secret_name: Name or ARN of the secret containing credentials
     """
-    ssm_client = boto3.client('ssm')
-    return get_s3_client(aws_key_id=get_ssm_value(key_id_name, ssm_client),
-                         aws_secret_key=get_ssm_value(secret_key_name, ssm_client))
+    secrets_client = boto3.client('secretsmanager')
+    secret_data = get_secret_value(secret_name, secrets_client)
+    
+    return get_s3_client(
+        aws_key_id=secret_data.get('aws_access_key_id'),
+        aws_secret_key=secret_data.get('aws_secret_access_key')
+    )
 
 
 def get_s3_resp_iterator(host, prefix, s3_client, pagination_config=None, start_after=''):
@@ -72,8 +84,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
     """
     def __init__(self, event, context):
         super().__init__(event, context=context)
-        self.key_id_name = self.meta.get('aws_key_id_name')
-        self.secret_key_name = self.meta.get('aws_secret_key_name')
+        self.secret_key_name = self.meta.get('aws_secret_name')
         self.prefix = str(self.collection['meta']['provider_path']).lstrip('/')
         self.bookmark = self.discover_tf.get('bookmark', '')
         self.early_return_threshold = int(os.getenv('early_return_threshold', 0)) * 1000
@@ -82,8 +93,8 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
         ret = {}
         try:
             gdg_logger.info(f'Discovering in {self.provider_url}')
-            s3_client = get_s3_client() if None in [self.key_id_name, self.secret_key_name] \
-                else get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+            s3_client = get_s3_client() if not self.secret_key_name \
+                else get_s3_client_from_secret(self.secret_key_name)
             start_after = self.discover_tf.get('bookmark', '')
             self.bookmark = self.discover(get_s3_resp_iterator(
                 self.host, self.prefix, s3_client, start_after=start_after)
@@ -239,7 +250,7 @@ class DiscoverGranulesS3(DiscoverGranulesBase):
 
     def move_granule_wrapper(self, granule_list_dicts):
         gdg_logger.info(f'Moving granules to internal bucket')
-        external_s3_client = get_s3_client_with_keys(self.key_id_name, self.secret_key_name)
+        external_s3_client = get_s3_client_from_secret(self.secret_key_name)
         internal_s3_client = get_s3_client()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []

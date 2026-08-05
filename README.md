@@ -167,6 +167,10 @@ current run. Discover granules handles the following possible values:
    this run
  - replace: Existing granule records in the database will be ignored and discovered as if they were new
 
+# S3 Authentication via Secrets Manager
+GDG can perform granule discovery on S3 providers using credentials stored in an AWS Secrets Manager. This is supported by
+defining `collection.meta.aws_secret_name` as the name or ARN of the Secrets Manager. Credentials should be stored in the Secrets Manager using the `aws_access_key_id` and `aws_secret_access_key` keys.
+
 # Lambda Output
 The following is an example of the modified `discover_tf` block that the GDG lambda will produce:
 ```json
