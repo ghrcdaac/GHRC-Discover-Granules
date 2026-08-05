@@ -2,6 +2,7 @@ import datetime
 import os
 import time
 import pytest
+import json
 from dateutil.tz import tzutc
 
 from task.discover_granules_s3 import DiscoverGranulesS3, get_secret_value, get_s3_client, get_s3_client_from_secret, \
@@ -32,13 +33,27 @@ def test_get_secret_value(mocker):
     assert 'aws_access_key_id' in ret and 'aws_secret_access_key' in ret
 
 
+def test_get_secret_value_failure(mocker):
+    mock_secrets = mocker.patch('boto3.client')
+    mock_secrets.get_secret_value.return_value = {
+        'SecretString': 'unexpected secret string'
+    }
+    with pytest.raises((json.JSONDecodeError, TypeError)):
+        ret = get_secret_value('fake_secret_manager', mock_secrets)
+
+
 def test_get_s3_client(mocker):
     test_client = get_s3_client()
     assert test_client is not None
 
 
 def test_get_s3_client_from_secret(mocker):
-    mock_secrets = mocker.patch('boto3.client')
+    mock_client = mocker.patch('boto3.client')
+    mock_get_secrets = mocker.patch('task.discover_granules_s3.get_secret_value')
+    mock_get_secrets.return_value = {
+        "aws_access_key_id": "aws_access_key_id",
+        "aws_secret_access_key": "aws_secret_access_key"
+    }
     test_client = get_s3_client_from_secret('fake_secret_manager')
     assert test_client is not None
 
@@ -155,6 +170,11 @@ def test_move_granule_multipart(mocker, discover_granules_s3):
 
 def test_move_granule_wrapper(mocker, discover_granules_s3):
     mock_client = mocker.patch('boto3.client')
+    mock_get_secrets = mocker.patch('task.discover_granules_s3.get_secret_value')
+    mock_get_secrets.return_value = {
+        "aws_access_key_id": "aws_access_key_id",
+        "aws_secret_access_key": "aws_secret_access_key"
+    }
     dg = discover_granules_s3('skip_s3')
     mocker.patch.object(dg, 'move_granule')
     test_list_dict = [

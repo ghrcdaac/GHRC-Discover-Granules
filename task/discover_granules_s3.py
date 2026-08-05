@@ -23,8 +23,10 @@ def get_secret_value(secret_name, secrets_client):
     
     try:
         return json.loads(secret_string)
-    except (json.JSONDecodeError, TypeError):
-        return secret_string
+    except (json.JSONDecodeError, TypeError) as e:
+        gdg_logger.error(f'Failed to parse secret string: {secret_string}. '\
+                         'Expected a JSON string with keys "aws_access_key_id" and "aws_secret_access_key".')
+        raise e
 
 
 def get_s3_client(aws_key_id=None, aws_secret_key=None):
