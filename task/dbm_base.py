@@ -90,7 +90,7 @@ class DBManagerPeewee(DBManagerBase):
         records_inserted = 0
         if self.cumulus_filter and self.duplicate_handling == 'skip' and self.list_dict:
             print('Filtering discovered granules against cumulus granule IDs...')
-            cumulus_granule_id_set = self.cumulus_filter.filter_against_cumulus(self.list_dict)
+            cumulus_granule_id_set = self.cumulus_dbm.filter_against_cumulus(self.list_dict)
 
             index = 0
             while index < len(self.list_dict):
